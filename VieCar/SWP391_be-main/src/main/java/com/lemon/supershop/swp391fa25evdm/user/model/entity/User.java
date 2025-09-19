@@ -18,28 +18,28 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "Id", columnDefinition = "BIGINT")
-    private int id;
+    @Column(name = "id", columnDefinition = "BIGINT")
+    private Long id;
 
-    @Column(name = "Username", columnDefinition = "VARCHAR(50)")
+    @Column(name = "username", columnDefinition = "VARCHAR(50)")
     private String username;
 
-    @Column(name = "Password", columnDefinition = "VARCHAR(50)")
+    @Column(name = "password", columnDefinition = "VARCHAR(50)")
     private String password;
 
-    @Column(name = "Email", columnDefinition = "VARCHAR(50)")
+    @Column(name = "email", columnDefinition = "VARCHAR(50)")
     private String email;
 
-    @Column(name = "Phone", columnDefinition = "VARCHAR(11)")
+    @Column(name = "phone", columnDefinition = "VARCHAR(11)")
     private String phone;
 
-    @Column(name = "Address", columnDefinition = "NVARCHAR(255)")
+    @Column(name = "address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
-    @Column(name = "IsBlack", columnDefinition = "VARCHAR(20)")
-    private boolean isBlack;
+    @Column(name = "is_black", columnDefinition = "VARCHAR(20)")
+    private String isBlack;
 
-    @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
+    @Column(insertable = false, updatable = false, name = "create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
     private Date createAt;
 
@@ -49,11 +49,11 @@ public class User {
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "RoleId")
+    @JoinColumn(name = "role_id")
     private Role role;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "DealerId")
+    @JoinColumn(name = "dealer_id")
     private Dealer dealer;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
@@ -86,11 +86,11 @@ public class User {
         this.role = role;
     }
 
-    public int getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -146,12 +146,12 @@ public class User {
         this.orders = orders;
     }
 
-    public boolean isBlack() {
+    public String getIsBlack() {
         return isBlack;
     }
 
-    public void setBlack(boolean black) {
-        isBlack = black;
+    public void setIsBlack(String isBlack) {
+        this.isBlack = isBlack;
     }
 
     public List<Payment> getPayments() {

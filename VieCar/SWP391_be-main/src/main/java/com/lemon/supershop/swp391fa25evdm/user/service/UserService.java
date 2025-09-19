@@ -1,6 +1,4 @@
 package com.lemon.supershop.swp391fa25evdm.user.service;
-
-import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.RegisterReq;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.role.model.dto.RoleDto;
@@ -38,20 +36,20 @@ public class UserService {
             Pattern.compile("^(?:(?:03|05|07|08|09)\\d{8}|01(?:2|6|8|9)\\d{8})$");
 
     public List<UserRes> getAllUsers() {
-        return userRepo.findByIsBlackFalse().stream().map(user -> {
+        return userRepo.findByIsBlack("NO").stream().map(user -> {
             UserRes dto = new UserRes(user.getId(), user.getUsername(), user.getEmail(), user.getPhone(), user.getAddress(), new RoleDto(user.getRole().getName(), user.getRole().getDescription()));
             return dto;
         }).collect(Collectors.toList());
     }
 
     public List<UserRes> getBlackList() {
-        return userRepo.findByIsBlackTrue().stream().map(user -> {
+        return userRepo.findByIsBlack("YES").stream().map(user -> {
             UserRes dto = new UserRes(user.getId(), user.getUsername(), user.getEmail(), user.getPhone(), user.getAddress(), new RoleDto(user.getRole().getName(), user.getRole().getDescription()));
             return dto;
         }).collect(Collectors.toList());
     }
 
-    public UserRes findByUserId(int id) {
+    public UserRes findByUserId(Long id) {
         Optional<User> user = userRepo.findById(id);
         if (user.isPresent()) {
             return new UserRes(user.get().getId(), user.get().getUsername(), user.get().getEmail(), user.get().getPhone(), user.get().getAddress(), new RoleDto(user.get().getRole() != null ? user.get().getRole().getName() : null, user.get().getRole() != null ? user.get().getRole().getDescription() : null));
@@ -72,6 +70,7 @@ public class UserService {
         Role role = roleRepo.findByNameContainingIgnoreCase(dto.getRole());
 
         user.setRole(role);
+        user.setIsBlack("FALSE"); // Set default value
 
         if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
             user.setPhone(dto.getPhone());
@@ -87,11 +86,10 @@ public class UserService {
         if (dto.getUsername() != null){
             user.setUsername(dto.getUsername());
         }
-        role.addUser(user);
         userRepo.save(user);
     }
 
-    public void updateProfile(int id, UserReq dto){
+    public void updateProfile(Long id, UserReq dto){
         Optional<User> user = userRepo.findById(id);
         if(user.isPresent()){
 
@@ -112,7 +110,7 @@ public class UserService {
         }
     }
 
-    public void removeUser(int id) {
+    public void removeUser(Long id) {
         Optional<User> user = userRepo.findById(id);
         Role role = roleRepo.findByNameContainingIgnoreCase(user.get().getRole().getName());
         if(user.isPresent() && role != null){

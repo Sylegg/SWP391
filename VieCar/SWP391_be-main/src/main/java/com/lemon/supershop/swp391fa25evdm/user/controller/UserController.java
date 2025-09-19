@@ -33,7 +33,7 @@ public class UserController {
     }
 
     @GetMapping("/Profile/{id}")
-    public ResponseEntity<UserRes> getUserProfile(@PathVariable("id") int id) {
+    public ResponseEntity<UserRes> getUserProfile(@PathVariable("id") Long id) {
         UserRes user = userService.findByUserId(id);
         return ResponseEntity.ok(user);
     }
@@ -51,13 +51,13 @@ public class UserController {
     }
 
     @PutMapping("profile/{id}")
-    public ResponseEntity<String> updateProfile(@PathVariable("id") int id, @RequestBody UserReq dto) throws Exception {
+    public ResponseEntity<String> updateProfile(@PathVariable("id") Long id, @RequestBody UserReq dto) throws Exception {
         userService.updateProfile(id, dto);
         return ResponseEntity.ok("User Updated successfully");
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteUser(@PathVariable("id") int id) {
+    public ResponseEntity<String> deleteUser(@PathVariable("id") Long id) {
         userService.removeUser(id);
         return ResponseEntity.ok("User Removed successfully");
     }
