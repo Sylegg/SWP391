@@ -1,161 +1,137 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { User, UserRole, AuthState, LoginCredentials, RegisterData, ROLE_PERMISSIONS } from '@/types/auth';
-import { AuthAPI } from '@/lib/api';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, LoginRequest, LoginResponse, RegisterRequest, RoleName } from '@/types/auth';
+import api from '@/lib/api';
 
-interface AuthContextType extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  login: (credentials: LoginRequest) => Promise<void>;
+  register: (userData: RegisterRequest) => Promise<void>;
   logout: () => void;
-  hasPermission: (resource: string, action: string) => boolean;
-  switchRole: (role: UserRole) => void; // For demo purposes
-}
-
-type AuthAction =
-  | { type: 'LOGIN_START' }
-  | { type: 'LOGIN_SUCCESS'; payload: User }
-  | { type: 'LOGIN_FAILURE'; payload: string }
-  | { type: 'LOGOUT' }
-  | { type: 'SET_LOADING'; payload: boolean };
-
-const initialState: AuthState = {
-  user: null,
-  isAuthenticated: false,
-  isLoading: true,
-  error: null,
-};
-
-function authReducer(state: AuthState, action: AuthAction): AuthState {
-  switch (action.type) {
-    case 'LOGIN_START':
-      return { ...state, isLoading: true, error: null };
-    case 'LOGIN_SUCCESS':
-      return {
-        ...state,
-        user: action.payload,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      };
-    case 'LOGIN_FAILURE':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: action.payload,
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
-      };
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    default:
-      return state;
-  }
+  hasRole: (role: RoleName) => boolean;
+  hasPermission: (permission: string) => boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-
-  useEffect(() => {
-    // Check if user is already logged in (from localStorage)
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-      } catch (error) {
-        localStorage.removeItem('user');
-      }
-    }
-    dispatch({ type: 'SET_LOADING', payload: false });
-  }, []);
-
-  const login = async (credentials: LoginCredentials) => {
-    dispatch({ type: 'LOGIN_START' });
-    
-    try {
-      const { user, token, refreshToken } = await AuthAPI.login(credentials);
-      
-      // Store user data and tokens
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('token', token);
-      localStorage.setItem('refreshToken', refreshToken);
-      
-      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Đăng nhập thất bại';
-      dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
-      throw error;
-    }
-  };
-
-  const register = async (data: RegisterData) => {
-    dispatch({ type: 'LOGIN_START' });
-    
-    try {
-      // Call the backend register API
-      await AuthAPI.register(data);
-      
-      // After successful registration, automatically log the user in
-      await login({ email: data.email, password: data.password });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Đăng ký thất bại';
-      dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
-      throw error;
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('user');
-    AuthAPI.clearTokens(); // Clear API tokens
-    dispatch({ type: 'LOGOUT' });
-  };
-
-  const hasPermission = (resource: string, action: string): boolean => {
-    if (!state.user) return false;
-    
-    const rolePermissions = ROLE_PERMISSIONS[state.user.role];
-    if (!rolePermissions) return false;
-    
-    const permission = rolePermissions.find(p => p.resource === resource);
-    return permission ? permission.actions.includes(action as any) : false;
-  };
-
-  // For demo purposes - switch role without re-authentication
-  const switchRole = (role: UserRole) => {
-    if (!state.user) return;
-    
-    const updatedUser = { ...state.user, role };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    dispatch({ type: 'LOGIN_SUCCESS', payload: updatedUser });
-  };
-
-  const value: AuthContextType = {
-    ...state,
-    login,
-    register,
-    logout,
-    hasPermission,
-    switchRole,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+interface AuthProviderProps {
+  children: ReactNode;
 }
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load user from localStorage on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
+    }
+    setIsLoading(false);
+  }, []);
+
+  const login = async (credentials: LoginRequest) => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);
+
+      const userData: User = {
+        username: data.username,
+        role: {
+          name: data.role as RoleName,
+        },
+      };
+
+      setToken(data.token);
+      setUser(userData);
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const register = async (userData: RegisterRequest) => {
+    try {
+      setIsLoading(true);
+      await api.post('/api/auth/register', userData);
+
+      await login({
+        identifier: userData.email,
+        password: userData.password,
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      // Map duplicate email (409) to readable message
+      const msg = (error as any)?.response?.data;
+      const status = (error as any)?.response?.status;
+      if (status === 409 || msg?.toString()?.toLowerCase()?.includes('email')) {
+        throw new Error('Email đã tồn tại');
+      }
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+  };
+
+  const hasRole = (role: RoleName): boolean => {
+    return user?.role?.name === role;
+  };
+
+  const hasPermission = (permission: string): boolean => {
+    if (!user?.role?.name) return false;
+    
+    const rolePermissions = {
+      Customer: ['view_vehicles', 'purchase', 'view_orders'],
+      Admin: ['manage_users', 'manage_vehicles', 'manage_orders', 'view_analytics', 'manage_roles'],
+      EVM_Staff: ['manage_vehicles', 'view_orders', 'customer_support'],
+      Dealer_Manager: ['manage_dealer', 'view_dealer_analytics', 'manage_dealer_staff'],
+      Dealer_Staff: ['view_vehicles', 'assist_customers', 'process_orders']
+    };
+
+    const userPermissions = rolePermissions[user.role.name as RoleName] || [];
+    return userPermissions.includes(permission);
+  };
+
+  const value: AuthContextType = {
+    user,
+    token,
+    login,
+    register,
+    logout,
+    hasRole,
+    hasPermission,
+    isLoading,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

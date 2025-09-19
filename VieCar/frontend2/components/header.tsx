@@ -2,18 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/contexts/AuthContext"
+import { UserRoleDisplay } from "@/components/role-display"
+import { RoleBasedComponent } from "@/components/auth-guards"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { User, LogOut, Settings, Shield } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useAuth } from "@/contexts/AuthContext"
-import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { User, LogOut, Settings, BarChart3 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [activeHash, setActiveHash] = useState<string>("#home")
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, logout } = useAuth()
+  const router = useRouter()
+
+  const handleLogout = () => {
+    logout()
+    router.push('/login')
+  }
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4)
@@ -32,23 +39,6 @@ export function Header() {
     }
   }, [])
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isDropdownOpen) {
-        setIsDropdownOpen(false)
-      }
-    }
-
-    if (isDropdownOpen) {
-      document.addEventListener("click", handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener("click", handleClickOutside)
-    }
-  }, [isDropdownOpen])
-
   const links = useMemo(
     () => [
       { href: "#home", label: "Trang chủ" },
@@ -59,40 +49,6 @@ export function Header() {
     ],
     []
   )
-
-  const getDashboardPath = () => {
-    if (!user) return '/';
-    switch (user.role) {
-      case 'ADMIN': return '/admin/dashboard';
-      case 'EVM_STAFF': return '/evm/dashboard';
-      case 'DEALER_MANAGER': return '/dealer/manager/dashboard';
-      case 'DEALER_STAFF': return '/dealer/staff/dashboard';
-      case 'CUSTOMER': return '/customer/dashboard';
-      default: return '/';
-    }
-  };
-
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case 'ADMIN': return 'Admin';
-      case 'EVM_STAFF': return 'EVM Staff';
-      case 'DEALER_MANAGER': return 'Dealer Manager';
-      case 'DEALER_STAFF': return 'Dealer Staff';
-      case 'CUSTOMER': return 'Customer';
-      default: return role;
-    }
-  };
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'ADMIN': return 'bg-red-100 text-red-800';
-      case 'EVM_STAFF': return 'bg-blue-100 text-blue-800';
-      case 'DEALER_MANAGER': return 'bg-green-100 text-green-800';
-      case 'DEALER_STAFF': return 'bg-yellow-100 text-yellow-800';
-      case 'CUSTOMER': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   return (
     <header
@@ -137,59 +93,60 @@ export function Header() {
 
         {/* Right side buttons */}
         <div className="ml-auto flex items-center space-x-4">
-          {isAuthenticated && user ? (
-            <div className="relative">
+          {user ? (
+            <div className="flex items-center space-x-3">
+              <Link href="/dashboard">
+                <Button variant="secondary" className="hidden md:inline-flex">
+                  Dashboard
+                </Button>
+              </Link>
+              {/* Visible Logout button on desktop */}
               <Button
-                variant="outline"
-                className="border-white/60 bg-transparent text-white hover:!bg-white hover:!text-red-600 hover:shadow-md focus-visible:ring-white/40 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsDropdownOpen(!isDropdownOpen);
-                }}
+                variant="destructive"
+                className="hidden md:inline-flex"
+                onClick={handleLogout}
+                title="Đăng xuất"
               >
-                <User className="h-4 w-4 mr-2" />
-                {user.fullName}
-                <Badge className={`ml-2 ${getRoleBadgeColor(user.role)}`}>
-                  {getRoleDisplayName(user.role)}
-                </Badge>
+                Đăng xuất
               </Button>
-              
-              {isDropdownOpen && (
-                <div 
-                  className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="p-3 border-b">
-                    <p className="text-sm font-medium text-gray-900">{user.fullName}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
-                    <Badge className={`mt-1 ${getRoleBadgeColor(user.role)}`}>
-                      {getRoleDisplayName(user.role)}
-                    </Badge>
-                  </div>
+              <UserRoleDisplay />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                    <User className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      Thông tin cá nhân
+                    </Link>
+                  </DropdownMenuItem>
                   
-                  <Link 
-                    href={getDashboardPath()} 
-                    className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Dashboard
-                  </Link>
+                  <RoleBasedComponent allowedRoles={['Admin', 'EVM_Staff', 'Dealer_Manager']}>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Quản trị
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Cài đặt
+                      </Link>
+                    </DropdownMenuItem>
+                  </RoleBasedComponent>
                   
-                  <div className="border-t">
-                    <button 
-                      onClick={() => {
-                        logout();
-                        setIsDropdownOpen(false);
-                      }}
-                      className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Đăng xuất
-                    </button>
-                  </div>
-                </div>
-              )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Đăng xuất
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : (
             <Link href="/login">

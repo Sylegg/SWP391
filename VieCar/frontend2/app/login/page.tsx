@@ -1,33 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, AlertCircle } from "lucide-react"
+import { Eye, EyeOff, User, Shield, Users, Building } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useAuth } from "@/contexts/AuthContext"
-import { UserRole } from "@/types/auth"
-import AuthRedirect from "@/components/AuthRedirect"
+import { useRouter } from "next/navigation"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  
+  const [success, setSuccess] = useState("")
+
   // Login form state
   const [loginData, setLoginData] = useState({
-    email: "",
-    password: ""
+    identifier: "",
+    password: "",
   })
-  
-  // Register form state
+
+  // Registration form state
   const [registerData, setRegisterData] = useState({
     username: "",
     email: "",
@@ -35,10 +41,18 @@ export default function LoginPage() {
     address: "",
     password: "",
     confirmPassword: "",
-    role: "CUSTOMER" as UserRole
+    selectedRole: "Customer" // Default role
   })
 
-  const { login, register, isAuthenticated, error: authError } = useAuth()
+  const { login, register, user } = useAuth()
+  const router = useRouter()
+
+  // If already logged in, go straight to role dashboard via /dashboard
+  useEffect(() => {
+    if (user) {
+      router.replace('/dashboard')
+    }
+  }, [user, router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,9 +60,12 @@ export default function LoginPage() {
     setError("")
     
     try {
-      await login(loginData)
-    } catch (err) {
-      setError(authError || "Đăng nhập thất bại")
+  await login(loginData)
+  setSuccess("Đăng nhập thành công!")
+  // Centralize role routing via /dashboard entry
+  router.push('/dashboard')
+    } catch (error) {
+      setError("Đăng nhập thất bại. Vui lòng kiểm tra thông tin.")
     } finally {
       setIsLoading(false)
     }
@@ -58,13 +75,13 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     setError("")
-    
+
     if (registerData.password !== registerData.confirmPassword) {
       setError("Mật khẩu xác nhận không khớp")
       setIsLoading(false)
       return
     }
-    
+
     try {
       await register({
         username: registerData.username,
@@ -73,18 +90,16 @@ export default function LoginPage() {
         address: registerData.address,
         password: registerData.password,
         confirmPassword: registerData.confirmPassword,
-        role: registerData.role
+        roleName: registerData.selectedRole as any,
       })
-    } catch (err) {
-      setError(authError || "Đăng ký thất bại")
+      setSuccess("Đăng ký thành công!")
+      // register() auto logs in, direct to dashboard for role-based redirect
+      router.push('/dashboard')
+    } catch (error: any) {
+      setError(error?.message || "Đăng ký thất bại. Vui lòng thử lại.")
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <AuthRedirect />
   }
 
   return (
@@ -101,17 +116,16 @@ export default function LoginPage() {
             <CardDescription>Đăng nhập hoặc tạo tài khoản để tiếp tục</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Backend Connection Info */}
-            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <h3 className="text-sm font-medium text-green-900">Kết nối Backend API</h3>
-              </div>
-              <p className="text-xs text-green-700">
-                Sử dụng tài khoản đã đăng ký trong database hoặc tạo tài khoản mới
-              </p>
-            </div>
-
+            {error && (
+              <Alert className="mb-4 border-red-200 bg-red-50">
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            )}
+            {success && (
+              <Alert className="mb-4 border-green-200 bg-green-50">
+                <AlertDescription className="text-green-700">{success}</AlertDescription>
+              </Alert>
+            )}
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Đăng nhập</TabsTrigger>
@@ -119,13 +133,6 @@ export default function LoginPage() {
               </TabsList>
 
               <TabsContent value="login" className="space-y-4 mt-6">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-                
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -134,8 +141,8 @@ export default function LoginPage() {
                       type="email" 
                       placeholder="Nhập email của bạn" 
                       className="w-full"
-                      value={loginData.email}
-                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      value={loginData.identifier}
+                      onChange={(e) => setLoginData({...loginData, identifier: e.target.value})}
                       required
                     />
                   </div>
@@ -148,7 +155,7 @@ export default function LoginPage() {
                         placeholder="Nhập mật khẩu"
                         className="w-full pr-10"
                         value={loginData.password}
-                        onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                        onChange={(e) => setLoginData({...loginData, password: e.target.value})}
                         required
                       />
                       <Button
@@ -180,13 +187,6 @@ export default function LoginPage() {
               </TabsContent>
 
               <TabsContent value="register" className="space-y-4 mt-6">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-                
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="username">Tên người dùng</Label>
@@ -196,7 +196,7 @@ export default function LoginPage() {
                       placeholder="Nhập tên người dùng" 
                       className="w-full"
                       value={registerData.username}
-                      onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
+                      onChange={(e) => setRegisterData({...registerData, username: e.target.value})}
                       required
                     />
                   </div>
@@ -208,7 +208,7 @@ export default function LoginPage() {
                       placeholder="Nhập email của bạn" 
                       className="w-full"
                       value={registerData.email}
-                      onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                      onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
                       required
                     />
                   </div>
@@ -220,7 +220,7 @@ export default function LoginPage() {
                       placeholder="Nhập số điện thoại" 
                       className="w-full"
                       value={registerData.phone}
-                      onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                      onChange={(e) => setRegisterData({...registerData, phone: e.target.value})}
                       required
                     />
                   </div>
@@ -232,25 +232,42 @@ export default function LoginPage() {
                       placeholder="Nhập địa chỉ" 
                       className="w-full"
                       value={registerData.address}
-                      onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
+                      onChange={(e) => setRegisterData({...registerData, address: e.target.value})}
                       required
                     />
                   </div>
+
+                  {/* Role Selection */}
                   <div className="space-y-2">
-                    <Label htmlFor="role">Vai trò</Label>
-                    <Select 
-                      value={registerData.role} 
-                      onValueChange={(value: UserRole) => setRegisterData({ ...registerData, role: value })}
+                    <Label>Loại tài khoản</Label>
+                    <Select
+                      value={registerData.selectedRole}
+                      onValueChange={(val) => setRegisterData({ ...registerData, selectedRole: val })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Chọn vai trò" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CUSTOMER">Khách hàng</SelectItem>
-                        <SelectItem value="DEALER_STAFF">Nhân viên đại lý</SelectItem>
-                        <SelectItem value="DEALER_MANAGER">Quản lý đại lý</SelectItem>
+                        <SelectItem value="Customer">
+                          <div className="flex items-center"><User className="h-4 w-4 mr-2" />Khách hàng</div>
+                        </SelectItem>
+                        <SelectItem value="Admin">
+                          <div className="flex items-center"><Shield className="h-4 w-4 mr-2" />Admin</div>
+                        </SelectItem>
+                        <SelectItem value="EVM_Staff">
+                          <div className="flex items-center"><Users className="h-4 w-4 mr-2" />EVM Staff</div>
+                        </SelectItem>
+                        <SelectItem value="Dealer_Manager">
+                          <div className="flex items-center"><Building className="h-4 w-4 mr-2" />Dealer Manager</div>
+                        </SelectItem>
+                        <SelectItem value="Dealer_Staff">
+                          <div className="flex items-center"><Users className="h-4 w-4 mr-2" />Dealer Staff</div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Dùng để test quyền. Trên môi trường thật, thường chỉ cho đăng ký vai trò Khách hàng.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-password">Mật khẩu</Label>
@@ -261,7 +278,7 @@ export default function LoginPage() {
                         placeholder="Tạo mật khẩu"
                         className="w-full pr-10"
                         value={registerData.password}
-                        onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                        onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
                         required
                       />
                       <Button
@@ -284,7 +301,7 @@ export default function LoginPage() {
                         placeholder="Nhập lại mật khẩu"
                         className="w-full pr-10"
                         value={registerData.confirmPassword}
-                        onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                        onChange={(e) => setRegisterData({...registerData, confirmPassword: e.target.value})}
                         required
                       />
                       <Button
@@ -298,17 +315,8 @@ export default function LoginPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="terms" className="rounded border-gray-300" required />
-                    <Label htmlFor="terms" className="text-sm">
-                      Tôi đồng ý với{" "}
-                      <Link href="#" className="text-primary hover:underline">
-                        điều khoản dịch vụ
-                      </Link>
-                    </Label>
-                  </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
+                    {isLoading ? "Đang đăng ký..." : "Đăng ký"}
                   </Button>
                 </form>
               </TabsContent>
