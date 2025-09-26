@@ -42,6 +42,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+    } else {
+      // Mock data for testing - remove this in production
+      const mockUser: User = {
+        id: '1',
+        username: 'Nguyễn Văn A',
+        email: 'nguyenvana@email.com',
+        phone: '0123456789',
+        address: 'Hà Nội, Việt Nam',
+        role: {
+          id: 1,
+          name: 'Customer',
+          description: 'Khách hàng'
+        }
+      };
+      setUser(mockUser);
+      setToken('mock-token');
     }
     setIsLoading(false);
   }, []);

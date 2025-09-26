@@ -1,186 +1,142 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Play, RefreshCw } from "lucide-react"
-import Image from "next/image"
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
+import Image from "next/image";
 
+function HeroAutoplayVideo({ src, poster }: { src: string; poster?: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoError, setVideoError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const playVideo = async () => {
+      try {
+        video.muted = true;
+        await video.play();
+        setIsLoading(false);
+      } catch (error) {
+        console.log("Autoplay prevented:", error);
+        setIsLoading(false);
+      }
+    };
+
+    const handleLoadedData = () => {
+      setVideoError(false);
+      playVideo();
+    };
+    
+    const handleError = () => {
+      console.error("Video failed to load:", src);
+      setVideoError(true);
+      setIsLoading(false);
+    };
+
+    const handleCanPlay = () => playVideo();
+    
+    video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("error", handleError);
+    
+    if (video.readyState >= 3) {
+      playVideo();
+    }
+    
+    return () => {
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("error", handleError);
+    };
+  }, [src]);
+
+  if (videoError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-xl group">
+        <Image
+          src={poster || "/vinfast-vf3.jpg"}
+          alt="VinFast Video"
+          fill
+          className="object-cover rounded-xl transition-transform duration-500 group-hover:scale-[1.02]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full group">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-xl z-10">
+          <div className="text-white text-sm animate-pulse">Đang tải video...</div>
+        </div>
+      )}
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover rounded-xl transition-transform duration-500 group-hover:scale-[1.02]"
+        loop
+        muted
+        playsInline
+        autoPlay
+        preload="metadata"
+        poster={poster}
+        style={{ minHeight: '300px' }}
+      >
+        <source src={src} type="video/mp4" />
+        Trình duyệt của bạn không hỗ trợ video.
+      </video>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    </div>
+  );
+}
 
 export function HeroSection() {
-  // Toggle between VF3, DatBike, and Pega media
-  const [brand, setBrand] = useState<"vf3" | "datbike" | "pega">("vf3")
-  const [btnAnim, setBtnAnim] = useState(false)
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* // Background images with crossfade */}
       <Image
         src="/vinfast-vf3.jpg"
         alt="VinFast VF3 background"
         fill
         priority
-        className={`absolute inset-0 object-cover transition-opacity duration-500 ${brand === "vf3" ? "opacity-100" : "opacity-0"}`}
+        className="absolute inset-0 object-cover"
       />
-      <Image
-        src="/datbike.jpg"
-        alt="DatBike background"
-        fill
-        priority
-        className={`absolute inset-0 object-cover transition-opacity duration-500 ${brand === "datbike" ? "opacity-100" : "opacity-0"}`}
-      />
-      <Image
-        src="/pega.jpg"
-        alt="Pega background"
-        fill
-        priority
-        className={`absolute inset-0 object-cover transition-opacity duration-500 ${brand === "pega" ? "opacity-100" : "opacity-0"}`}
-      />
-      {/* // Dark overlay to improve text contrast */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
       <div className="container mx-auto relative z-10 px-4 md:px-6">
-        {/* // Content grid: left text, right media */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-          <div className="flex flex-col justify-center space-y-4">
-            {/* // Headline + tagline */}
-            <div className="space-y-2">
-              <h1 className="text-4xl sm:text-6xl xl:text-7xl/none font-bold tracking-tighter leading-tight text-white text-balance">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:gap-16 xl:gap-20 items-center">
+          <div className="flex flex-col justify-center space-y-6">
+            <div className="space-y-4">
+              <h1 className="text-4xl sm:text-5xl xl:text-6xl/none font-bold tracking-tighter leading-tight text-white text-balance">
                 Khám phá thế giới
                 <span className="text-yellow-400"> xe điện </span>
-                tuyệt vời
+                VinFast
               </h1>
-              <p className="max-w-[700px] text-white/85 md:text-2xl leading-relaxed text-pretty">
-                Tìm kiếm chiếc xe hoàn hảo cho bạn với bộ sưu tập đa dạng từ các thương hiệu hàng đầu Việt Nam. Chất
-                lượng cao, giá cả hợp lý, dịch vụ tận tâm.
+              <p className="max-w-[600px] text-gray-200 md:text-xl leading-relaxed">
+                Trải nghiệm công nghệ xe điện tiên tiến từ VinFast - thương hiệu xe điện hàng đầu Việt Nam với thiết kế hiện đại và tính năng thông minh
               </p>
             </div>
-            {/* // Primary CTA + jump to video */}
+
             <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <Button size="lg" className="inline-flex items-center justify-center">
-                Xem bộ sưu tập
+              <Button size="lg" className="bg-yellow-400 text-black hover:bg-yellow-500">
+                Đăng ký lái ngay
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <a href="#hero-media" className="inline-flex">
-                <Button variant="outline" size="lg" className="inline-flex items-center justify-center bg-transparent">
-                <Play className="mr-2 h-4 w-4" />
-                Xem video giới thiệu
-                </Button>
-              </a>
             </div>
           </div>
-          {/* // Media player area (right column) */}
-          <div className="flex items-center justify-center" id="hero-media">
-            {/* // Video wrapper */}
-            <div className="relative aspect-video w-full max-w-[600px] overflow-hidden rounded-xl shadow-lg" onContextMenu={(e) => e.preventDefault()}>
-              {/* // Toggle button inside video overlay (switch media) */}
-              <button
-                type="button"
-                onClick={() => {
-                  setBrand((b) => (b === "vf3" ? "datbike" : b === "datbike" ? "pega" : "vf3"))
-                  setBtnAnim(true)
-                  setTimeout(() => setBtnAnim(false), 500)
-                }}
-                className="absolute top-0 right-0 end-0 left-auto z-10 inline-flex items-center gap-2 rounded-tl-md rounded-bl-md bg-white/85 px-3 py-1.5 text-sm font-medium text-gray-900 backdrop-blur hover:bg-white shadow transition active:scale-95 relative overflow-hidden origin-top-right"
-                style={{ right: 0, left: "auto", top: 0 }}
-                aria-label="Chuyển video khác"
-              >
-                {btnAnim && (
-                  <span className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-white/60 animate-ping" />
-                )}
-                <RefreshCw className={`h-4 w-4 ${btnAnim ? "animate-spin" : ""}`} />
-                Video khác
-              </button>
-              {/* // Layer: VF3 video */}
-              <div
-                className="absolute inset-0 transition-opacity duration-500 will-change-transform"
-                style={{
-                  opacity: brand === "vf3" ? 1 : 0,
-                  transform: brand === "vf3" ? "scale(1)" : "scale(1.02)",
-                  transition: "opacity 500ms, transform 500ms",
-                }}
-              >
-                <HeroAutoplayVideo src="/vinfast.mp4" poster="/vinfast-vf3.jpg" />
-              </div>
-              {/* // Layer: DatBike video */}
-              <div
-                className="absolute inset-0 transition-opacity duration-500 will-change-transform"
-                style={{
-                  opacity: brand === "datbike" ? 1 : 0,
-                  transform: brand === "datbike" ? "scale(1)" : "scale(1.02)",
-                  transition: "opacity 500ms, transform 500ms",
-                }}
-              >
-                <HeroAutoplayVideo src="/datbike.mp4" poster="/datbike.jpg" />
-              </div>
-              {/* // Layer: Pega video */}
-              <div
-                className="absolute inset-0 transition-opacity duration-500 will-change-transform"
-                style={{
-                  opacity: brand === "pega" ? 1 : 0,
-                  transform: brand === "pega" ? "scale(1)" : "scale(1.02)",
-                  transition: "opacity 500ms, transform 500ms",
-                }}
-              >
-                <HeroAutoplayVideo src="/pegas.mp4" poster="/pega.jpg" />
-              </div>
+
+          <div className="relative flex items-center justify-center lg:order-last">
+            <div className="relative w-full max-w-3xl aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl bg-gray-900 border-2 border-yellow-400/30 transform hover:scale-[1.02] transition-all duration-500">
+              <HeroAutoplayVideo src="/vinfast.mp4" poster="/vinfast-vf3.jpg" />
+              <div className="absolute inset-0 rounded-2xl ring-2 ring-yellow-400/40 ring-inset"></div>
+              <div className="absolute -inset-2 bg-gradient-to-r from-yellow-400/10 via-yellow-500/20 to-yellow-400/10 rounded-2xl blur-lg -z-10"></div>
+              <div className="absolute -inset-4 bg-gradient-to-r from-transparent via-yellow-400/5 to-transparent rounded-3xl blur-2xl -z-20"></div>
             </div>
           </div>
         </div>
       </div>
     </section>
-  )
-}
-
-function HeroAutoplayVideo({ src, poster }: { src: string; poster?: string }) {
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-
-  useEffect(() => {
-    // Try to autoplay video (muted)
-    const v = videoRef.current
-    if (!v) return
-
-    const tryPlay = () => {
-      if (!v) return
-      v.muted = true
-      const p = v.play()
-      if (p && typeof p.then === "function") {
-        p.catch(() => {
-          // Autoplay might be blocked; keep muted and attempt later on visibility change
-        })
-      }
-    }
-
-    // Resume play when tab becomes visible again
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") tryPlay()
-    }
-
-    tryPlay()
-    document.addEventListener("visibilitychange", handleVisibility)
-    return () => document.removeEventListener("visibilitychange", handleVisibility)
-  }, [])
-
-  return (
-    <video
-      ref={videoRef}
-      className="absolute inset-0 h-full w-full"
-      src={src}
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      poster={poster}
-      // Prevent pausing: if paused by any means, resume
-      onPause={(e) => {
-        const v = e.currentTarget
-        // Do not auto-resume if the video already ended
-        if (v.ended) return
-        v.muted = true
-        v.play().catch(() => {})
-      }}
-      // Extra: discourage PIP/remote playback
-      disablePictureInPicture
-      controlsList="noplaybackrate nodownload noremoteplayback"
-    />
-  )
+  );
 }

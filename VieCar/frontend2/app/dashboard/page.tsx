@@ -20,7 +20,7 @@ export default function DashboardEntry() {
 
     switch (role) {
       case 'Admin':
-        router.replace('/admin');
+        router.replace('/dashboard/admin');
         break;
       case 'Customer':
         router.replace('/dashboard/customer');

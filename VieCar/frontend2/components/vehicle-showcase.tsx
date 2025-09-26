@@ -26,9 +26,9 @@ export function VehicleShowcase() {
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-balance">Bộ nhận diện thương hiệu</h2>
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-balance">VinFast - Xe Điện Hàng Đầu</h2>
             <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed text-pretty">
-              VinFast, Dat Bike và Pega — các dòng xe điện tiêu biểu với ưu đãi hấp dẫn
+              VinFast — Thương hiệu xe điện hàng đầu Việt Nam với công nghệ tiên tiến và thiết kế hiện đại
             </p>
           </div>
         </div>
@@ -66,7 +66,7 @@ export function VehicleShowcase() {
 
 const brands: BrandGroup[] = [
   {
-    id: "vinfast",
+    id: "vinfast-car",
     title: "XE Ô TÔ ĐIỆN VINFAST",
     products: [
       { id: "vf3", name: "VinFast VF 3", image: "/xe%20oto%20vinfast/VF3.jpg", price: "299.000.000đ" },
@@ -79,7 +79,7 @@ const brands: BrandGroup[] = [
     ],
   },
   {
-    id: "vinfast-ev-bike",
+    id: "vinfast-bike",
     title: "XE MÁY ĐIỆN VINFAST",
     products: [
       { id: "vf-evo200", name: "VinFast Evo 200", image: "/xe%20dien%20vinfast/Evo200.jpg", price: "22.900.000đ" },
@@ -92,26 +92,6 @@ const brands: BrandGroup[] = [
       { id: "vf-klaraneo", name: "VinFast Klara Neo", image: "/xe%20dien%20vinfast/KlaraNeo.jpg", price: "40.900.000đ" },
       { id: "vf-klaras", name: "VinFast Klara S", image: "/xe%20dien%20vinfast/KlaraS.jpg", price: "51.900.000đ" },
       { id: "vf-theons", name: "VinFast Theon S", image: "/xe%20dien%20vinfast/TheonS.jpg", price: "74.900.000đ" },
-    ],
-  },
-  {
-    id: "datbike",
-    title: "XE ĐIỆN DAT BIKE",
-    products: [
-      { id: "db-qs1", name: "Dat Bike Quantum S1", image: "/xe%20datbike/quantums1.jpg", price: "49.900.000đ", colorPrice: "Màu trắng & xám - 50.900.000đ" },
-      { id: "db-qs2", name: "Dat Bike Quantum S2", image: "/xe%20datbike/quantums2.jpg", price: "42.900.000đ", colorPrice: "Màu trắng & xám - 43.900.000đ" },
-      { id: "db-qs3", name: "Dat Bike Quantum S3", image: "/xe%20datbike/quantums3.jpg", price: "34.900.000đ", colorPrice: "Màu trắng & xám - 35.900.000đ" },
-    ],
-  },
-  {
-    id: "pega",
-    title: "XE ĐIỆN PEGA",
-    products: [
-      { id: "pega-xmen-plus", name: "Pega X-Men+", image: "/xe%20pega/1-xe-may-dien-pega-xmen-plus.jpg", price: "25.000.000đ" },
-      { id: "pega-aura-s-plus", name: "Pega Aura S+", image: "/xe%20pega/1-xe-may-dien-pega-aura-s-plus.jpg", price: "26.000.000đ" },
-      { id: "pega-go-s", name: "Pega Go-S", image: "/xe%20pega/1-xe-may-dien-pega-go-s.jpg", price: "21.890.000đ" },
-      { id: "pega-s", name: "Pega-S", image: "/xe%20pega/1-xe-may-dien-pega-s.jpg", price: "39.000.000đ" },
-      { id: "pega-esmart-ai-23", name: "Pega eSmart AI", image: "/xe%20pega/pega-esmart-ai-23.jpg", price: "52.000.000đ" },
     ],
   },
 ]

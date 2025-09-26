@@ -5,16 +5,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, BarChart, Briefcase } from "lucide-react";
+import DealerManagerLayout from "@/components/layout/dealer-manager-layout";
 
 export default function DealerManagerDashboard() {
   const { user } = useAuth();
 
   return (
     <ProtectedRoute allowedRoles={['Dealer_Manager', 'Admin']}>
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto p-6">
+      <DealerManagerLayout>
+        <div className="p-6">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold">Bảng điều khiển Quản lý đại lý</h1>
+            <h1 className="text-3xl font-bold">Tổng quan</h1>
             <p className="text-muted-foreground mt-2">
               Xin chào, {user?.username}. Quản lý hoạt động và nhân sự đại lý.
             </p>
@@ -67,7 +68,7 @@ export default function DealerManagerDashboard() {
             </Card>
           </div>
         </div>
-      </div>
+      </DealerManagerLayout>
     </ProtectedRoute>
   );
 }

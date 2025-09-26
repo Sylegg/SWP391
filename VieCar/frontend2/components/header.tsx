@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
-import { UserRoleDisplay } from "@/components/role-display"
-import { RoleBasedComponent } from "@/components/auth-guards"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { User, LogOut, Settings, Shield } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
+import { LogOut, LayoutDashboard, ChevronDown, ChevronRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false)
@@ -50,10 +50,27 @@ export function Header() {
     []
   )
 
+  // Role UI helpers
+  const roleLabelMap: Record<string, string> = {
+    Customer: "Khách hàng",
+    Admin: "Quản trị viên",
+    EVM_Staff: "Nhân viên EVM",
+    Dealer_Manager: "Quản lý đại lý",
+    Dealer_Staff: "Nhân viên đại lý",
+  }
+
+  const roleStyleMap: Record<string, string> = {
+    Customer: "bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200",
+    Admin: "bg-rose-100 text-rose-700 ring-1 ring-inset ring-rose-200",
+    EVM_Staff: "bg-violet-100 text-violet-700 ring-1 ring-inset ring-violet-200",
+    Dealer_Manager: "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-200",
+    Dealer_Staff: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200",
+  }
+
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b border-red-700 text-white backdrop-blur supports-[backdrop-filter]:bg-red-600/80 transition-shadow ${
-        scrolled ? "bg-red-600/95 shadow-lg" : "bg-red-600/90"
+      className={`sticky top-0 z-50 w-full border-b border-gray-200 text-gray-800 backdrop-blur supports-[backdrop-filter]:bg-white/80 transition-shadow ${
+        scrolled ? "bg-white/95 shadow-lg" : "bg-white/90"
       }`}
     >
       <div className="container mx-auto flex h-16 items-center px-4 md:px-6">
@@ -79,10 +96,10 @@ export function Header() {
                 href={l.href}
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => setActiveHash(l.href)}
-                className={`group relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:origin-left after:rounded-full after:bg-white/90 after:transition-transform ${
+                className={`group relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:origin-left after:rounded-full after:bg-red-600 after:transition-transform ${
                   isActive
-                    ? "text-white after:scale-x-100"
-                    : "text-white/90 hover:text-white after:scale-x-0 group-hover:after:scale-x-100"
+                    ? "text-red-600 after:scale-x-100"
+                    : "text-gray-700 hover:text-red-600 after:scale-x-0 group-hover:after:scale-x-100"
                 }`}
               >
                 {l.label}
@@ -95,56 +112,107 @@ export function Header() {
         <div className="ml-auto flex items-center space-x-4">
           {user ? (
             <div className="flex items-center space-x-3">
-              <Link href="/dashboard">
-                <Button variant="secondary" className="hidden md:inline-flex">
-                  Dashboard
-                </Button>
-              </Link>
-              {/* Visible Logout button on desktop */}
-              <Button
-                variant="destructive"
-                className="hidden md:inline-flex"
-                onClick={handleLogout}
-                title="Đăng xuất"
-              >
-                Đăng xuất
-              </Button>
-              <UserRoleDisplay />
+              {/* User Profile Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                    <User className="h-4 w-4" />
+                  <Button
+                    variant="ghost"
+                    className="group relative min-w-[150px] rounded-full border-[1.5px] border-white/80 bg-white/70 px-2.5 py-1 text-gray-800 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-white md:min-w-[170px]"
+                    aria-label="Mở menu người dùng"
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Avatar className="h-8 w-8 shrink-0 ring-[3px] ring-white/80 shadow-sm">
+                        {/* Nếu có ảnh đại diện, đặt vào src bên dưới */}
+                        <AvatarImage src={""} alt={user.username || "user"} />
+                        <AvatarFallback className="bg-red-500 text-white text-xs font-semibold">
+                          {(user.username || "U").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0 text-left leading-tight">
+                        <div className="text-sm font-semibold tracking-tight truncate">
+                          {user.username}
+                        </div>
+                        <span
+                          className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            user.role?.name ? roleStyleMap[user.role.name] : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {user.role?.name ? roleLabelMap[user.role.name] : "Thành viên"}
+                        </span>
+                      </div>
+                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Thông tin cá nhân
-                    </Link>
-                  </DropdownMenuItem>
-                  
-                  <RoleBasedComponent allowedRoles={['Admin', 'EVM_Staff', 'Dealer_Manager']}>
-                    <DropdownMenuSeparator />
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={12}
+                  className="w-[min(15rem,90vw)] overflow-hidden rounded-3xl border border-white/60 bg-white/75 p-0 shadow-[0_20px_45px_-18px_rgba(15,23,42,0.35)] backdrop-blur-xl"
+                >
+                  {/* Card header */}
+                  <div className="relative overflow-hidden">
+                    <div className="absolute inset-0 bg-red-500" />
+                    <div className="absolute -top-16 right-0 h-32 w-32 rounded-full bg-white/20 blur-3xl" />
+                    <div className="relative flex items-center gap-2 px-3 pb-3 pt-4 text-white">
+                      <Avatar className="h-9 w-9 border-[1.5px] border-white/70 shadow-xl">
+                        <AvatarImage src={""} alt={user.username || "user"} />
+                        <AvatarFallback className="bg-white/20 text-white">
+                          {(user.username || "U").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold leading-tight">{user.username}</p>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <Badge className="border-0 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
+                            {user.role?.name ? roleLabelMap[user.role.name] : "Thành viên"}
+                          </Badge>
+                          {user.email ? (
+                            <span className="text-[11px] text-white/70">{user.email}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu body */}
+                  <div className="space-y-1.5 bg-white/70 px-2 pb-3 pt-2">
+                    <DropdownMenuLabel className="px-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+                      Tài khoản
+                    </DropdownMenuLabel>
+
+                    
+
                     <DropdownMenuItem asChild>
-                      <Link href="/admin" className="cursor-pointer">
-                        <Shield className="mr-2 h-4 w-4" />
-                        Quản trị
+                      <Link
+                        href="/dashboard"
+                        className="group flex w-full items-center gap-2 rounded-2xl px-2 py-1.75 text-sm text-slate-600 transition-all hover:bg-white focus:bg-white"
+                      >
+                        <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-100 text-indigo-500 transition-colors group-hover:bg-indigo-200">
+                          <LayoutDashboard className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-semibold text-slate-900">Dashboard</p>
+                    
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5" />
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings" className="cursor-pointer">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Cài đặt
-                      </Link>
+
+                    <DropdownMenuSeparator className="mx-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="group flex items-center gap-2 rounded-2xl px-1.5 py-1 text-sm font-semibold text-rose-600 transition-all hover:bg-rose-50 focus:bg-rose-50"
+                    >
+                      <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-rose-100 text-rose-500 transition-colors group-hover:bg-rose-200">
+                        <LogOut className="h-4 w-4" />
+                      </span>
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-semibold">Đăng xuất</p>
+                       
+                      </div>
                     </DropdownMenuItem>
-                  </RoleBasedComponent>
-                  
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Đăng xuất
-                  </DropdownMenuItem>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -152,7 +220,7 @@ export function Header() {
             <Link href="/login">
               <Button
                 variant="outline"
-                className="hidden md:inline-flex border-white/60 bg-transparent text-white hover:!bg-white hover:!text-red-600 hover:shadow-md focus-visible:ring-white/40 transition-colors"
+                className="hidden md:inline-flex border-red-600 bg-transparent text-red-600 hover:!bg-red-600 hover:!text-white hover:shadow-md focus-visible:ring-red-600/40 transition-colors"
               >
                 Đăng nhập
               </Button>

@@ -6,14 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Car, ClipboardList, Users, BarChart, PlusCircle } from "lucide-react";
 import Link from "next/link";
+import EvmStaffLayout from "@/components/layout/evm-staff-layout";
 
 export default function EvmStaffDashboard() {
   const { user } = useAuth();
 
   return (
     <ProtectedRoute allowedRoles={['EVM_Staff', 'Admin']}>
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto p-6">
+      <EvmStaffLayout>
+        <div className="p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">Bảng điều khiển EVM Staff</h1>
             <p className="text-muted-foreground mt-2">
@@ -73,7 +74,7 @@ export default function EvmStaffDashboard() {
             </PermissionGate>
           </div>
         </div>
-      </div>
+      </EvmStaffLayout>
     </ProtectedRoute>
   );
 }

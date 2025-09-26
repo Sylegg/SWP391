@@ -7,16 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Car, ShoppingCart, Calendar, Clock, History, Star } from "lucide-react";
 import Link from "next/link";
+import CustomerLayout from "@/components/layout/customer-layout";
 
 export default function CustomerDashboard() {
   const { user } = useAuth();
 
   return (
     <ProtectedRoute allowedRoles={['Customer']}> 
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto p-6">
+      <CustomerLayout>
+        <div className="p-6">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold">Bảng điều khiển khách hàng</h1>
+            <h1 className="text-3xl font-bold">Tổng quan</h1>
             <p className="text-muted-foreground mt-2">
               Chào mừng, {user?.username}! Rất vui được gặp lại bạn.
             </p>
@@ -97,13 +98,16 @@ export default function CustomerDashboard() {
                   <Star className="w-4 h-4 mr-2 text-yellow-500" /> VinFast VF3
                 </div>
                 <div className="flex items-center text-sm">
-                  <Star className="w-4 h-4 mr-2 text-yellow-500" /> Pega Aura S+
+                  <Star className="w-4 h-4 mr-2 text-yellow-500" /> VinFast Evo 200
+                </div>
+                <div className="flex items-center text-sm">
+                  <Star className="w-4 h-4 mr-2 text-yellow-500" /> VinFast VF5
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
-      </div>
+      </CustomerLayout>
     </ProtectedRoute>
   );
 }

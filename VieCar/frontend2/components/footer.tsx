@@ -27,23 +27,13 @@ export function Footer() {
             <h3 className="text-lg font-semibold">Sản phẩm</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <a href="#vinfast" className="hover:text-primary">
+                <a href="#vinfast-car" className="hover:text-primary">
                   Ô tô điện VinFast
                 </a>
               </li>
               <li>
-                <a href="#vinfast-ev-bike" className="hover:text-primary">
+                <a href="#vinfast-bike" className="hover:text-primary">
                   Xe máy điện VinFast
-                </a>
-              </li>
-              <li>
-                <a href="#datbike" className="hover:text-primary">
-                  Xe điện Dat Bike
-                </a>
-              </li>
-              <li>
-                <a href="#pega" className="hover:text-primary">
-                  Xe điện Pega
                 </a>
               </li>
             </ul>
