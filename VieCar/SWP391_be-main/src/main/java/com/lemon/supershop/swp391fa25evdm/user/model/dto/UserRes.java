@@ -9,11 +9,9 @@ public class UserRes {
     private String email;
     private String phone;
     private String address;
-    private RoleDto role;
+    private String role;
 
     public UserRes() {}
-
-    public UserRes(int id, String name, String email, String phone, String address, RoleDto role) {}
 
     public int getId() {
         return id;
@@ -35,7 +33,31 @@ public class UserRes {
         return address;
     }
 
-    public RoleDto getRole() {
+    public String getRole() {
         return role;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }

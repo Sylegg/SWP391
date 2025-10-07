@@ -3,7 +3,10 @@ package com.lemon.supershop.swp391fa25evdm.product.model.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
-import com.lemon.supershop.swp391fa25evdm.order.model.entity.OrderItem;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
+import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
+import com.lemon.supershop.swp391fa25evdm.payment.model.entity.InstallmentPlan;
+import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
@@ -21,16 +24,19 @@ public class Product {
     @Column(name = "Name", columnDefinition = "VARCHAR(150)")
     private String name;
 
-    @Column(name = "Vin", columnDefinition = "VARCHAR UNIQUE")
+    @Column(name = "Vin", columnDefinition = "VARCHAR(100) UNIQUE")
     private String vinNum;
 
-    @Column(name = "Engine", columnDefinition = "VARCHAR UNIQUE")
+    @Column(name = "Engine", columnDefinition = "VARCHAR(100) UNIQUE")
     private String engineNum;
 
     @Column(name = "Manufacture", columnDefinition = "DATETIME2")
     private Date manufacture_date;
 
-    @Column(name = "Image", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "DealerPrice", columnDefinition = "DECIMAL(15,2)")
+    private double dealerPrice;
+
+    @Column(name = "Image", columnDefinition = "VARCHAR(MAX)")
     private String image;
 
     @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
@@ -44,16 +50,22 @@ public class Product {
     @JsonIgnore
     private Category category;
 
-    @ManyToMany
-    @JoinTable(
-            name = "dealerCategory_product",
-            joinColumns = @JoinColumn(name = "ProductId"),
-            inverseJoinColumns = @JoinColumn(name = "DealerCategoryId")
-    )
-    private List<DealerCategory> dealerCategories = new ArrayList<>();
+    @ManyToOne
+    @JoinColumn(name = "DealerCategoryId")
+    @JsonIgnore
+    private DealerCategory dealerCategory;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<OrderItem> orderItems = new ArrayList<>();
+    private List<Order> orders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<Distribution> distributions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<PreOrder> preOrders = new ArrayList<>();
+
+    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private InstallmentPlan installmentPlan;
 
     public Product() {}
 
@@ -113,12 +125,12 @@ public class Product {
         this.category = category;
     }
 
-    public List<OrderItem> getOrderItems() {
-        return orderItems;
+    public List<Order> getOrders() {
+        return orders;
     }
 
-    public void setOrderItems(List<OrderItem> orderItems) {
-        this.orderItems = orderItems;
+    public void setOrders(List<Order> orderItems) {
+        this.orders = orderItems;
     }
 
     public String getStatus() {
@@ -137,11 +149,43 @@ public class Product {
         this.image = image;
     }
 
-    public List<DealerCategory> getDealerCategories() {
-        return dealerCategories;
+    public DealerCategory getDealerCategory() {
+        return dealerCategory;
     }
 
-    public void setDealerCategories(List<DealerCategory> dealerCategories) {
-        this.dealerCategories = dealerCategories;
+    public void setDealerCategory(DealerCategory dealerCategory) {
+        this.dealerCategory = dealerCategory;
+    }
+
+    public InstallmentPlan getInstallmentPlan() {
+        return installmentPlan;
+    }
+
+    public void setInstallmentPlan(InstallmentPlan installmentPlan) {
+        this.installmentPlan = installmentPlan;
+    }
+
+    public double getDealerPrice() {
+        return dealerPrice;
+    }
+
+    public void setDealerPrice(double dealerPrice) {
+        this.dealerPrice = dealerPrice;
+    }
+
+    public List<PreOrder> getPreOrders() {
+        return preOrders;
+    }
+
+    public void setPreOrders(List<PreOrder> preOrders) {
+        this.preOrders = preOrders;
+    }
+
+    public List<Distribution> getDistributions() {
+        return distributions;
+    }
+
+    public void setDistributions(List<Distribution> distributions) {
+        this.distributions = distributions;
     }
 }

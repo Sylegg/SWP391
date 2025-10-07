@@ -82,7 +82,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (error) {
       console.error('Login error:', error);
-      throw error;
+      // Throw a more specific error message
+      if ((error as any)?.response?.status === 401) {
+        throw new Error('Email hoặc mật khẩu không đúng');
+      } else if ((error as any)?.code === 'ECONNREFUSED' || (error as any)?.code === 'ERR_NETWORK') {
+        throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra lại.');
+      }
+      throw new Error('Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }
@@ -100,12 +106,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Registration error:', error);
       // Map duplicate email (409) to readable message
-      const msg = (error as any)?.response?.data;
       const status = (error as any)?.response?.status;
+      const msg = (error as any)?.response?.data;
+      
       if (status === 409 || msg?.toString()?.toLowerCase()?.includes('email')) {
         throw new Error('Email đã tồn tại');
+      } else if ((error as any)?.code === 'ECONNREFUSED' || (error as any)?.code === 'ERR_NETWORK') {
+        throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra lại.');
       }
-      throw error;
+      throw new Error('Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }

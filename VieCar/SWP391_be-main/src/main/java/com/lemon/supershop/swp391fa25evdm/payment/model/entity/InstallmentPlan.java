@@ -1,6 +1,7 @@
 package com.lemon.supershop.swp391fa25evdm.payment.model.entity;
 
-import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import jakarta.persistence.*;
 
 import java.util.List;
@@ -21,11 +22,15 @@ public class InstallmentPlan {
     private double interestRate;
 
     @OneToOne
-    @JoinColumn(name = "OrderId", nullable = false)
-    private Order order;
+    @JoinColumn(name = "ProductId")
+    private Product product;
 
     @OneToMany(mappedBy = "installmentPlan", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InstallmentPayment> inspayments;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "DealerId")
+    private Dealer dealer;
 
     public InstallmentPlan() {}
 
@@ -53,12 +58,12 @@ public class InstallmentPlan {
         this.interestRate = interestRate;
     }
 
-    public Order getOrder() {
-        return order;
+    public Product getProduct() {
+        return product;
     }
 
-    public void setOrder(Order order) {
-        this.order = order;
+    public void setProduct(Product product) {
+        this.product = product;
     }
 
     public List<InstallmentPayment> getInspayments() {
@@ -67,5 +72,13 @@ public class InstallmentPlan {
 
     public void setInspayments(List<InstallmentPayment> installments) {
         this.inspayments = installments;
+    }
+
+    public Dealer getDealer() {
+        return dealer;
+    }
+
+    public void setDealer(Dealer dealer) {
+        this.dealer = dealer;
     }
 }

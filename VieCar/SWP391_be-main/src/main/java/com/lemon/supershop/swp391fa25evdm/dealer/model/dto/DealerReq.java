@@ -1,6 +1,6 @@
 package com.lemon.supershop.swp391fa25evdm.dealer.model.dto;
 
-public class DealerReq {
+public class   DealerReq {
     private String name;
     private String address;
     private String phone;

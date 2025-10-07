@@ -1,6 +1,7 @@
 package com.lemon.supershop.swp391fa25evdm.payment.model.entity;
 
 import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
+import com.lemon.supershop.swp391fa25evdm.payment.model.enums.PaymentStatus;
 import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import jakarta.persistence.*;
@@ -20,14 +21,15 @@ public class Payment {
     @JoinColumn(name = "UserId")
     private User user;
 
-    @Column(name = "Method", nullable = false, columnDefinition = "NVARCHAR(50)")
+    @Column(name = "Method", columnDefinition = "NVARCHAR(50)")
     private String method;
 
-    @Column(name = "Paid_status", nullable = false, columnDefinition = "VARCHAR(20)")
-    private boolean paid_status = false;
+    @Column(name = "PaidStatus", columnDefinition = "VARCHAR(20)")
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paidStatus;
 
-    @Column(name = "Paid_at", nullable = false, columnDefinition = "DATETIME2")
-    private Date paid_at;
+    @Column(name = "PaidAt", columnDefinition = "DATETIME2")
+    private Date paidAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrderId")
@@ -37,7 +39,7 @@ public class Payment {
     @JoinColumn(name = "PreOrderId")
     private PreOrder preOrder;
 
-    @ManyToOne
+    @OneToOne
     @JoinColumn(name = "InsPaymentId")
     private InstallmentPayment installmentPayment;
 
@@ -59,20 +61,20 @@ public class Payment {
         this.method = method;
     }
 
-    public boolean isPaid_status() {
-        return paid_status;
+    public PaymentStatus getPaidStatus() {
+        return paidStatus;
     }
 
-    public void setPaid_status(boolean paid_status) {
-        this.paid_status = paid_status;
+    public void setPaidStatus(PaymentStatus paidStatus) {
+        this.paidStatus = paidStatus;
     }
 
-    public Date getPaid_at() {
-        return paid_at;
+    public Date getPaidAt() {
+        return paidAt;
     }
 
-    public void setPaid_at(Date paid_at) {
-        this.paid_at = paid_at;
+    public void setPaidAt(Date paidAt) {
+        this.paidAt = paidAt;
     }
 
     public Order getOrder() {
@@ -97,5 +99,13 @@ public class Payment {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public PreOrder getPreOrder() {
+        return preOrder;
+    }
+
+    public void setPreOrder(PreOrder preOrder) {
+        this.preOrder = preOrder;
     }
 }

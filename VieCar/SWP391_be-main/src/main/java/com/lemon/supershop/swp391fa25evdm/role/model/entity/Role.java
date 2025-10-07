@@ -15,7 +15,7 @@ public class Role {
     @Column(name = "Id", columnDefinition = "BIGINT")
     private int id;
 
-    @Column(name = "Name", columnDefinition = "VARCHAR(50)")
+    @Column(name = "Name", columnDefinition = "VARCHAR(50) UNIQUE")
     private String name;
 
     @Column(name = "Description", columnDefinition = "NVARCHAR(200)")

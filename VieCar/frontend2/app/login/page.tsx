@@ -64,8 +64,8 @@ export default function LoginPage() {
   setSuccess("Đăng nhập thành công!")
   // Centralize role routing via /dashboard entry
   router.push('/dashboard')
-    } catch (error) {
-      setError("Đăng nhập thất bại. Vui lòng kiểm tra thông tin.")
+    } catch (error: any) {
+      setError(error?.message || "Đăng nhập thất bại. Vui lòng kiểm tra thông tin.")
     } finally {
       setIsLoading(false)
     }

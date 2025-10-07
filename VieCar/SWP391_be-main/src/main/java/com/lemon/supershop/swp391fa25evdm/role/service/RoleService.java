@@ -5,6 +5,7 @@ import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.role.repository.RoleRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,12 +26,12 @@ public class RoleService {
     }
 
     public RoleDto addRole(RoleDto dto) {
-        Role role = roleRepo.findByNameContainingIgnoreCase(dto.getName());
-        if (role == null) {
-            role = new Role(dto.getName(), dto.getDescription());
+        Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(dto.getName());
+        if (role.isEmpty()) {
+            role = Optional.of(new Role(dto.getName(), dto.getDescription()));
         }
-        roleRepo.save(role);
-        return new RoleDto(role.getName(), role.getDescription());
+        roleRepo.save(role.get());
+        return new RoleDto(role.get().getName(), role.get().getDescription());
     }
 
     public RoleDto updateRole(int id, RoleDto dto) {
@@ -46,12 +47,14 @@ public class RoleService {
         }
         return new RoleDto(role.get().getName(), role.get().getDescription());
     }
-
-    public void removeRole(int id) {
+    @Transactional
+    public boolean removeRole(int id) {
         Optional<Role> role = roleRepo.findById(id);
         if (role.isPresent()) {
             roleRepo.clearRoleFromUsers(id);
             roleRepo.delete(role.get());
+            return true;
         }
+        return false;
     }
 }

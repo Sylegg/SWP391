@@ -1,11 +1,26 @@
 package com.lemon.supershop.swp391fa25evdm.contract.model.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
-import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
-import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
+import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
+import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
+import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+
 
 @Entity
 @Table(name = "contract")
@@ -22,14 +37,25 @@ public class Contract {
     @Column(name = "FileUrl", columnDefinition = "VARCHAR(255)")
     private String fileUrl; // link PDF hợp đồng lưu trên server
 
-    @OneToOne
-    @JoinColumn(name = "OrderId")
-    private Order order;
+    @OneToMany(mappedBy = "contract")
+    @JsonIgnore
+    private List<Order> orders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "contract")
+    @JsonIgnore
+    private List<PreOrder> preOrders = new ArrayList<>();
 
     @ManyToOne
     @JoinColumn(name = "UserId")
     @JsonIgnore
     private User user;
+
+    @Column(name = "Status", columnDefinition = "VARCHAR(50)")
+    private String status;
+
+    @OneToOne()
+    @JoinColumn(name = "DistributionId")
+    private Distribution distribution;
 
     public Contract() {
     }
@@ -58,11 +84,26 @@ public class Contract {
         this.fileUrl = fileUrl;
     }
 
-    public Order getOrder() {
-        return order;
+    public User getUser() {
+        return user;
     }
 
-    public void setOrder(Order order) {
-        this.order = order;
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public List<Order> getOrders() {
+        return orders;
+    }
+
+    public void setOrders(List<Order> orders) {
+        this.orders = orders;
     }
 }

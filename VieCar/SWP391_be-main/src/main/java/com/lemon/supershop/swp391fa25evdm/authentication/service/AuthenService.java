@@ -1,9 +1,6 @@
 package com.lemon.supershop.swp391fa25evdm.authentication.service;
 
-import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.AuthenRes;
-import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.LoginReq;
-import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.LoginRes;
-import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.RegisterReq;
+import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.*;
 import com.lemon.supershop.swp391fa25evdm.refra.JwtUtil;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.role.repository.RoleRepo;
@@ -40,8 +37,8 @@ public class AuthenService {
         if (dto.getIdentifier() != null){
             if (EMAIL_PATTERN.matcher(dto.getIdentifier()).matches()){
                 user = userRepo.findByEmail(dto.getIdentifier());
-            }else {
-                throw new RuntimeException("Invalid identifier format");
+            } else {
+                user = userRepo.findByUsername(dto.getIdentifier());
             }
         }
 
@@ -62,25 +59,21 @@ public class AuthenService {
 
     public void register(RegisterReq dto) {
         User user = new User();
-        String desiredRole = (dto.getRoleName() != null && !dto.getRoleName().isBlank()) ? dto.getRoleName() : "Customer";
-        Role role = roleRepo.findByNameContainingIgnoreCase(desiredRole);
-        if (role == null) {
-            role = new Role(desiredRole, "Auto-created role");
-            roleRepo.save(role);
-        }
+        // Use the roleName from the request, default to "Customer" if not provided
+        String requestedRole = dto.getRoleName() != null ? dto.getRoleName() : "Customer";
+        Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(requestedRole);
 
-        user.setRole(role);
-
-        // Duplicate email check (case-insensitive based on DB collation)
-        if (dto.getEmail() != null && role != null && userRepo.existsByEmail(dto.getEmail())) {
-            throw new IllegalArgumentException("EMAIL_DUPLICATE");
-        }
+        user.setRole(role.orElse(null));
 
         if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
             user.setPhone(dto.getPhone());
         }
         if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()){
-            user.setEmail(dto.getEmail());
+            if ( role.isPresent() && userRepo.existsByEmail(dto.getEmail())){
+                throw new RuntimeException("EMAIL_DUPLICATE");
+            } else {
+                user.setEmail(dto.getEmail());
+            }
         }
 
         if (dto.getPassword().equals(dto.getConfirmPassword())){
@@ -88,19 +81,17 @@ public class AuthenService {
         }
         user.setUsername(dto.getUsername());
         user.setAddress(dto.getAddress());
-        role.addUser(user);
+        if (role.isPresent()) {
+            role.get().addUser(user);
+        }
         userRepo.save(user);
     }
 
     public void registerAmin(RegisterReq dto) {
         User user = new User();
-        Role role = roleRepo.findByNameContainingIgnoreCase("Admin");
-        if (role == null) {
-            role = new Role("Admin", "Default admin role");
-            roleRepo.save(role);
-        }
+        Optional<Role> role = roleRepo.findByNameContainingIgnoreCase("Admin");
 
-        user.setRole(role);
+        user.setRole(role.get());
 
         if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
             user.setPhone(dto.getPhone());
@@ -110,9 +101,21 @@ public class AuthenService {
             user.setPassword(dto.getPassword());
         }
         user.setUsername(dto.getPhone());
-        if (role != null) {
-            role.addUser(user);
-        }
+        role.get().addUser(user);
         userRepo.save(user);
+    }
+
+    public void changePassword(int id, ChangePassReq dto){
+        Optional<User> user = userRepo.findById(id);
+        if (user.isPresent()) {
+            if (dto.getOldPass().equals(user.get().getPassword())){
+                if (!dto.getNewPass().equals(user.get().getPassword())){
+                    if (dto.getNewPass().equals(dto.getConfirmPass())){
+                        user.get().setPassword(dto.getNewPass());
+                    }
+                }
+            }
+        }
+        userRepo.save(user.get());
     }
 }

@@ -35,9 +35,11 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> removeRole(@PathVariable int id) {
-        roleService.removeRole(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<String> removeRole(@PathVariable int id) {
+        if (roleService.removeRole(id)){
+            return ResponseEntity.ok("removed successfully");
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
     }
-
 }

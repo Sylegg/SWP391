@@ -1,6 +1,5 @@
 package com.lemon.supershop.swp391fa25evdm.category.model.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
 import com.lemon.supershop.swp391fa25evdm.policies.model.entity.Policy;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
@@ -42,19 +41,19 @@ public class Category {
     @Column(name = "Torque", columnDefinition = "INT")
     private int torque;
 
-    @Column(name = "BasePrice", nullable = false, columnDefinition = "DECIMAL(15,2)")
+    @Column(name = "BasePrice", columnDefinition = "DECIMAL(15,2)")
     private double basePrice;
 
     @Column(name = "Warranty", columnDefinition = "INT")
     private int warranty;
 
-    @Column(name = "Is_special", nullable = false, columnDefinition = "VARCHAR(20)")
-    private boolean is_special;
+    @Column(name = "IsSpecial", columnDefinition = "VARCHAR(20)")
+    private boolean isSpecial;
 
     @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
-    @Column(name = "Status", nullable = false, columnDefinition = "VARCHAR(20)")
+    @Column(name = "Status", columnDefinition = "VARCHAR(20)")
     private String status;
 
     //relation
@@ -180,12 +179,12 @@ public class Category {
         this.warranty = warranty;
     }
 
-    public boolean isIs_special() {
-        return is_special;
+    public boolean isSpecial() {
+        return isSpecial;
     }
 
-    public void setIs_special(boolean is_special) {
-        this.is_special = is_special;
+    public void setSpecial(boolean special) {
+        isSpecial = special;
     }
 
     public String getStatus() {

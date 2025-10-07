@@ -1,16 +1,27 @@
 package com.lemon.supershop.swp391fa25evdm.policies.model.entity;
 
+import java.util.Date;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
-import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
-import jakarta.persistence.*;
 
-import java.util.Date;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
 @Entity
 @Table(name = "policy")
 public class Policy {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "Id", columnDefinition = "BIGINT")
@@ -31,7 +42,7 @@ public class Policy {
     @Column(name = "EndDate", columnDefinition = "DATETIME2")
     private Date endDate;
 
-    @Column(insertable = false, updatable = false, name = "Create_at", nullable = false, columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
+    @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createAt;
 
@@ -50,7 +61,8 @@ public class Policy {
     @JsonIgnore
     private Dealer dealer;
 
-    public Policy() {}
+    public Policy() {
+    }
 
     public int getId() {
         return id;
@@ -102,5 +114,21 @@ public class Policy {
 
     public Date getCreateAt() {
         return createAt;
+    }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public void setCategory(Category category) {
+        this.category = category;
+    }
+
+    public Dealer getDealer() {
+        return dealer;
+    }
+
+    public void setDealer(Dealer dealer) {
+        this.dealer = dealer;
     }
 }

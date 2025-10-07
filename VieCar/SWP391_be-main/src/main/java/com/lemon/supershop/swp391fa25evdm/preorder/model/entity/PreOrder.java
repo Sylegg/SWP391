@@ -1,13 +1,14 @@
 package com.lemon.supershop.swp391fa25evdm.preorder.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.lemon.supershop.swp391fa25evdm.order.model.entity.OrderItem;
+import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
+import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
 import com.lemon.supershop.swp391fa25evdm.payment.model.entity.Payment;
+import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import jakarta.persistence.*;
 
 import java.util.Date;
-import java.util.List;
 
 @Entity
 @Table(name = "preorder")
@@ -22,17 +23,23 @@ public class PreOrder {
     @JsonIgnore
     private User user;
 
-    @OneToMany(mappedBy = "preOrder", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<OrderItem> orderItems;
+    @ManyToOne
+    @JoinColumn(name = "ProductId")
+    @JsonIgnore
+    private Product product;
 
-    @Column(name = "Order_date", nullable = false, columnDefinition = "DATETIME2")
-    private Date order_date;
+    @ManyToOne( fetch = FetchType.LAZY)
+    @JoinColumn(name = "ContractId")
+    private Contract contract;
 
-    @Column(name = "Status", nullable = false, columnDefinition = "VARCHAR(20)")
+    @Column(name = "OrderDate", columnDefinition = "DATETIME2")
+    private Date orderDate;
+
+    @Column(name = "Status", columnDefinition = "VARCHAR(20)")
     private String status;
 
-    @Column(name = "Total", nullable = false, columnDefinition = "DECIMAL(18,2)")
-    private double total;
+    @Column(name = "Deposit", columnDefinition = "DECIMAL(18,2)")
+    private double deposit;
 
     @OneToOne(mappedBy = "preOrder", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Payment payments;
@@ -55,20 +62,12 @@ public class PreOrder {
         this.user = user;
     }
 
-    public List<OrderItem> getOrderItems() {
-        return orderItems;
+    public Date getOrderDate() {
+        return orderDate;
     }
 
-    public void setOrderItems(List<OrderItem> orderItems) {
-        this.orderItems = orderItems;
-    }
-
-    public Date getOrder_date() {
-        return order_date;
-    }
-
-    public void setOrder_date(Date order_date) {
-        this.order_date = order_date;
+    public void setOrderDate(Date order_date) {
+        this.orderDate = order_date;
     }
 
     public String getStatus() {
@@ -79,12 +78,12 @@ public class PreOrder {
         this.status = status;
     }
 
-    public double getTotal() {
-        return total;
+    public double getDeposit() {
+        return deposit;
     }
 
-    public void setTotal(double total) {
-        this.total = total;
+    public void setDeposit(double total) {
+        this.deposit = total;
     }
 
     public Payment getPayments() {
@@ -93,5 +92,21 @@ public class PreOrder {
 
     public void setPayments(Payment payments) {
         this.payments = payments;
+    }
+
+    public Product getProduct() {
+        return product;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
+    }
+
+    public Contract getContract() {
+        return contract;
+    }
+
+    public void setContract(Contract contract) {
+        this.contract = contract;
     }
 }

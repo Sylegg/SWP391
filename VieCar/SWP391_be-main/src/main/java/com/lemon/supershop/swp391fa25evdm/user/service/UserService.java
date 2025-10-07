@@ -1,9 +1,7 @@
 package com.lemon.supershop.swp391fa25evdm.user.service;
 
-import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.RegisterReq;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
-import com.lemon.supershop.swp391fa25evdm.role.model.dto.RoleDto;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.role.repository.RoleRepo;
 import com.lemon.supershop.swp391fa25evdm.user.model.dto.AddUserReq;
@@ -22,13 +20,13 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
     @Autowired
-    UserRepo userRepo;
+    private UserRepo userRepo;
 
     @Autowired
-    RoleRepo roleRepo;
+    private RoleRepo roleRepo;
 
     @Autowired
-    DealerRepo dealerRepo;
+    private DealerRepo dealerRepo;
 
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$", Pattern.CASE_INSENSITIVE);
@@ -39,22 +37,20 @@ public class UserService {
 
     public List<UserRes> getAllUsers() {
         return userRepo.findByIsBlackFalse().stream().map(user -> {
-            UserRes dto = new UserRes(user.getId(), user.getUsername(), user.getEmail(), user.getPhone(), user.getAddress(), new RoleDto(user.getRole().getName(), user.getRole().getDescription()));
-            return dto;
+            return convertUsertoUserRes(user);
         }).collect(Collectors.toList());
     }
 
     public List<UserRes> getBlackList() {
         return userRepo.findByIsBlackTrue().stream().map(user -> {
-            UserRes dto = new UserRes(user.getId(), user.getUsername(), user.getEmail(), user.getPhone(), user.getAddress(), new RoleDto(user.getRole().getName(), user.getRole().getDescription()));
-            return dto;
+            return convertUsertoUserRes(user);
         }).collect(Collectors.toList());
     }
 
     public UserRes findByUserId(int id) {
         Optional<User> user = userRepo.findById(id);
         if (user.isPresent()) {
-            return new UserRes(user.get().getId(), user.get().getUsername(), user.get().getEmail(), user.get().getPhone(), user.get().getAddress(), new RoleDto(user.get().getRole() != null ? user.get().getRole().getName() : null, user.get().getRole() != null ? user.get().getRole().getDescription() : null));
+            return convertUsertoUserRes(user.get());
         } else {
             return null;
         }
@@ -62,36 +58,47 @@ public class UserService {
 
     public List<UserRes> findByUsername(String name) {
         return userRepo.findByUsernameContainingIgnoreCase(name).stream().map(user -> {
-            UserRes dto = new UserRes(user.getId(), user.getUsername(), user.getEmail(), user.getPhone(), user.getAddress(), new RoleDto(user.getRole() != null ? user.getRole().getName() : null, user.getRole() != null ? user.getRole().getDescription() : null));
-            return dto;
+            return convertUsertoUserRes(user);
         }).collect(Collectors.toList());
     }
 
-    public void addUser(AddUserReq dto) {
-        User user = new User();
-        Role role = roleRepo.findByNameContainingIgnoreCase(dto.getRole());
-
-        user.setRole(role);
-
-        if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
-            user.setPhone(dto.getPhone());
-        }
-        if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()){
-            user.setEmail(dto.getEmail());
-        }
-
-        Optional<Dealer> dealer = dealerRepo.findByNameContainingIgnoreCase(dto.getDealer());
-        if (dealer.isPresent()) {
-            user.setDealer(dealer.get());
-        }
-        if (dto.getUsername() != null){
-            user.setUsername(dto.getUsername());
-        }
-        role.addUser(user);
-        userRepo.save(user);
+    public List<UserRes> findByDealer(int dealerid) {
+        return userRepo.findUsersByDealer_Id(dealerid).stream().map(user -> {
+            return convertUsertoUserRes(user);
+        }).collect(Collectors.toList());
     }
 
-    public void updateProfile(int id, UserReq dto){
+    public UserRes addUser(AddUserReq dto) {
+        User user = new User();
+        if (dto.getRoleName() != null){
+            Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(dto.getRoleName());
+            if(role.isPresent()){
+                user.setRole(role.get());
+                role.get().addUser(user);
+            }
+        }
+
+        if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()) {
+            user.setPhone(dto.getPhone());
+        }
+        if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()) {
+            user.setEmail(dto.getEmail());
+        }
+        if (dto.getDealerId() > 0) {
+            Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
+            if (dealer.isPresent()) {
+                user.setDealer(dealer.get());
+            }
+        }
+
+        if (dto.getUsername() != null) {
+            user.setUsername(dto.getUsername());
+        }
+        userRepo.save(user);
+        return convertUsertoUserRes(user);
+    }
+
+    public UserRes updateProfile(int id, UserReq dto){
         Optional<User> user = userRepo.findById(id);
         if(user.isPresent()){
 
@@ -107,17 +114,66 @@ public class UserService {
             if(dto.getAddress() != null){
                 user.get().setAddress(dto.getAddress());
             }
-
+            if (dto.getRoleName() != null){
+                Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(dto.getRoleName());
+                if(role.isPresent()){
+                    user.get().setRole(role.get());
+                }
+            }
+            if(dto.getDealerId() > 0){
+                Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
+                if(dealer.isPresent()){
+                    user.get().setDealer(dealer.get());
+                }
+            }
             userRepo.save(user.get());
+            return convertUsertoUserRes(user.get());
+        } else {
+            return null;
         }
     }
 
-    public void removeUser(int id) {
+    public void blackList(int id){
         Optional<User> user = userRepo.findById(id);
-        Role role = roleRepo.findByNameContainingIgnoreCase(user.get().getRole().getName());
-        if(user.isPresent() && role != null){
-            role.removeUser(user.orElse(null));
-            userRepo.delete(user.get());
+        if(user.isPresent()){
+            user.get().setBlack(true);
         }
+        userRepo.save(user.get());
+    }
+
+    public boolean removeUser(int id) {
+        Optional<User> user = userRepo.findById(id);
+        if(user.isPresent()){
+            Optional<Role> role = roleRepo.findById(user.get().getRole().getId());
+            if(role.isPresent()){
+                role.get().removeUser(user.orElse(null));
+                userRepo.delete(user.get());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public UserRes convertUsertoUserRes(User user){
+        UserRes dto = new UserRes();
+        if(user != null){
+            dto.setId(user.getId());
+            if(user.getUsername() != null){
+                dto.setName(user.getUsername());
+            }
+            if(user.getEmail() != null){
+                dto.setEmail(user.getEmail());
+            }
+            if(user.getPhone() != null){
+                dto.setPhone(user.getPhone());
+            }
+            if(user.getAddress() != null){
+                dto.setAddress(user.getAddress());
+            }
+            if(user.getRole() != null){
+                dto.setRole(user.getRole().getName());
+            }
+        }
+        return dto;
     }
 }

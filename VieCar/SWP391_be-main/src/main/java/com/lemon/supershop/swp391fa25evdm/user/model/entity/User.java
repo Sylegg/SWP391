@@ -1,5 +1,8 @@
 package com.lemon.supershop.swp391fa25evdm.user.model.entity;
 
+import java.util.Date;
+import java.util.List;
+
 import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.feedback.model.entity.Feedback;
@@ -8,17 +11,24 @@ import com.lemon.supershop.swp391fa25evdm.payment.model.entity.Payment;
 import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.entity.TestDrive;
-import jakarta.persistence.*;
 
-import java.util.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
 @Entity
-@Table(
-    name = "users",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "UK_users_email", columnNames = {"Email"})
-    }
-)
+@Table(name = "users")
 public class User {
 
     @Id
@@ -41,7 +51,7 @@ public class User {
     @Column(name = "Address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
-    @Column(name = "IsBlack", columnDefinition = "VARCHAR(20)")
+    @Column(name = "IsBlack")
     private boolean isBlack;
 
     @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )

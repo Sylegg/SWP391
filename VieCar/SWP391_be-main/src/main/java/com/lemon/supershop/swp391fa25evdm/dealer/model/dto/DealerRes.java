@@ -1,20 +1,23 @@
 package com.lemon.supershop.swp391fa25evdm.dealer.model.dto;
 
+import com.lemon.supershop.swp391fa25evdm.dealer.model.enums.DealerStatus;
+
+import java.util.Date;
+
 public class DealerRes {
+    private int id;
     private String name;
     private String address;
     private String phone;
     private String email;
-    private String status;
+    private String taxcode;
+    private DealerStatus status;
+    private Date creationDate;
 
     public DealerRes() {}
 
-    public DealerRes(String name, String address, String phone, String email, String status) {
-        this.name = name;
-        this.address = address;
-        this.phone = phone;
-        this.email = email;
-        this.status = status;
+    public int getId() {
+        return id;
     }
 
     public String getName() {
@@ -33,7 +36,47 @@ public class DealerRes {
         return email;
     }
 
-    public String getStatus() {
+    public DealerStatus getStatus() {
         return status;
+    }
+
+    public Date getCreationDate() {
+        return creationDate;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setStatus(DealerStatus status) {
+        this.status = status;
+    }
+
+    public String getTaxcode() {
+        return taxcode;
+    }
+
+    public void setTaxcode(String taxcode) {
+        this.taxcode = taxcode;
+    }
+
+    public void setCreationDate(Date creationDate) {
+        this.creationDate = creationDate;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 }

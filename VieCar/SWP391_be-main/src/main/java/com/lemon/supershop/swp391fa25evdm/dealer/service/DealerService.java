@@ -3,7 +3,9 @@ package com.lemon.supershop.swp391fa25evdm.dealer.service;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerReq;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.enums.DealerStatus;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,15 +29,14 @@ public class DealerService {
 
     public List<DealerRes> getAllDealers() {
         return dealerRepo.findAll().stream().map(dealer -> {
-            DealerRes dto = new DealerRes(dealer.getName(), dealer.getAddress(), dealer.getPhone(), dealer.getEmail(), dealer.getStatus());
-            return dto;
+            return convertDealertoDealerRes(dealer);
         }).collect(Collectors.toList());
     }
 
     public DealerRes getDealer(int id) {
         Optional<Dealer> dealer = dealerRepo.findById(id);
         if (dealer.isPresent()) {
-            return  new DealerRes(dealer.get().getName(), dealer.get().getAddress(), dealer.get().getPhone(), dealer.get().getEmail(), dealer.get().getStatus());
+            return  convertDealertoDealerRes(dealer.get());
         } else {
             return null;
         }
@@ -43,19 +44,17 @@ public class DealerService {
 
     public List<DealerRes> searchDealerbyName(String name) {
         return dealerRepo.findByNameContainingIgnoreCase(name).stream().map(dealer -> {
-            DealerRes dto = new DealerRes(dealer.getName(), dealer.getAddress(), dealer.getPhone(), dealer.getEmail(), dealer.getStatus());
-            return dto;
+            return convertDealertoDealerRes(dealer);
         }).collect(Collectors.toList());
     }
 
     public List<DealerRes> searchDealerbyAddress(String address) {
         return dealerRepo.findByAddressContainingIgnoreCase(address).stream().map(dealer -> {
-            DealerRes dto = new DealerRes(dealer.getName(), dealer.getAddress(), dealer.getPhone(), dealer.getEmail(), dealer.getStatus());
-            return dto;
+            return convertDealertoDealerRes(dealer);
         }).collect(Collectors.toList());
     }
 
-    public void registerDealer(DealerReq dto) {
+    public DealerRes registerDealer(DealerReq dto) {
         Dealer dealer = new Dealer();
         if (dto.getName() !=  null){
             dealer.setName(dto.getName());
@@ -72,10 +71,12 @@ public class DealerService {
         if (dto.getTaxcode() != null){
             dealer.setTaxcode(dto.getTaxcode());
         }
+        dealer.setStatus(DealerStatus.ACTIVE);
         dealerRepo.save(dealer);
+        return  convertDealertoDealerRes(dealer);
     }
 
-    public void updateDealer(int id, DealerReq dto) {
+    public DealerRes updateDealer(int id, DealerReq dto) {
         Dealer dealer = dealerRepo.findById(id).get();
         if (dealer != null) {
             if (dto.getName() !=  null){
@@ -92,13 +93,47 @@ public class DealerService {
             }
 
             dealerRepo.save(dealer);
+            return  convertDealertoDealerRes(dealer);
         }
+        return null;
+    }
+    @Transactional
+    public boolean removeDealer(int id) {
+        Optional<Dealer> dealer = dealerRepo.findById(id);
+        if (dealer.isPresent()) {
+            dealerRepo.clearDealerFromUsers(dealer.get().getId());
+            dealerRepo.delete(dealer.get());
+            return true;
+        }
+        return false;
     }
 
-    public void removeDealer(int id) {
-        Dealer dealer = dealerRepo.findById(id).get();
+    public DealerRes convertDealertoDealerRes(Dealer dealer){
+        DealerRes dto = new DealerRes();
         if (dealer != null) {
-            dealerRepo.delete(dealer);
+            dto.setId(dealer.getId());
+            if (dealer.getName() != null) {
+                dto.setName(dealer.getName());
+            }
+            if (dealer.getAddress() != null) {
+                dto.setAddress(dealer.getAddress());
+            }
+            if (dealer.getPhone() != null) {
+                dto.setPhone(dealer.getPhone());
+            }
+            if (dealer.getEmail() != null) {
+                dto.setEmail(dealer.getEmail());
+            }
+            if (dealer.getTaxcode() != null) {
+                dto.setTaxcode(dealer.getTaxcode());
+            }
+            if (dealer.getStatus() != null) {
+                dto.setStatus(dealer.getStatus());
+            }
+            if (dealer.getCreateAt() != null) {
+                dto.setCreationDate(dealer.getCreateAt());
+            }
         }
+        return dto;
     }
 }

@@ -2,8 +2,10 @@ package com.lemon.supershop.swp391fa25evdm.dealer.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.enums.DealerStatus;
 import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
 import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
+import com.lemon.supershop.swp391fa25evdm.payment.model.entity.InstallmentPlan;
 import com.lemon.supershop.swp391fa25evdm.policies.model.entity.Policy;
 import com.lemon.supershop.swp391fa25evdm.promotion.model.entity.Promotion;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.entity.TestDrive;
@@ -36,7 +38,8 @@ public class Dealer {
     private String taxcode;
 
     @Column(name = "Status", columnDefinition = "VARCHAR(20)")
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private DealerStatus status;
 
     @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
@@ -67,6 +70,9 @@ public class Dealer {
 
     @OneToMany(mappedBy = "dealer", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Promotion> promotions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "dealer", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<InstallmentPlan> installmentPlans;
 
     @OneToMany(mappedBy = "dealer", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<TestDrive> testDrives;
@@ -113,11 +119,11 @@ public class Dealer {
         this.taxcode = taxcode;
     }
 
-    public String getStatus() {
+    public DealerStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(DealerStatus status) {
         this.status = status;
     }
 

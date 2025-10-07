@@ -7,7 +7,6 @@ public class RegisterReq {
     private String address;
     private String password;
     private String confirmPassword;
-    // Optional: allow selecting role at registration time for testing
     private String roleName;
 
     public RegisterReq() {}
