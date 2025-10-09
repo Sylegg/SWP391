@@ -9,6 +9,7 @@ import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import jakarta.persistence.*;
 
 import java.util.Date;
+import java.util.List;
 
 @Entity
 @Table(name = "preorder")
@@ -28,9 +29,8 @@ public class PreOrder {
     @JsonIgnore
     private Product product;
 
-    @ManyToOne( fetch = FetchType.LAZY)
-    @JoinColumn(name = "ContractId")
-    private Contract contract;
+    @OneToMany(mappedBy = "preOrder", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<Contract> contract;
 
     @Column(name = "OrderDate", columnDefinition = "DATETIME2")
     private Date orderDate;
@@ -102,11 +102,11 @@ public class PreOrder {
         this.product = product;
     }
 
-    public Contract getContract() {
+    public List<Contract> getContract() {
         return contract;
     }
 
-    public void setContract(Contract contract) {
+    public void setContract(List<Contract> contract) {
         this.contract = contract;
     }
 }

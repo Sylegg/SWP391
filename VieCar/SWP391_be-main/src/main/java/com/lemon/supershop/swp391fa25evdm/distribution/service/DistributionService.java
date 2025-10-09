@@ -3,6 +3,10 @@ package com.lemon.supershop.swp391fa25evdm.distribution.service;
 import java.util.List;
 import java.util.Optional;
 
+import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
+import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -59,7 +63,7 @@ public class DistributionService {
     public DistributionRes updateDistribution(int id, DistributionReq req) {
         Optional<Distribution> distribution = distributionRepo.findById(id);
         if (distribution.isPresent()) {
-            Distribution distribution1 = convertToEntity(distribution.orElse(null), req);
+            Distribution distribution1 = convertToEntity(distribution.get(), req);
             distributionRepo.save(distribution1);
             return convertToRes(distribution1);
         }
@@ -76,10 +80,30 @@ public class DistributionService {
 
     private Distribution convertToEntity(Distribution distribution ,DistributionReq req) {
         if (distribution != null){
-            productRepo.findById(req.getProductId()).ifPresent(distribution::setProduct);
-            categoryRepository.findById(req.getCategoryId()).ifPresent(distribution::setCategory);
-            dealerRepo.findById(req.getDealerId()).ifPresent(distribution::setDealer);
-            contractRepo.findById(req.getContractId()).ifPresent(distribution::setContract);
+            if (req.getProductId() > 0){
+                Optional<Product> product = productRepo.findById(req.getProductId());
+                if (product.isPresent()){
+                    distribution.setProduct(product.get());
+                }
+            }
+            if (req.getCategoryId() > 0){
+                Optional<Category> category = categoryRepository.findById(req.getCategoryId());
+                if (category.isPresent()){
+                    distribution.setCategory(category.get());
+                }
+            }
+            if (req.getDealerId() > 0){
+                Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
+                if (dealer.isPresent()){
+                    distribution.setDealer(dealer.get());
+                }
+            }
+            if (req.getContractId() > 0){
+                Optional<Contract> contract = contractRepo.findById(req.getContractId());
+                if (contract.isPresent()){
+                    distribution.setContract(contract.get());
+                }
+            }
             return distribution;
         }
         return null;

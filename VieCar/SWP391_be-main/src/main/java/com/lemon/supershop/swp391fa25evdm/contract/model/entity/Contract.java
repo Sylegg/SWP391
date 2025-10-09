@@ -37,13 +37,15 @@ public class Contract {
     @Column(name = "FileUrl", columnDefinition = "VARCHAR(255)")
     private String fileUrl; // link PDF hợp đồng lưu trên server
 
-    @OneToMany(mappedBy = "contract")
+    @ManyToOne
+    @JoinColumn(name = "OrderId")
     @JsonIgnore
-    private List<Order> orders = new ArrayList<>();
+    private Order order;
 
-    @OneToMany(mappedBy = "contract")
+    @ManyToOne
+    @JoinColumn(name = "PreOrderId")
     @JsonIgnore
-    private List<PreOrder> preOrders = new ArrayList<>();
+    private PreOrder preOrder;
 
     @ManyToOne
     @JoinColumn(name = "UserId")
@@ -95,15 +97,32 @@ public class Contract {
     public String getStatus() {
         return status;
     }
+
     public void setStatus(String status) {
         this.status = status;
     }
 
-    public List<Order> getOrders() {
-        return orders;
+    public Order getOrder() {
+        return order;
     }
 
-    public void setOrders(List<Order> orders) {
-        this.orders = orders;
+    public void setOrder(Order order) {
+        this.order = order;
+    }
+
+    public PreOrder getPreOrder() {
+        return preOrder;
+    }
+
+    public void setPreOrder(PreOrder preOrder) {
+        this.preOrder = preOrder;
+    }
+
+    public Distribution getDistribution() {
+        return distribution;
+    }
+
+    public void setDistribution(Distribution distribution) {
+        this.distribution = distribution;
     }
 }

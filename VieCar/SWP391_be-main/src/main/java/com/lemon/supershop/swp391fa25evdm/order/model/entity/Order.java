@@ -76,9 +76,8 @@ public class Order {
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Promotion> promotions = new ArrayList<>();
 
-    @ManyToOne( fetch = FetchType.LAZY)
-    @JoinColumn(name = "ContractId")
-    private Contract contract;
+    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<Contract> contract;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "DealerId")
@@ -134,11 +133,15 @@ public class Order {
         this.payments = payments;
     }
 
-    public Contract getContract() {
+    public Date getShipAt() {
+        return shipAt;
+    }
+
+    public List<Contract> getContract() {
         return contract;
     }
 
-    public void setContract(Contract contract) {
+    public void setContract(List<Contract> contract) {
         this.contract = contract;
     }
 

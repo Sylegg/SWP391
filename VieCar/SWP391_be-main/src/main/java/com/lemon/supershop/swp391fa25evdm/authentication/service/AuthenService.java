@@ -59,9 +59,8 @@ public class AuthenService {
 
     public void register(RegisterReq dto) {
         User user = new User();
-        // Use the roleName from the request, default to "Customer" if not provided
         String requestedRole = dto.getRoleName() != null ? dto.getRoleName() : "Customer";
-        Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(requestedRole);
+        Optional<Role> role = roleRepo.findByNameContainingIgnoreCase("Customer");
 
         user.setRole(role.orElse(null));
 
@@ -75,15 +74,14 @@ public class AuthenService {
                 user.setEmail(dto.getEmail());
             }
         }
-
+        if (role.isPresent()) {
+            role.get().addUser(user);
+        }
         if (dto.getPassword().equals(dto.getConfirmPassword())){
             user.setPassword(dto.getPassword());
         }
         user.setUsername(dto.getUsername());
         user.setAddress(dto.getAddress());
-        if (role.isPresent()) {
-            role.get().addUser(user);
-        }
         userRepo.save(user);
     }
 

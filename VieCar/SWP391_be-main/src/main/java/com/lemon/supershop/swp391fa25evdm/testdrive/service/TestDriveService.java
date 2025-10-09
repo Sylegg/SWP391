@@ -98,13 +98,25 @@ public class TestDriveService {
                 testDrive.setNotes(req.getNotes());
             }
             if (req.getUserId() > 0){
-                userRepo.findById(req.getUserId()).ifPresent(testDrive::setUser);
+                Optional<User> user = userRepo.findById(req.getUserId());
+                if (user.isPresent()) {
+                    testDrive.setUser(user.orElse(null));
+                    user.get().getTestDrives().add(testDrive);
+                }
             }
             if (req.getDealerId() > 0){
-                dealerRepo.findById(req.getDealerId()).ifPresent(testDrive::setDealer);
+                Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
+                if (dealer.isPresent()) {
+                    testDrive.setDealer(dealer.get());
+                    dealer.get().getTestDrives().add(testDrive);
+                }
             }
             if (req.getDealerCategoryId() > 0){
-                dealerCategoryRepository.findById(req.getDealerCategoryId()).ifPresent(testDrive::setDealerCategory);
+                Optional<DealerCategory> dealerCategory = dealerCategoryRepository.findById(req.getDealerCategoryId());
+                if (dealerCategory.isPresent()) {
+                    testDrive.setDealerCategory(dealerCategory.get());
+                    dealerCategory.get().getTestDrives().add(testDrive);
+                }
             }
             return testDrive;
         }
@@ -116,6 +128,7 @@ public class TestDriveService {
     private TestDriveRes convertToRes(TestDrive testDrive) {
         TestDriveRes res = new TestDriveRes();
         if (testDrive != null) {
+            res.setId(testDrive.getId());
             if (testDrive.getScheduleDate() != null) {
                 res.setScheduleDate(testDrive.getScheduleDate());
             }

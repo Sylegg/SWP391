@@ -5,9 +5,9 @@ public class RegisterReq {
     private String phone;
     private String email;
     private String address;
+    private String roleName;
     private String password;
     private String confirmPassword;
-    private String roleName;
 
     public RegisterReq() {}
 

@@ -2,6 +2,7 @@ package com.lemon.supershop.swp391fa25evdm.contract.model.dto;
 
 import java.time.LocalDateTime;
 
+import com.lemon.supershop.swp391fa25evdm.order.model.dto.response.OrderRes;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,20 +12,11 @@ public class ContractRes {
     private int id;
     private LocalDateTime signedDate;
     private String fileUrl; // link PDF hợp đồng lưu trên server
-    private Integer orderId;
-    private Integer userId;
+    private int orderId;
+    private int userId;
     private String status;
 
     public ContractRes() {
-    }
-
-    public ContractRes(int id, LocalDateTime signedDate, String fileUrl, Integer orderId, Integer userId, String status) {
-        this.id = id;
-        this.signedDate = signedDate;
-        this.fileUrl = fileUrl;
-        this.orderId = orderId;
-        this.userId = userId;
-        this.status = status;
     }
 
     public int getId() {
@@ -59,11 +51,11 @@ public class ContractRes {
         this.orderId = orderId;
     }
 
-    public Integer getUserId() {
+    public int getUserId() {
         return userId;
     }
 
-    public void setUserId(Integer userId) {
+    public void setUserId(int userId) {
         this.userId = userId;
     }
 

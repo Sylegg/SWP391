@@ -1,5 +1,7 @@
 package com.lemon.supershop.swp391fa25evdm.order.model.dto.response;
 
+import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
+
 import java.util.List;
 
 public class OrderRes {
@@ -7,7 +9,7 @@ public class OrderRes {
     private int dealerId;
     private String customerName;
     private String productName;
-    private int contractId;
+    private List<Contract> contracts;
     private double totalPrice;
     private String status;
 
@@ -33,8 +35,8 @@ public class OrderRes {
         this.productName = productName;
     }
 
-    public void setContractId(int contractId) {
-        this.contractId = contractId;
+    public void setContracts(List<Contract> contractId) {
+        this.contracts = contracts;
     }
 
     public void setDealerId(int dealerId) {
@@ -57,8 +59,8 @@ public class OrderRes {
         return productName;
     }
 
-    public int getContractId() {
-        return contractId;
+    public List<Contract> getContracts() {
+        return contracts;
     }
 
     public double getTotalPrice() {

@@ -2,6 +2,7 @@ package com.lemon.supershop.swp391fa25evdm.contract.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -59,12 +60,16 @@ public class ContractService {
         contract.setSignedDate(dto.getSignedDate());
         contract.setFileUrl(dto.getFileUrl());
 
-        Order order = orderRepo.findById(dto.getOrderId()).orElseThrow(() -> new RuntimeException("Order not found with id: " + dto.getOrderId()));
-        contract.setOrders(List.of(order));
+        Optional<Order> order = orderRepo.findById(dto.getOrderId());
+        if (order.isPresent()) {
+            contract.setOrder(order.get());
+        }
 
-        User user = userRepo.findById(dto.getUserId()).orElseThrow(() -> new RuntimeException("User not found with id: " + dto.getUserId()));
-        contract.setUser(user);
-
+        Optional<User> user = userRepo.findById(dto.getUserId());
+        if (user.isPresent()) {
+            contract.setUser(user.get());
+            user.get().getContracts().add(contract);
+        }
         contract.setStatus(dto.getStatus());
         contractRepo.save(contract);
         return convertToRes(contract);
@@ -78,44 +83,43 @@ public class ContractService {
         return false;
     }
 
-    public void updateContract(int id, ContractReq dto) throws Exception {
-        Contract existingContract = contractRepo.findById(id)
-                .orElseThrow(() -> new Exception("Contract not found with id: " + id));
-        existingContract.setSignedDate(dto.getSignedDate());
-        existingContract.setFileUrl(dto.getFileUrl());
-
-        Order order = orderRepo.findById(dto.getOrderId())
-            .orElseThrow(() -> new RuntimeException("Order not found with id: " + dto.getOrderId()));
-        existingContract.setOrders(new ArrayList<>(List.of(order)));
-
-        User user = userRepo.findById(dto.getUserId())
-            .orElseThrow(() -> new RuntimeException("User not found with id: " + dto.getUserId()));
-        existingContract.setUser(user);
-
-        existingContract.setStatus(dto.getStatus());
-        contractRepo.save(existingContract);
+    public ContractRes updateContract(int id, ContractReq dto) throws Exception {
+        Optional<Contract> existingContract = contractRepo.findById(id);
+        if (existingContract.isPresent()) {
+            if (dto.getSignedDate() != null) {
+                existingContract.get().setSignedDate(dto.getSignedDate());
+            }
+            if (dto.getFileUrl() != null) {
+                existingContract.get().setFileUrl(dto.getFileUrl());
+            }
+            if (dto.getStatus() != null) {
+                existingContract.get().setStatus(dto.getStatus());
+            }
+            Optional<Order> order = orderRepo.findById(dto.getOrderId());
+            if (order.isPresent()) {
+                existingContract.get().setOrder(order.get());
+            }
+            Optional<User> user = userRepo.findById(dto.getUserId());
+            if (user.isPresent()) {
+                existingContract.get().setUser(user.orElse(null));
+            }
+            contractRepo.save(existingContract.get());
+            return convertToRes(existingContract.orElse(null));
+        }
+        return null;
     }
 
     private ContractRes convertToRes(Contract contract) {
         ContractRes dto = new ContractRes();
-        dto.setId(contract.getId());
-        dto.setSignedDate(contract.getSignedDate());
-        dto.setFileUrl(contract.getFileUrl());
-
-        List<Order> orders = contract.getOrders();
-        if (orders != null && !orders.isEmpty()){
-            dto.setOrderId(orders.get(0).getId());
-        } else {
-            dto.setOrderId(null);
-        }
-
-        if (contract.getUser() != null) {
+        if (contract != null){
+            dto.setId(contract.getId());
+            dto.setSignedDate(contract.getSignedDate());
+            dto.setFileUrl(contract.getFileUrl());
+            dto.setOrderId(contract.getOrder().getId());
             dto.setUserId(contract.getUser().getId());
-        } else {
-            dto.setUserId(null);
+            dto.setStatus(contract.getStatus());
+            return dto;
         }
-
-        dto.setStatus(contract.getStatus());
-        return dto;
+        return null;
     }
 }

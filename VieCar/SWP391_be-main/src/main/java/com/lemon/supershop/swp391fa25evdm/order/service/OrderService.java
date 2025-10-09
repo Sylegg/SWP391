@@ -1,5 +1,6 @@
 package com.lemon.supershop.swp391fa25evdm.order.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -66,12 +67,20 @@ public class OrderService {
         Optional<User> user = userRepo.findById(userId);
         if (user.isPresent()){
             Order order = new Order();
-            order.setUser(user.orElse(null));
+            order.setUser(user.get());
             if (dto.getProductId() > 0 ){
                 Optional<Product> product  = productRepo.findById(dto.getProductId());
                 if (product.isPresent()){
                     order.setProduct(product.orElse(null));
                     order.setTotal(product.get().getDealerPrice());
+                }
+            }
+            if (dto.getContractId() > 0){
+                Optional<Contract> contract  = contractRepo.findById(dto.getContractId());
+                if (contract.isPresent()){
+                    List<Contract> contracts = new ArrayList<>();
+                    contracts.add(contract.get());
+                    order.setContract(contracts);
                 }
             }
             if (dto.getDealerId() > 0){
@@ -120,9 +129,9 @@ public class OrderService {
                 }
             }
             if (dto.getContractId() > 0 ){
-                Contract contract = contractRepo.findById(dto.getContractId()).get();
-                if (contract != null){
-                    order.get().setContract(contract);
+                Optional<Contract> contract = contractRepo.findById(dto.getContractId());
+                if (contract.isPresent()){
+                    order.get().getContract().add(contract.get());
                 }
             }
             if (dto.getDealerId() > 0){
@@ -162,7 +171,6 @@ public class OrderService {
     public boolean deleteOrder(int orderId) {
         Optional<Order> order = orderRepo.findById(orderId);
         if (order.isPresent()){
-            contractRepo.delete(order.get().getContract());
             order.get().getProduct().getOrders().remove(order);
             productRepo.save(order.get().getProduct());
             order.get().getDealer().getOrders().remove(order);
@@ -195,7 +203,7 @@ public class OrderService {
                 orderRes.setCustomerName(order.getUser().getUsername());
             }
             if (order.getContract() != null){
-                orderRes.setContractId(order.getContract().getId());
+                orderRes.setContracts(order.getContract());
             }
             if (order.getProduct() != null){
                 orderRes.setProductName(order.getProduct().getName());
