@@ -28,6 +28,14 @@ export function ChatBot() {
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  
+  // AssistiveTouch draggable states
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [isHovered, setIsHovered] = useState(false)
+  const [hasMoved, setHasMoved] = useState(false)
+  const buttonRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -116,74 +124,305 @@ export function ChatBot() {
     })
   }
 
+  // Draggable AssistiveTouch handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isOpen) return // Don't drag when chat is open
+    
+    setIsDragging(true)
+    setHasMoved(false)
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    })
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return
+
+    setHasMoved(true)
+    const buttonSize = 64 // Size of the button
+    const newX = e.clientX - dragStart.x
+    const newY = e.clientY - dragStart.y
+
+    // Keep button within viewport bounds
+    const maxX = window.innerWidth - buttonSize
+    const maxY = window.innerHeight - buttonSize
+
+    setPosition({
+      x: Math.max(0, Math.min(newX, maxX)),
+      y: Math.max(0, Math.min(newY, maxY))
+    })
+  }
+
+  const snapToEdge = () => {
+    const buttonSize = 64
+    const screenWidth = window.innerWidth
+    const centerX = position.x + buttonSize / 2
+
+    // Determine which side is closer: left or right
+    const distanceToLeft = centerX
+    const distanceToRight = screenWidth - centerX
+
+    let newPosition = { ...position }
+
+    // Snap to the closest edge (left or right only) with some padding
+    const edgePadding = 16
+
+    if (distanceToLeft < distanceToRight) {
+      // Snap to left edge
+      newPosition.x = edgePadding
+    } else {
+      // Snap to right edge
+      newPosition.x = screenWidth - buttonSize - edgePadding
+    }
+
+    // Keep Y position but ensure it's within bounds
+    const maxY = window.innerHeight - buttonSize - edgePadding
+    newPosition.y = Math.max(edgePadding, Math.min(position.y, maxY))
+
+    // Smooth animation to edge
+    setPosition(newPosition)
+  }
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false)
+      // Snap to nearest edge after drag
+      snapToEdge()
+    }
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isOpen) return
+    
+    const touch = e.touches[0]
+    setIsDragging(true)
+    setHasMoved(false)
+    setDragStart({
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y
+    })
+  }
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging) return
+    e.preventDefault()
+
+    setHasMoved(true)
+    const touch = e.touches[0]
+    const buttonSize = 64
+    const newX = touch.clientX - dragStart.x
+    const newY = touch.clientY - dragStart.y
+
+    const maxX = window.innerWidth - buttonSize
+    const maxY = window.innerHeight - buttonSize
+
+    setPosition({
+      x: Math.max(0, Math.min(newX, maxX)),
+      y: Math.max(0, Math.min(newY, maxY))
+    })
+  }
+
+  const handleTouchEnd = () => {
+    if (isDragging) {
+      setIsDragging(false)
+      snapToEdge()
+    }
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+      window.addEventListener('touchmove', handleTouchMove, { passive: false })
+      window.addEventListener('touchend', handleTouchEnd)
+      
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', handleMouseUp)
+        window.removeEventListener('touchmove', handleTouchMove)
+        window.removeEventListener('touchend', handleTouchEnd)
+      }
+    }
+  }, [isDragging, dragStart, position])
+
+  const handleButtonClick = () => {
+    // Only open chat if button wasn't dragged
+    if (!hasMoved) {
+      setIsOpen(true)
+    }
+  }
+
   return (
     <>
-      {/* Chat Toggle Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        {!isOpen && (
-          <Button
-            onClick={() => setIsOpen(true)}
-            className="h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110 group"
+      {/* AssistiveTouch Draggable Button */}
+      {!isOpen && (
+        <div
+          ref={buttonRef}
+          className="fixed z-50 select-none"
+          style={{
+            left: position.x ? `${position.x}px` : 'auto',
+            top: position.y ? `${position.y}px` : 'auto',
+            right: !position.x && !position.y ? '24px' : 'auto',
+            bottom: !position.x && !position.y ? '24px' : 'auto',
+            transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          {/* Liquid Glass Button with AssistiveTouch style */}
+          <div
+            onClick={handleButtonClick}
+            className={`
+              relative h-16 w-16 rounded-full transition-all duration-500 ease-out
+              ${isDragging ? 'scale-95 cursor-grabbing' : isHovered ? 'scale-110 cursor-grab' : 'scale-100 cursor-grab'}
+            `}
           >
-            <MessageCircle className="h-6 w-6 text-white transition-transform duration-300 group-hover:scale-110" />
-          </Button>
-        )}
-      </div>
+            {/* Outer glow ring - animated on hover */}
+            <div className={`
+              absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400
+              transition-all duration-500
+              ${isHovered ? 'blur-xl opacity-80 scale-125' : 'blur-md opacity-40 scale-100'}
+              animate-gradient-shift
+            `}></div>
+            
+            {/* Glass container */}
+            <div className={`
+              relative h-full w-full rounded-full overflow-hidden
+              backdrop-blur-2xl bg-white/40 border-2
+              shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]
+              transition-all duration-300
+              ${isHovered ? 'border-white/40 shadow-[0_12px_40px_0_rgba(59,130,246,0.5)]' : 'border-white/20'}
+            `}>
+              {/* Animated gradient background */}
+              <div className={`
+                absolute inset-0 bg-gradient-to-br from-blue-400/20 via-purple-400/20 to-pink-400/20
+                transition-opacity duration-300
+                ${isHovered ? 'opacity-100 animate-gradient-shift' : 'opacity-60'}
+              `}></div>
+              
+              {/* Inner shine effect */}
+              <div className={`
+                absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent
+                transition-opacity duration-300
+                ${isHovered ? 'opacity-100' : 'opacity-50'}
+              `}></div>
 
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[550px] z-50 shadow-2xl rounded-lg bg-white flex flex-col animate-in slide-in-from-bottom-2 slide-in-from-right-2 duration-300">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-t-lg flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-3">
-              {/* Logo AI Car with enhanced styling */}
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400/30 to-white/30 rounded-full blur-md group-hover:blur-lg transition-all duration-300"></div>
-                <div className="relative bg-white rounded-full p-0.5 shadow-lg transform group-hover:scale-110 transition-all duration-300">
-                  <Image
-                    src="/AIcar.webp"
-                    alt="AI Car Logo"
-                    width={40}
-                    height={40}
-                    className="rounded-full"
-                  />
+              {/* Icon container */}
+              <div className="relative h-full w-full flex items-center justify-center overflow-hidden rounded-full">
+                {/* AI Logo with glass effect */}
+                <div className={`
+                  relative transition-transform duration-300
+                  ${isHovered ? 'scale-105 rotate-6' : 'scale-100 rotate-0'}
+                `}>
+                  <div className={`
+                    absolute -inset-1 bg-gradient-to-r from-yellow-400/50 to-white/50 rounded-full
+                    transition-all duration-300
+                    ${isHovered ? 'blur-md opacity-100' : 'blur-sm opacity-60'}
+                  `}></div>
+                  <div className="relative backdrop-blur-xl bg-white/90 rounded-full p-1 shadow-lg border border-white/50">
+                    <Image
+                      src="/AIcar.webp"
+                      alt="AI Car Logo"
+                      width={44}
+                      height={44}
+                      className="rounded-full"
+                    />
+                  </div>
                 </div>
               </div>
-              <h3 className="text-lg font-semibold">Chat AI VieCar</h3>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsOpen(false)}
-              className="text-white hover:bg-blue-700 p-1 h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
 
-          {/* Messages Area */}
-          <div 
-            ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 space-y-4"
-            style={{ maxHeight: 'calc(100% - 140px)' }}
-          >
+              {/* Ripple effect on hover */}
+              {isHovered && (
+                <div className="absolute inset-0 rounded-full">
+                  <div className="absolute inset-0 rounded-full bg-white/20 animate-ping"></div>
+                </div>
+              )}
+            </div>
+
+            {/* Notification badge (optional) */}
+            <div className={`
+              absolute -top-1 -right-1 h-5 w-5 rounded-full
+              backdrop-blur-xl bg-gradient-to-r from-red-500 to-pink-500
+              border-2 border-white shadow-lg
+              flex items-center justify-center
+              transition-all duration-300
+              ${isHovered ? 'scale-110' : 'scale-100'}
+            `}>
+              <span className="text-[10px] font-bold text-white">AI</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Window - Liquid Glass Effect */}
+      {isOpen && (
+        <div className="fixed bottom-6 right-6 w-96 h-[550px] z-50 flex flex-col animate-in slide-in-from-bottom-2 slide-in-from-right-2 duration-300">
+          {/* Glass container with border */}
+          <div className="relative w-full h-full rounded-2xl overflow-hidden backdrop-blur-3xl bg-white/40 border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]">
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-purple-400/10 to-pink-400/10 animate-gradient-shift"></div>
+            
+            {/* Inner glass effect */}
+            <div className="relative h-full flex flex-col">
+              {/* Header - Glass effect */}
+              <div className="relative backdrop-blur-2xl bg-gradient-to-r from-blue-600/80 to-blue-700/80 text-white p-4 rounded-t-2xl flex items-center justify-between flex-shrink-0 border-b border-white/10">
+                {/* Shine effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent"></div>
+                <div className="relative flex items-center gap-3 z-10">
+                  {/* Logo AI Car with liquid glass effect */}
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400/40 to-white/40 rounded-full blur-lg group-hover:blur-xl transition-all duration-300 animate-pulse"></div>
+                    <div className="relative backdrop-blur-xl bg-white/90 rounded-full p-0.5 shadow-[0_8px_16px_0_rgba(31,38,135,0.4)] transform group-hover:scale-110 transition-all duration-300 border border-white/30">
+                      <Image
+                        src="/AIcar.webp"
+                        alt="AI Car Logo"
+                        width={40}
+                        height={40}
+                        className="rounded-full"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold drop-shadow-lg">Chat AI VieCar</h3>
+                    <p className="text-xs text-white/80"></p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsOpen(false)}
+                  className="relative z-10 text-white hover:bg-white/20 p-1 h-8 w-8 backdrop-blur-sm rounded-full transition-all duration-300 hover:scale-110"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Messages Area - Glass scrollable */}
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4 space-y-4 backdrop-blur-sm"
+                style={{ maxHeight: 'calc(100% - 140px)' }}
+              >
                 {messages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-lg p-3 transition-all duration-200 hover:shadow-md ${
+                      className={`max-w-[80%] rounded-2xl p-3 transition-all duration-200 hover:shadow-lg backdrop-blur-xl border ${
                         message.sender === 'user'
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white animate-in slide-in-from-right-2 duration-300'
-                          : 'bg-gray-100 text-gray-800 animate-in slide-in-from-left-2 duration-300'
+                          ? 'bg-gradient-to-r from-blue-600/90 to-blue-700/90 text-white animate-in slide-in-from-right-2 duration-300 border-blue-400/30 shadow-[0_4px_16px_0_rgba(59,130,246,0.3)]'
+                          : 'bg-white/60 text-gray-800 animate-in slide-in-from-left-2 duration-300 border-white/40 shadow-[0_4px_16px_0_rgba(255,255,255,0.4)]'
                       }`}
                     >
                       <div className="flex items-start gap-2">
                         {message.sender === 'bot' && (
                           <div className="relative group flex-shrink-0">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-400/40 to-blue-600/40 rounded-full blur-sm group-hover:blur-md transition-all duration-300"></div>
-                            <div className="relative bg-white rounded-full p-[2px] shadow-md">
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-400/50 to-blue-600/50 rounded-full blur-sm group-hover:blur-md transition-all duration-300 animate-pulse"></div>
+                            <div className="relative backdrop-blur-xl bg-white/95 rounded-full p-[2px] shadow-[0_4px_12px_0_rgba(59,130,246,0.3)] border border-white/50">
                               <Image
                                 src="/AIcar.webp"
                                 alt="AI"
@@ -195,12 +434,14 @@ export function ChatBot() {
                           </div>
                         )}
                         {message.sender === 'user' && (
-                          <User className="h-4 w-4 mt-1 flex-shrink-0" />
+                          <div className="backdrop-blur-sm bg-white/20 rounded-full p-1">
+                            <User className="h-4 w-4 mt-1 flex-shrink-0" />
+                          </div>
                         )}
                         <div>
                           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                           <p className={`text-xs mt-1 ${
-                            message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
+                            message.sender === 'user' ? 'text-blue-100' : 'text-gray-600'
                           }`}>
                             {formatTime(message.timestamp)}
                           </p>
@@ -211,11 +452,11 @@ export function ChatBot() {
                 ))}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-lg p-3 max-w-[80%] animate-in slide-in-from-left-2 duration-300">
+                    <div className="backdrop-blur-xl bg-white/60 rounded-2xl p-3 max-w-[80%] animate-in slide-in-from-left-2 duration-300 border border-white/40 shadow-[0_4px_16px_0_rgba(255,255,255,0.4)]">
                       <div className="flex items-center gap-2">
                         <div className="relative group flex-shrink-0">
-                          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-400/40 to-blue-600/40 rounded-full blur-sm animate-pulse"></div>
-                          <div className="relative bg-white rounded-full p-[2px] shadow-md">
+                          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-400/50 to-blue-600/50 rounded-full blur-sm animate-pulse"></div>
+                          <div className="relative backdrop-blur-xl bg-white/95 rounded-full p-[2px] shadow-[0_4px_12px_0_rgba(59,130,246,0.3)] border border-white/50">
                             <Image
                               src="/AIcar.webp"
                               alt="AI"
@@ -226,9 +467,9 @@ export function ChatBot() {
                           </div>
                         </div>
                         <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="w-2 h-2 bg-blue-500/80 rounded-full animate-bounce shadow-lg"></div>
+                          <div className="w-2 h-2 bg-blue-500/80 rounded-full animate-bounce shadow-lg" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-blue-500/80 rounded-full animate-bounce shadow-lg" style={{ animationDelay: '0.2s' }}></div>
                         </div>
                       </div>
                     </div>
@@ -237,27 +478,34 @@ export function ChatBot() {
                 <div ref={messagesEndRef} />
               </div>
 
-            {/* Input Area */}
-            <div className="border-t p-4 bg-white rounded-b-lg flex-shrink-0">
-              <div className="flex gap-2">
-                <Input
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Nhập tin nhắn..."
-                  disabled={isLoading}
-                  className="flex-1 border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoading}
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-105"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+              {/* Input Area - Glass effect */}
+              <div className="relative backdrop-blur-2xl bg-white/50 p-4 rounded-b-2xl flex-shrink-0 border-t border-white/20">
+                {/* Shine effect */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-transparent rounded-b-2xl"></div>
+                
+                <div className="relative flex gap-2 z-10">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Nhập tin nhắn..."
+                      disabled={isLoading}
+                      className="backdrop-blur-xl bg-white/70 border-white/30 focus:border-blue-400/50 focus:ring-blue-400/30 transition-all duration-200 rounded-xl shadow-[0_4px_12px_0_rgba(255,255,255,0.3)] hover:shadow-[0_4px_16px_0_rgba(59,130,246,0.2)] placeholder:text-gray-500"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim() || isLoading}
+                    size="sm"
+                    className="backdrop-blur-xl bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-105 rounded-xl shadow-[0_4px_16px_0_rgba(59,130,246,0.4)] border border-blue-400/30 hover:shadow-[0_6px_20px_0_rgba(59,130,246,0.5)]"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
+          </div>
         </div>
       )}
     </>

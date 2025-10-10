@@ -78,22 +78,6 @@ const brands: BrandGroup[] = [
       { id: "limogreen", name: "VinFast Limo Green", image: "/xe%20oto%20vinfast/LimoGreen.jpg", price: "749.000.000đ" },
     ],
   },
-  {
-    id: "vinfast-bike",
-    title: "XE MÁY ĐIỆN VINFAST",
-    products: [
-      { id: "vf-evo200", name: "VinFast Evo 200", image: "/xe%20dien%20vinfast/Evo200.jpg", price: "22.900.000đ" },
-      { id: "vf-evo200lite", name: "VinFast Evo 200 Lite", image: "/xe%20dien%20vinfast/Evo200Lite.jpg", price: "20.500.000đ" },
-      { id: "vf-evogrand", name: "VinFast Evo Grand", image: "/xe%20dien%20vinfast/evogrand.jpg", price: "28.900.000đ" },
-      { id: "vf-evoliteneo", name: "VinFast Evo Lite Neo", image: "/xe%20dien%20vinfast/EvoLiteNeo.jpg", price: "18.500.000đ" },
-      { id: "vf-evoneo", name: "VinFast Evo Neo", image: "/xe%20dien%20vinfast/EvoNeo.jpg", price: "21.500.000đ" },
-      { id: "vf-felizneo", name: "VinFast Feliz Neo", image: "/xe%20dien%20vinfast/FelizNeo.jpg", price: "25.900.000đ" },
-      { id: "vf-felizs", name: "VinFast Feliz S", image: "/xe%20dien%20vinfast/FelizS.jpg", price: "33.900.000đ" },
-      { id: "vf-klaraneo", name: "VinFast Klara Neo", image: "/xe%20dien%20vinfast/KlaraNeo.jpg", price: "40.900.000đ" },
-      { id: "vf-klaras", name: "VinFast Klara S", image: "/xe%20dien%20vinfast/KlaraS.jpg", price: "51.900.000đ" },
-      { id: "vf-theons", name: "VinFast Theon S", image: "/xe%20dien%20vinfast/TheonS.jpg", price: "74.900.000đ" },
-    ],
-  },
 ]
 
 // Small, reusable card for a product

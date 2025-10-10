@@ -121,3 +121,117 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Liquid Glass Animation for ChatBot */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* AssistiveTouch ripple effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Smooth snap animation */
+@keyframes snap-bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Smooth glass morphism transitions */
+.glass-morph {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Enhanced cursor styles */
+.cursor-grab {
+  cursor: grab;
+  cursor: -webkit-grab;
+  cursor: -moz-grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+  cursor: -webkit-grabbing;
+  cursor: -moz-grabbing;
+}
+
+/* Smooth scrollbar for glass effect */
+.backdrop-blur-sm::-webkit-scrollbar,
+.backdrop-blur-xl::-webkit-scrollbar,
+.backdrop-blur-2xl::-webkit-scrollbar,
+.backdrop-blur-3xl::-webkit-scrollbar {
+  width: 6px;
+}
+
+.backdrop-blur-sm::-webkit-scrollbar-track,
+.backdrop-blur-xl::-webkit-scrollbar-track,
+.backdrop-blur-2xl::-webkit-scrollbar-track,
+.backdrop-blur-3xl::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.backdrop-blur-sm::-webkit-scrollbar-thumb,
+.backdrop-blur-xl::-webkit-scrollbar-thumb,
+.backdrop-blur-2xl::-webkit-scrollbar-thumb,
+.backdrop-blur-3xl::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.backdrop-blur-sm::-webkit-scrollbar-thumb:hover,
+.backdrop-blur-xl::-webkit-scrollbar-thumb:hover,
+.backdrop-blur-2xl::-webkit-scrollbar-thumb:hover,
+.backdrop-blur-3xl::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.5);
+}
+
+/* Prevent text selection during drag */
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Smooth transitions for assistive touch */
+.assistive-touch-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

@@ -31,11 +31,6 @@ export function Footer() {
                   Ô tô điện VinFast
                 </a>
               </li>
-              <li>
-                <a href="#vinfast-bike" className="hover:text-primary">
-                  Xe máy điện VinFast
-                </a>
-              </li>
             </ul>
           </div>
 
