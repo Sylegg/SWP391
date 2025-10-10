@@ -24,8 +24,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   useEffect(() => {
     if (isLoading) return;
 
-    // If authentication is required but user is not logged in
-    if (requireAuth && !user) {
+    // If authentication is required but user is not logged in (Guest or no user)
+    if (requireAuth && (!user || user.role.name === 'Guest')) {
       router.push(fallbackPath);
       return;
     }
@@ -46,8 +46,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // If authentication is required but user is not logged in
-  if (requireAuth && !user) {
+  // If authentication is required but user is not logged in (Guest or no user)
+  if (requireAuth && (!user || user.role.name === 'Guest')) {
     return null;
   }
 
@@ -72,7 +72,7 @@ export const RoleBasedComponent: React.FC<RoleBasedComponentProps> = ({
 }) => {
   const { user } = useAuth();
 
-  if (!user || !allowedRoles.includes(user.role.name as RoleName)) {
+  if (!user || user.role.name === 'Guest' || !allowedRoles.includes(user.role.name as RoleName)) {
     return <>{fallback}</>;
   }
 

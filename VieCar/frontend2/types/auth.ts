@@ -35,9 +35,10 @@ export interface RegisterRequest {
   roleName?: RoleName;
 }
 
-export type RoleName = 'Customer' | 'Admin' | 'EVM_Staff' | 'Dealer_Manager' | 'Dealer_Staff';
+export type RoleName = 'Guest' | 'Customer' | 'Admin' | 'EVM_Staff' | 'Dealer_Manager' | 'Dealer_Staff';
 
 export const ROLE_PERMISSIONS = {
+  Guest: ['view_vehicles'],
   Customer: ['view_vehicles', 'purchase', 'view_orders'],
   Admin: ['manage_users', 'manage_vehicles', 'manage_orders', 'view_analytics', 'manage_roles'],
   EVM_Staff: ['manage_vehicles', 'view_orders', 'customer_support'],

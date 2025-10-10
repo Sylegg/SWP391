@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => void;
   hasRole: (role: RoleName) => boolean;
   hasPermission: (permission: string) => boolean;
+  isAuthenticated: boolean;
   isLoading: boolean;
 }
 
@@ -43,21 +44,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
     } else {
-      // Mock data for testing - remove this in production
-      const mockUser: User = {
-        id: '1',
-        username: 'Nguyễn Văn A',
-        email: 'nguyenvana@email.com',
-        phone: '0123456789',
-        address: 'Hà Nội, Việt Nam',
+      // Set as Guest when user hasn't registered or logged in
+      const guestUser: User = {
+        id: 'guest',
+        username: '',
+        email: '',
+        phone: '',
+        address: '',
         role: {
-          id: 1,
-          name: 'Customer',
-          description: 'Khách hàng'
+          id: 0,
+          name: 'Guest',
+          description: 'Khách chưa đăng ký hoặc đăng nhập'
         }
       };
-      setUser(mockUser);
-      setToken('mock-token');
+      setUser(guestUser);
+      setToken(null);
     }
     setIsLoading(false);
   }, []);
@@ -126,6 +127,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    
+    // Set back to Guest after logout
+    const guestUser: User = {
+      id: 'guest',
+      username: '',
+      email: '',
+      phone: '',
+      address: '',
+      role: {
+        id: 0,
+        name: 'Guest',
+        description: 'Khách chưa đăng ký hoặc đăng nhập'
+      }
+    };
+    setUser(guestUser);
   };
 
   const hasRole = (role: RoleName): boolean => {
@@ -136,6 +152,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user?.role?.name) return false;
     
     const rolePermissions = {
+      Guest: ['view_vehicles'],
       Customer: ['view_vehicles', 'purchase', 'view_orders'],
       Admin: ['manage_users', 'manage_vehicles', 'manage_orders', 'view_analytics', 'manage_roles'],
       EVM_Staff: ['manage_vehicles', 'view_orders', 'customer_support'],
@@ -147,6 +164,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return userPermissions.includes(permission);
   };
 
+  const isAuthenticated = Boolean(user && user.role?.name !== 'Guest' && token);
+
   const value: AuthContextType = {
     user,
     token,
@@ -155,6 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     hasRole,
     hasPermission,
+    isAuthenticated,
     isLoading,
   };
 

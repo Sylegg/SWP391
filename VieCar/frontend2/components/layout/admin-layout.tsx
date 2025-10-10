@@ -23,7 +23,7 @@ import {
 	LogOut
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminLayoutProps {
@@ -114,6 +114,7 @@ const navigationItems = [
 export default function AdminLayout({ children }: AdminLayoutProps) {
 	const pathname = usePathname();
 	const { user, logout } = useAuth();
+  const router = useRouter();
 
 	// Filter navigation items based on user role
 	const filteredNavItems = navigationItems.filter(item => 
@@ -122,6 +123,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
 	const handleLogout = () => {
 		logout();
+	  router.push('/');
 	};
 
 	return (

@@ -18,7 +18,7 @@ import {
   LogOut
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface EvmStaffLayoutProps {
@@ -71,9 +71,11 @@ const navigationItems = [
 export default function EvmStaffLayout({ children }: EvmStaffLayoutProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const router = useRouter();
 
   const handleLogout = () => {
     logout();
+    router.push('/');
   };
 
   return (

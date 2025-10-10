@@ -17,7 +17,7 @@ import {
   LogOut
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface DealerStaffLayoutProps {
@@ -70,9 +70,11 @@ const navigationItems = [
 export default function DealerStaffLayout({ children }: DealerStaffLayoutProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const router = useRouter();
 
   const handleLogout = () => {
     logout();
+    router.push('/');
   };
 
   return (

@@ -19,7 +19,7 @@ export function Header() {
 
   const handleLogout = () => {
     logout()
-    router.push('/login')
+    router.push('/')
   }
 
   useEffect(() => {
@@ -52,6 +52,7 @@ export function Header() {
 
   // Role UI helpers
   const roleLabelMap: Record<string, string> = {
+    Guest: "Khách",
     Customer: "Khách hàng",
     Admin: "Quản trị viên",
     EVM_Staff: "Nhân viên EVM",
@@ -60,6 +61,7 @@ export function Header() {
   }
 
   const roleStyleMap: Record<string, string> = {
+    Guest: "bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200",
     Customer: "bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200",
     Admin: "bg-rose-100 text-rose-700 ring-1 ring-inset ring-rose-200",
     EVM_Staff: "bg-violet-100 text-violet-700 ring-1 ring-inset ring-violet-200",
@@ -110,7 +112,7 @@ export function Header() {
 
         {/* Right side buttons */}
         <div className="ml-auto flex items-center space-x-4">
-          {user ? (
+          {user && user.role?.name !== 'Guest' ? (
             <div className="flex items-center space-x-3">
               {/* User Profile Dropdown */}
               <DropdownMenu>
@@ -215,6 +217,20 @@ export function Header() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+            </div>
+          ) : user?.role?.name === 'Guest' ? (
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-600 hidden md:block">
+                {user.username}
+              </span>
+              <Link href="/login">
+                <Button
+                  variant="outline"
+                  className="border-red-600 bg-transparent text-red-600 hover:!bg-red-600 hover:!text-white hover:shadow-md focus-visible:ring-red-600/40 transition-colors"
+                >
+                  Đăng nhập
+                </Button>
+              </Link>
             </div>
           ) : (
             <Link href="/login">

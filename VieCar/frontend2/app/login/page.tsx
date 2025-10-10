@@ -47,10 +47,10 @@ export default function LoginPage() {
   const { login, register, user } = useAuth()
   const router = useRouter()
 
-  // If already logged in, go straight to role dashboard via /dashboard
+  // If already logged in (not Guest), go straight to home page
   useEffect(() => {
-    if (user) {
-      router.replace('/dashboard')
+    if (user && user.role?.name !== 'Guest') {
+      router.replace('/')
     }
   }, [user, router])
 
@@ -62,8 +62,8 @@ export default function LoginPage() {
     try {
   await login(loginData)
   setSuccess("Đăng nhập thành công!")
-  // Centralize role routing via /dashboard entry
-  router.push('/dashboard')
+  // Sau khi đăng nhập thành công, chuyển về trang chủ
+  router.push('/')
     } catch (error: any) {
       setError(error?.message || "Đăng nhập thất bại. Vui lòng kiểm tra thông tin.")
     } finally {
@@ -92,9 +92,9 @@ export default function LoginPage() {
         confirmPassword: registerData.confirmPassword,
         roleName: registerData.selectedRole as any,
       })
-      setSuccess("Đăng ký thành công!")
-      // register() auto logs in, direct to dashboard for role-based redirect
-      router.push('/dashboard')
+  setSuccess("Đăng ký thành công!")
+  // Sau khi đăng ký (và tự động đăng nhập), chuyển về trang chủ
+  router.push('/')
     } catch (error: any) {
       setError(error?.message || "Đăng ký thất bại. Vui lòng thử lại.")
     } finally {
