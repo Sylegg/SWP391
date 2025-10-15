@@ -35,19 +35,19 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
           color: 'bg-red-100 text-red-800 hover:bg-red-200',
           label: 'Quản trị viên'
         };
-      case 'EVM_Staff':
+      case 'EVM Staff':
         return {
           icon: Star,
           color: 'bg-green-100 text-green-800 hover:bg-green-200',
           label: 'Nhân viên EVM'
         };
-      case 'Dealer_Manager':
+      case 'Dealer Manager':
         return {
           icon: Building,
           color: 'bg-purple-100 text-purple-800 hover:bg-purple-200',
           label: 'Quản lý đại lý'
         };
-      case 'Dealer_Staff':
+      case 'Dealer Staff':
         return {
           icon: Users,
           color: 'bg-orange-100 text-orange-800 hover:bg-orange-200',

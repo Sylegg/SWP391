@@ -55,18 +55,18 @@ export function Header() {
     Guest: "Khách",
     Customer: "Khách hàng",
     Admin: "Quản trị viên",
-    EVM_Staff: "Nhân viên EVM",
-    Dealer_Manager: "Quản lý đại lý",
-    Dealer_Staff: "Nhân viên đại lý",
+    'EVM Staff': "Nhân viên EVM",
+    'Dealer Manager': "Quản lý đại lý",
+    'Dealer Staff': "Nhân viên đại lý",
   }
 
   const roleStyleMap: Record<string, string> = {
     Guest: "bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200",
     Customer: "bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200",
     Admin: "bg-rose-100 text-rose-700 ring-1 ring-inset ring-rose-200",
-    EVM_Staff: "bg-violet-100 text-violet-700 ring-1 ring-inset ring-violet-200",
-    Dealer_Manager: "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-200",
-    Dealer_Staff: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200",
+    'EVM Staff': "bg-violet-100 text-violet-700 ring-1 ring-inset ring-violet-200",
+    'Dealer Manager': "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-200",
+    'Dealer Staff': "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200",
   }
 
   return (

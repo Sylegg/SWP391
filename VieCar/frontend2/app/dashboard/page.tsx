@@ -25,13 +25,13 @@ export default function DashboardEntry() {
       case 'Customer':
         router.replace('/dashboard/customer');
         break;
-      case 'EVM_Staff':
+      case 'EVM Staff':
         router.replace('/dashboard/evm-staff');
         break;
-      case 'Dealer_Manager':
+      case 'Dealer Manager':
         router.replace('/dashboard/dealer-manager');
         break;
-      case 'Dealer_Staff':
+      case 'Dealer Staff':
         router.replace('/dashboard/dealer-staff');
         break;
       default:

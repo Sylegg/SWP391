@@ -205,17 +205,17 @@ export default function ProfilePage() {
                           { label: "Xem phân tích", permission: "view_analytics" },
                           { label: "Quản lý vai trò", permission: "manage_roles" }
                         ],
-                        EVM_Staff: [
+                        'EVM Staff': [
                           { label: "Quản lý xe", permission: "manage_vehicles" },
                           { label: "Xem đơn hàng", permission: "view_orders" },
                           { label: "Hỗ trợ khách hàng", permission: "customer_support" }
                         ],
-                        Dealer_Manager: [
+                        'Dealer Manager': [
                           { label: "Quản lý đại lý", permission: "manage_dealer" },
                           { label: "Xem phân tích đại lý", permission: "view_dealer_analytics" },
                           { label: "Quản lý nhân viên đại lý", permission: "manage_dealer_staff" }
                         ],
-                        Dealer_Staff: [
+                        'Dealer Staff': [
                           { label: "Xem xe", permission: "view_vehicles" },
                           { label: "Hỗ trợ khách hàng", permission: "assist_customers" },
                           { label: "Xử lý đơn hàng", permission: "process_orders" }
@@ -251,7 +251,7 @@ export default function ProfilePage() {
                         Trang chủ
                       </Link>
                     </Button>
-                    {(user.role.name === 'Admin' || user.role.name === 'EVM_Staff' || user.role.name === 'Dealer_Manager') && (
+                    {(user.role.name === 'Admin' || user.role.name === 'EVM Staff' || user.role.name === 'Dealer Manager') && (
                       <Button asChild variant="outline">
                         <Link href="/dashboard/admin" className="h-16 flex-col">
                           <Shield className="h-6 w-6 mb-2" />

@@ -155,9 +155,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       Guest: ['view_vehicles'],
       Customer: ['view_vehicles', 'purchase', 'view_orders'],
       Admin: ['manage_users', 'manage_vehicles', 'manage_orders', 'view_analytics', 'manage_roles'],
-      EVM_Staff: ['manage_vehicles', 'view_orders', 'customer_support'],
-      Dealer_Manager: ['manage_dealer', 'view_dealer_analytics', 'manage_dealer_staff'],
-      Dealer_Staff: ['view_vehicles', 'assist_customers', 'process_orders']
+      'EVM Staff': ['manage_vehicles', 'view_orders', 'customer_support'],
+      'Dealer Manager': ['manage_dealer', 'view_dealer_analytics', 'manage_dealer_staff'],
+      'Dealer Staff': ['view_vehicles', 'assist_customers', 'process_orders']
     };
 
     const userPermissions = rolePermissions[user.role.name as RoleName] || [];
