@@ -3,22 +3,12 @@ package com.lemon.supershop.swp391fa25evdm.testdrive.model.entity;
 import java.time.LocalDateTime;
 import java.util.Date;
 
-import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
+import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "testdrive")
@@ -59,9 +49,9 @@ public class TestDrive {
     @JoinColumn(name = "DealerId")
     private Dealer dealer; // đại lý tổ chức test drive
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "DealerCategoryId")
-    private DealerCategory dealerCategory; // mẫu xe được chạy thử
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ProductId")
+    private Product product;
 
     public TestDrive() {
     }
@@ -130,11 +120,11 @@ public class TestDrive {
         this.dealer = dealer;
     }
 
-    public DealerCategory getDealerCategory() {
-        return dealerCategory;
+    public Product getProduct() {
+        return product;
     }
 
-    public void setDealerCategory(DealerCategory dealerCategory) {
-        this.dealerCategory = dealerCategory;
+    public void setProduct(Product product) {
+        this.product = product;
     }
 }

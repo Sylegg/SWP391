@@ -4,503 +4,497 @@ import { ProtectedRoute } from "@/components/auth-guards";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Car, PlusCircle, Calendar, CreditCard, Truck, FileText, Building, BarChart, ArrowLeft, LogOut, Settings } from "lucide-react";
+import { 
+  Tag,
+  Car,
+  Package,
+  DollarSign,
+  Building2,
+  BarChart,
+  Settings,
+  Calendar,
+  FileText,
+  CheckCircle2,
+  Users,
+  TrendingUp,
+  Truck,
+  ClipboardList,
+  CreditCard,
+  Bell,
+  ShieldCheck,
+  PieChart,
+  Activity
+} from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import EvmStaffLayout from "@/components/layout/evm-staff-layout";
+import { useEffect, useState } from "react";
 
 export default function EvmStaffDashboard() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    pendingRequests: 0,
+    totalDealers: 0,
+    totalProducts: 0,
+    totalRevenue: 0,
+  });
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
+  useEffect(() => {
+    // TODO: Fetch real statistics from API
+    setStats({
+      pendingRequests: 8,
+      totalDealers: 15,
+      totalProducts: 45,
+      totalRevenue: 15000000000,
+    });
+  }, []);
 
   return (
     <ProtectedRoute allowedRoles={['EVM Staff', 'Admin']}>
-      <div className="dashboard-shell relative min-h-screen overflow-hidden bg-gradient-to-br from-white via-slate-50 to-slate-100 text-slate-900">
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.12),_transparent_65%)]" />
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.12),_transparent_55%)]" />
-
-        <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 text-sm font-medium text-slate-700">
-            <div className="flex items-center gap-4">
-              <Link href="/">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Trang chủ
-                </Button>
-              </Link>
-              <div>
-                <h2 className="text-base font-semibold uppercase tracking-wide text-indigo-600">VieCar</h2>
-                <p className="text-xs text-slate-500">Bảng điều khiển EVM Staff</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="border-slate-200 bg-gradient-to-r from-indigo-500/10 to-sky-500/10 text-indigo-600 shadow-[0_12px_30px_-18px_rgba(79,70,229,0.45)] transition hover:border-indigo-200 hover:from-indigo-500/20 hover:to-sky-500/20"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Đăng xuất
-            </Button>
+      <EvmStaffLayout>
+        <div className="p-6 space-y-8">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard EVM Staff</h1>
+            <p className="text-muted-foreground mt-2">
+              Xin chào, {user?.username}. Quản lý toàn bộ hệ thống phân phối xe điện.
+            </p>
           </div>
-        </header>
 
-        <main className="relative z-10 w-full px-4 py-10">
-          <div className="mx-auto w-full max-w-7xl space-y-10">
-            <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs uppercase tracking-[0.3em] text-indigo-600">
-                <Settings className="h-3.5 w-3.5 text-indigo-500" />
-                EVM Staff
-              </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 lg:text-4xl">Bảng điều khiển EVM Staff</h1>
-              <p className="max-w-2xl text-sm text-slate-600">Xin chào, {user?.username}. Quản lý xe, phân bổ và hỗ trợ đại lý.</p>
-            </div>
-
-            <div className="space-y-10">
-
-          {/* Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Tổng xe quản lý</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <Car className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Yêu cầu chờ duyệt</CardTitle>
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">89</div>
-                <p className="text-xs text-slate-500 mt-1">Tất cả các dòng xe</p>
+                <div className="text-2xl font-bold">{stats.pendingRequests}</div>
+                <p className="text-xs text-muted-foreground">Từ các đại lý</p>
               </CardContent>
             </Card>
 
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Đại lý</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <Building className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Tổng đại lý</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">24</div>
-                <p className="text-xs text-slate-500 mt-1">Trên toàn quốc</p>
+                <div className="text-2xl font-bold">{stats.totalDealers}</div>
+                <p className="text-xs text-muted-foreground">Đang hoạt động</p>
               </CardContent>
             </Card>
 
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Lịch lái thử</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <Calendar className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Sản phẩm</CardTitle>
+                <Car className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">156</div>
-                <p className="text-xs text-slate-500 mt-1">Tháng này</p>
+                <div className="text-2xl font-bold">{stats.totalProducts}</div>
+                <p className="text-xs text-muted-foreground">Mẫu xe</p>
               </CardContent>
             </Card>
 
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Phân phối</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <Truck className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Doanh thu</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">89</div>
-                <p className="text-xs text-slate-500 mt-1">Đang vận chuyển</p>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat('vi-VN', { 
+                    notation: 'compact', 
+                    compactDisplay: 'short' 
+                  }).format(stats.totalRevenue)}₫
+                </div>
+                <p className="text-xs text-muted-foreground">Tháng này</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main Content Tabs */}
-          <Tabs defaultValue="vehicles" className="space-y-6">
-            <TabsList className="grid w-full gap-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm grid-cols-6">
-              <TabsTrigger value="vehicles" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Quản lý xe</TabsTrigger>
-              <TabsTrigger value="dealers" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Đại lý</TabsTrigger>
-              <TabsTrigger value="distribution" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Phân phối</TabsTrigger>
-              <TabsTrigger value="pricing" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Giá & KM</TabsTrigger>
-              <TabsTrigger value="reports" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Báo cáo</TabsTrigger>
-              <TabsTrigger value="ai" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">AI Dự báo</TabsTrigger>
-            </TabsList>
-
-            {/* Vehicles Tab */}
-            <TabsContent value="vehicles" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
+          {/* Module 1: Danh mục & Sản phẩm */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <Tag className="mr-2 h-6 w-6" />
+              Module 1: Danh mục & Sản phẩm
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl font-semibold text-slate-900">
-                    <span className="flex items-center">
-                      <Car className="mr-2 h-5 w-5 text-indigo-600" />
-                      Quản lý danh mục xe
-                    </span>
-                    <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-700 hover:to-sky-700">
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Thêm xe mới
+                  <CardTitle className="flex items-center text-base">
+                    <Tag className="mr-2 h-5 w-5 text-blue-600" />
+                    Quản lý danh mục
+                  </CardTitle>
+                  <CardDescription>Tạo & quản lý danh mục xe</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/categories">
+                    <Button variant="outline" className="w-full">
+                      <Tag className="mr-2 h-4 w-4" />
+                      Xem danh mục
                     </Button>
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Quản lý danh mục xe (mẫu, phiên bản, màu sắc) - EVM vận hành
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tổng mẫu xe</p>
-                      <p className="text-2xl font-bold">12</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tồn kho tổng</p>
-                      <p className="text-2xl font-bold">1,234</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Đã phân phối</p>
-                      <p className="text-2xl font-bold text-green-600">856</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Khả dụng</p>
-                      <p className="text-2xl font-bold text-blue-600">378</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-900">Danh mục xe</h4>
-                    {['VF3', 'VF5', 'VF6', 'VF7', 'VF8', 'VF9'].map((model, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">VinFast {model}</p>
-                          <p className="text-sm text-slate-600">
-                            {3 + i} phiên bản - {5 + i} màu sắc - {15 + i * 5}% tồn kho
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">Chỉnh sửa</Button>
-                          <Button variant="outline" size="sm">Phiên bản</Button>
-                          <Button variant="ghost" size="sm">Màu sắc</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Create, View</p>
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* Dealers Tab */}
-            <TabsContent value="dealers" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
+              <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center text-xl font-semibold text-slate-900">
-                    <Building className="mr-2 h-5 w-5 text-indigo-600" />
-                    Quản lý đại lý
+                  <CardTitle className="flex items-center text-base">
+                    <Car className="mr-2 h-5 w-5 text-green-600" />
+                    Quản lý mẫu xe
                   </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Quản lý hợp đồng, chỉ tiêu doanh số, công nợ đại lý
-                  </CardDescription>
+                  <CardDescription>CRUD sản phẩm xe điện</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tổng đại lý</p>
-                      <p className="text-2xl font-bold">24</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Hoạt động</p>
-                      <p className="text-2xl font-bold text-green-600">22</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Công nợ</p>
-                      <p className="text-2xl font-bold text-yellow-600">₫450M</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Chỉ tiêu tháng</p>
-                      <p className="text-2xl font-bold">₫12B</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-900">Hợp đồng & chỉ tiêu</h4>
-                    {[
-                      { name: 'Hà Nội', target: '₫3B', achieved: 85, debt: '₫120M' },
-                      { name: 'TP.HCM', target: '₫5B', achieved: 92, debt: '₫80M' },
-                      { name: 'Đà Nẵng', target: '₫1.5B', achieved: 78, debt: '₫150M' },
-                      { name: 'Cần Thơ', target: '₫800M', achieved: 65, debt: '₫100M' }
-                    ].map((dealer, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">Đại lý {dealer.name}</p>
-                          <p className="text-sm text-slate-600">
-                            Chỉ tiêu: {dealer.target} - Công nợ: {dealer.debt}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 items-center">
-                          <Badge variant={dealer.achieved >= 80 ? "default" : "secondary"}>
-                            {dealer.achieved}%
-                          </Badge>
-                          <Button variant="outline" size="sm">Hợp đồng</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 p-4 border rounded-lg bg-yellow-50">
-                    <p className="text-sm font-medium mb-2">⚠️ Lưu ý</p>
-                    <p className="text-sm text-slate-600">
-                      EVM Staff không có quyền tạo tài khoản đại lý. Chỉ Admin mới có quyền này.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Distribution Tab */}
-            <TabsContent value="distribution" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl font-semibold text-slate-900">
-                    <span className="flex items-center">
-                      <Truck className="mr-2 h-5 w-5 text-indigo-600" />
-                      Quản lý tồn kho & điều phối
-                    </span>
-                    <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-700 hover:to-sky-700">Tạo kế hoạch phân phối</Button>
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Quản lý tồn kho tổng, điều phối xe cho đại lý
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tổng tồn kho</p>
-                      <p className="text-2xl font-bold">1,234</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Đã phân bổ</p>
-                      <p className="text-2xl font-bold text-blue-600">856</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Đang vận chuyển</p>
-                      <p className="text-2xl font-bold text-yellow-600">89</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Sẵn sàng</p>
-                      <p className="text-2xl font-bold text-green-600">289</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-900">Điều phối theo đại lý</h4>
-                    {['Hà Nội', 'TP.HCM', 'Đà Nẵng', 'Cần Thơ'].map((city, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">Đại lý {city}</p>
-                          <p className="text-sm text-slate-600">
-                            Hiện có: {(i + 1) * 45} xe - Đang chuyển: {(i + 1) * 5} xe
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">Phân phối</Button>
-                          <Button variant="ghost" size="sm">Lịch sử</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Pricing & Promotions Tab */}
-            <TabsContent value="pricing" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl font-semibold text-slate-900">
-                    <span className="flex items-center">
-                      <CreditCard className="mr-2 h-5 w-5" />
-                      Quản lý giá sỉ & khuyến mãi
-                    </span>
-                    <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-700 hover:to-sky-700">Tạo chương trình KM</Button>
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Quản lý giá sỉ, chiết khấu, khuyến mãi theo đại lý
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold mb-3">Bảng giá sỉ</h4>
-                      {['VF3', 'VF5', 'VF8'].map((model, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg mb-2">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">VinFast {model}</p>
-                            <p className="text-sm text-slate-600">
-                              Giá sỉ: ₫{(250 + i * 200)}M
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge variant="outline">{5 + i}% chiết khấu</Badge>
-                            <Button variant="outline" size="sm">Cập nhật</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold mb-3">Chương trình khuyến mãi</h4>
-                      {['Khuyến mãi Q4', 'Ưu đãi cuối năm', 'Flash Sale'].map((promo, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg mb-2">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">{promo}</p>
-                            <p className="text-sm text-slate-600">
-                              Áp dụng cho {(i + 1) * 4} đại lý - Giảm {10 + i * 5}%
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge variant="default">Đang chạy</Badge>
-                            <Button variant="outline" size="sm">Chi tiết</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Reports Tab */}
-            <TabsContent value="reports" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl font-semibold text-slate-900">
-                    <span className="flex items-center">
-                      <BarChart className="mr-2 h-5 w-5 text-indigo-600" />
-                      Báo cáo & phân tích
-                    </span>
-                    <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-700 hover:to-sky-700">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Xuất báo cáo
-                    </Button>
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Doanh số theo khu vực/đại lý, tồn kho & tốc độ tiêu thụ
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Doanh thu tháng</p>
-                      <p className="text-2xl font-bold">₫18.5B</p>
-                      <p className="text-xs text-green-600">↑ +24% vs tháng trước</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tốc độ tiêu thụ</p>
-                      <p className="text-2xl font-bold">82%</p>
-                      <p className="text-xs text-blue-600">Tốt</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tồn kho trung bình</p>
-                      <p className="text-2xl font-bold">28 ngày</p>
-                      <p className="text-xs text-slate-600">Bình thường</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-900">Báo cáo chi tiết</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Button variant="outline" className="justify-start">
-                        📊 Doanh số theo khu vực
-                      </Button>
-                      <Button variant="outline" className="justify-start">
-                        🏢 Doanh số theo đại lý
-                      </Button>
-                      <Button variant="outline" className="justify-start">
-                        📦 Báo cáo tồn kho
-                      </Button>
-                      <Button variant="outline" className="justify-start">
-                        📈 Tốc độ tiêu thụ
-                      </Button>
-                      <Button variant="outline" className="justify-start">
-                        💰 Công nợ đại lý
-                      </Button>
-                      <Button variant="outline" className="justify-start">
-                        🚗 Hiệu suất từng mẫu xe
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* AI Forecasting Tab */}
-            <TabsContent value="ai" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-xl font-semibold text-slate-900">
-                    <span className="mr-2">🤖</span>
-                    Dashboard AI & Dự báo
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Dự báo nhu cầu với AI - EVM Staff có quyền truy cập
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-purple-50">
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        🎯 Dự báo Q4/2025
-                      </h4>
-                      <div className="space-y-2 text-sm">
-                        <p>• VF8: Nhu cầu dự kiến tăng <strong>25%</strong> trong Q4</p>
-                        <p>• VF5: Tốc độ tiêu thụ tăng <strong>18%</strong> khu vực miền Nam</p>
-                        <p>• VF9: Đề xuất tăng phân phối cho TP.HCM <strong>+15 xe/tháng</strong></p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold mb-3">Khuyến nghị từ AI</h4>
-                      <div className="space-y-3">
-                        {[
-                          { title: 'Tăng tồn kho VF8', desc: 'Nhu cầu cao trong 2 tháng tới', priority: 'Cao' },
-                          { title: 'Điều chỉnh giá VF5', desc: 'Tốc độ tiêu thụ chậm ở miền Bắc', priority: 'Trung bình' },
-                          { title: 'Khuyến mãi VF3', desc: 'Tồn kho cao tại 3 đại lý', priority: 'Thấp' }
-                        ].map((item, i) => (
-                          <div key={i} className="flex items-start justify-between p-3 border rounded-lg">
-                            <div className="flex-1">
-                              <p className="font-medium text-slate-900">{item.title}</p>
-                              <p className="text-sm text-slate-600">{item.desc}</p>
-                            </div>
-                            <Badge variant={
-                              item.priority === 'Cao' ? 'destructive' :
-                              item.priority === 'Trung bình' ? 'secondary' : 'outline'
-                            }>
-                              {item.priority}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
+                  <Link href="/dashboard/evm-staff/products">
                     <Button className="w-full">
-                      Xem Dashboard AI đầy đủ
+                      <Car className="mr-2 h-4 w-4" />
+                      Quản lý xe
                     </Button>
-                  </div>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Full CRUD</p>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Activity className="mr-2 h-5 w-5 text-purple-600" />
+                    Kích hoạt xe
+                  </CardTitle>
+                  <CardDescription>Quản lý trạng thái hiển thị</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/products?filter=status">
+                    <Button variant="outline" className="w-full">
+                      <Activity className="mr-2 h-4 w-4" />
+                      Quản lý trạng thái
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Update</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Settings className="mr-2 h-5 w-5 text-orange-600" />
+                    Chính sách phân phối
+                  </CardTitle>
+                  <CardDescription>Hạn mức & thời gian giao</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full" disabled>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Cấu hình (Sắp ra mắt)
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">⏳ Coming soon</p>
+                </CardContent>
+              </Card>
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Settings className="mr-2 h-5 w-5 text-orange-600" />
+                    Cấu hình hệ thống
+                  </CardTitle>
+                  <CardDescription>Cài đặt & cấu hình</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full" disabled>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Cấu hình
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">⏳ Coming soon</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </main>
-      </div>
+
+          {/* Module 2: Thanh toán & Công nợ */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <DollarSign className="mr-2 h-6 w-6" />
+              Module 2: Thanh toán & Công nợ
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <CreditCard className="mr-2 h-5 w-5 text-blue-600" />
+                    Thanh toán đại lý
+                  </CardTitle>
+                  <CardDescription>Xem danh sách thanh toán</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/payments">
+                    <Button variant="outline" className="w-full">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Xem thanh toán
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <CheckCircle2 className="mr-2 h-5 w-5 text-green-600" />
+                    Xác nhận thanh toán
+                  </CardTitle>
+                  <CardDescription>Confirm giao dịch</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/payments?filter=pending">
+                    <Button className="w-full">
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Xác nhận
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Confirm</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <FileText className="mr-2 h-5 w-5 text-purple-600" />
+                    Xuất hóa đơn
+                  </CardTitle>
+                  <CardDescription>Chứng từ điện tử</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/payments/invoices">
+                    <Button variant="outline" className="w-full">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Xuất hóa đơn
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Generate</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <DollarSign className="mr-2 h-5 w-5 text-orange-600" />
+                    Quản lý công nợ
+                  </CardTitle>
+                  <CardDescription>Hạn mức tín dụng</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/debt-management">
+                    <Button variant="outline" className="w-full">
+                      <DollarSign className="mr-2 h-4 w-4" />
+                      Quản lý
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Manage</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Module 4: Đại lý */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <Building2 className="mr-2 h-6 w-6" />
+              Module 4: Quản lý đại lý
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Building2 className="mr-2 h-5 w-5 text-blue-600" />
+                    Danh sách đại lý
+                  </CardTitle>
+                  <CardDescription>Xem tất cả đại lý</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/dealers">
+                    <Button variant="outline" className="w-full">
+                      <Building2 className="mr-2 h-4 w-4" />
+                      Xem đại lý
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Users className="mr-2 h-5 w-5 text-green-600" />
+                    Tạo đại lý mới
+                  </CardTitle>
+                  <CardDescription>Mở chi nhánh mới</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/dealers/create">
+                    <Button className="w-full">
+                      <Users className="mr-2 h-4 w-4" />
+                      Tạo mới
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Create</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Settings className="mr-2 h-5 w-5 text-purple-600" />
+                    Cập nhật đại lý
+                  </CardTitle>
+                  <CardDescription>Thông tin & hợp đồng</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/dealers">
+                    <Button variant="outline" className="w-full">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Cập nhật
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Update</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <ShieldCheck className="mr-2 h-5 w-5 text-orange-600" />
+                    Phân quyền Manager
+                  </CardTitle>
+                  <CardDescription>Gán tài khoản quản lý</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/dealers/assign-manager">
+                    <Button variant="outline" className="w-full">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Phân quyền
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Assign</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Module 5: Báo cáo & Phân tích */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <BarChart className="mr-2 h-6 w-6" />
+              Module 5: Báo cáo & Phân tích
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <PieChart className="mr-2 h-5 w-5 text-blue-600" />
+                    Tổng quan hệ thống
+                  </CardTitle>
+                  <CardDescription>Dashboard tổng hợp</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/reports/overview">
+                    <Button variant="outline" className="w-full">
+                      <PieChart className="mr-2 h-4 w-4" />
+                      Xem tổng quan
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <BarChart className="mr-2 h-5 w-5 text-green-600" />
+                    Thống kê theo vùng
+                  </CardTitle>
+                  <CardDescription>Dự đoán sản xuất</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/reports/regional">
+                    <Button variant="outline" className="w-full">
+                      <BarChart className="mr-2 h-4 w-4" />
+                      Theo vùng
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <TrendingUp className="mr-2 h-5 w-5 text-purple-600" />
+                    Hiệu suất đại lý
+                  </CardTitle>
+                  <CardDescription>KPI tháng/quý</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/reports/dealer-performance">
+                    <Button variant="outline" className="w-full">
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      Xem KPI
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Module 6: Khác */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <Settings className="mr-2 h-6 w-6" />
+              Module 6: Quản trị hệ thống
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Users className="mr-2 h-5 w-5 text-blue-600" />
+                    Quản lý người dùng EVM
+                  </CardTitle>
+                  <CardDescription>Nhân viên nội bộ hãng</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/internal-users">
+                    <Button variant="outline" className="w-full">
+                      <Users className="mr-2 h-4 w-4" />
+                      Quản lý nhân viên
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Manage</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Bell className="mr-2 h-5 w-5 text-green-600" />
+                    Thông báo hệ thống
+                  </CardTitle>
+                  <CardDescription>Gửi thông báo cho đại lý</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/evm-staff/notifications">
+                    <Button className="w-full">
+                      <Bell className="mr-2 h-4 w-4" />
+                      Quản lý thông báo
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Create/Update</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </EvmStaffLayout>
     </ProtectedRoute>
   );
 }
-
-

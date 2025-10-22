@@ -76,6 +76,14 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
 
+    // Validate phone number format (Vietnamese)
+    const phonePattern = /^(?:(?:03|05|07|08|09)\d{8}|01(?:2|6|8|9)\d{8})$/
+    if (!phonePattern.test(registerData.phone)) {
+      setError("Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam (10-11 số)")
+      setIsLoading(false)
+      return
+    }
+
     if (registerData.password !== registerData.confirmPassword) {
       setError("Mật khẩu xác nhận không khớp")
       setIsLoading(false)
@@ -90,7 +98,7 @@ export default function LoginPage() {
         address: registerData.address,
         password: registerData.password,
         confirmPassword: registerData.confirmPassword,
-        roleName: registerData.selectedRole as any,
+        roleName: registerData.selectedRole,
       })
   setSuccess("Đăng ký thành công!")
   // Sau khi đăng ký (và tự động đăng nhập), chuyển về trang chủ
@@ -135,11 +143,11 @@ export default function LoginPage() {
               <TabsContent value="login" className="space-y-4 mt-6">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Email hoặc Tên đăng nhập</Label>
                     <Input 
                       id="email" 
-                      type="email" 
-                      placeholder="Nhập email của bạn" 
+                      type="text" 
+                      placeholder="Nhập email hoặc tên đăng nhập" 
                       className="w-full"
                       value={loginData.identifier}
                       onChange={(e) => setLoginData({...loginData, identifier: e.target.value})}
@@ -217,11 +225,13 @@ export default function LoginPage() {
                     <Input 
                       id="phone" 
                       type="tel" 
-                      placeholder="Nhập số điện thoại" 
+                      placeholder="VD: 0912345678 hoặc 0123456789" 
                       className="w-full"
                       value={registerData.phone}
                       onChange={(e) => setRegisterData({...registerData, phone: e.target.value})}
                       required
+                      pattern="(?:(?:03|05|07|08|09)\d{8}|01(?:2|6|8|9)\d{8})"
+                      title="Số điện thoại Việt Nam (10-11 số, bắt đầu bằng 03/05/07/08/09 hoặc 012/016/018/019)"
                     />
                   </div>
                   <div className="space-y-2">

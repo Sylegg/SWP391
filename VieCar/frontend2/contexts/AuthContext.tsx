@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, LoginRequest, LoginResponse, RegisterRequest, RoleName } from '@/types/auth';
 import api from '@/lib/api';
+import { getUserProfile } from '@/lib/user';
 
 interface AuthContextType {
   user: User | null;
@@ -73,9 +74,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: {
           name: data.role as RoleName,
         },
+        // Thêm thông tin dealer nếu có từ response
+        dealerId: (data as any).dealerId,
+        dealerName: (data as any).dealerName,
+        dealerAddress: (data as any).dealerAddress,
       };
 
       setToken(data.token);
+      
+      // Nếu có userId trong response, gọi API để lấy thông tin dealer
+      if ((data as any).userId) {
+        try {
+          const userProfile = await getUserProfile((data as any).userId);
+          if (userProfile.dealerId) {
+            userData.dealerId = userProfile.dealerId;
+            userData.dealerName = userProfile.dealerName;
+            userData.dealerAddress = userProfile.dealerAddress;
+          }
+        } catch (profileError) {
+          console.warn('Could not load user profile:', profileError);
+        }
+      }
+      
       setUser(userData);
 
       localStorage.setItem('token', data.token);
@@ -151,7 +171,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const hasPermission = (permission: string): boolean => {
     if (!user?.role?.name) return false;
     
-    const rolePermissions = {
+    const rolePermissions: Record<string, string[]> = {
       Guest: ['view_vehicles'],
       Customer: ['view_vehicles', 'purchase', 'view_orders'],
       Admin: ['manage_users', 'manage_vehicles', 'manage_orders', 'view_analytics', 'manage_roles'],
@@ -160,7 +180,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       'Dealer Staff': ['view_vehicles', 'assist_customers', 'process_orders']
     };
 
-    const userPermissions = rolePermissions[user.role.name as RoleName] || [];
+    const userPermissions = rolePermissions[user.role.name] || [];
     return userPermissions.includes(permission);
   };
 

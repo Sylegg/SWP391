@@ -7,6 +7,8 @@ import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution
 import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
 import com.lemon.supershop.swp391fa25evdm.payment.model.entity.InstallmentPlan;
 import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
+import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
+import com.lemon.supershop.swp391fa25evdm.testdrive.model.entity.TestDrive;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
@@ -33,8 +35,23 @@ public class Product {
     @Column(name = "Manufacture", columnDefinition = "DATETIME2")
     private Date manufacture_date;
 
-    @Column(name = "DealerPrice", columnDefinition = "DECIMAL(15,2)")
-    private double dealerPrice;
+    @Column(name = "Battery", columnDefinition = "DECIMAL")
+    private double battery;
+
+    @Column(name = "Range", columnDefinition = "INT")
+    private int range;
+
+    @Column(name = "HP", columnDefinition = "INT")
+    private int hp;
+
+    @Column(name = "Torque", columnDefinition = "INT")
+    private int torque;
+
+    @Column(name = "Color", columnDefinition = "NVARCHAR(20)")
+    private String Color;
+
+    @Column(name = "DealerPrice", columnDefinition = "BIGINT")
+    private long dealerPrice;
 
     @Column(name = "Image", columnDefinition = "VARCHAR(MAX)")
     private String image;
@@ -43,7 +60,8 @@ public class Product {
     private String description;
 
     @Column(name = "Status", columnDefinition = "VARCHAR(20)")
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private ProductStatus status;
 
     @ManyToOne
     @JoinColumn(name = "CategoryId")
@@ -55,17 +73,22 @@ public class Product {
     @JsonIgnore
     private DealerCategory dealerCategory;
 
-    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<Order> orders = new ArrayList<>();
+    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private Order order;
 
-    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<Distribution> distributions = new ArrayList<>();
+    @ManyToOne
+    @JoinColumn(name = "DistributionId")
+    @JsonIgnore
+    private Distribution distribution;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<PreOrder> preOrders = new ArrayList<>();
 
-    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "product")
     private InstallmentPlan installmentPlan;
+
+    @OneToOne(mappedBy = "product")
+    private TestDrive testDrive;
 
     public Product() {}
 
@@ -125,22 +148,6 @@ public class Product {
         this.category = category;
     }
 
-    public List<Order> getOrders() {
-        return orders;
-    }
-
-    public void setOrders(List<Order> orderItems) {
-        this.orders = orderItems;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public String getImage() {
         return image;
     }
@@ -165,11 +172,11 @@ public class Product {
         this.installmentPlan = installmentPlan;
     }
 
-    public double getDealerPrice() {
+    public long getDealerPrice() {
         return dealerPrice;
     }
 
-    public void setDealerPrice(double dealerPrice) {
+    public void setDealerPrice(long dealerPrice) {
         this.dealerPrice = dealerPrice;
     }
 
@@ -181,11 +188,75 @@ public class Product {
         this.preOrders = preOrders;
     }
 
-    public List<Distribution> getDistributions() {
-        return distributions;
+    public Distribution getDistribution() {
+        return distribution;
     }
 
-    public void setDistributions(List<Distribution> distributions) {
-        this.distributions = distributions;
+    public void setDistribution(Distribution distribution) {
+        this.distribution = distribution;
+    }
+
+    public double getBattery() {
+        return battery;
+    }
+
+    public void setBattery(double battery) {
+        this.battery = battery;
+    }
+
+    public int getRange() {
+        return range;
+    }
+
+    public void setRange(int range) {
+        this.range = range;
+    }
+
+    public int getHp() {
+        return hp;
+    }
+
+    public void setHp(int hp) {
+        this.hp = hp;
+    }
+
+    public int getTorque() {
+        return torque;
+    }
+
+    public void setTorque(int torque) {
+        this.torque = torque;
+    }
+
+    public String getColor() {
+        return Color;
+    }
+
+    public void setColor(String color) {
+        Color = color;
+    }
+
+    public Order getOrder() {
+        return order;
+    }
+
+    public void setOrder(Order order) {
+        this.order = order;
+    }
+
+    public ProductStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ProductStatus status) {
+        this.status = status;
+    }
+
+    public TestDrive getTestDrive() {
+        return testDrive;
+    }
+
+    public void setTestDrive(TestDrive testDrive) {
+        this.testDrive = testDrive;
     }
 }

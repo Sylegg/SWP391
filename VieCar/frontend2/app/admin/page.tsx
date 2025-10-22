@@ -12,7 +12,7 @@ export default function AdminPage() {
   const { user } = useAuth();
 
   return (
-  <ProtectedRoute allowedRoles={['Admin', 'EVM Staff', 'Dealer Manager']}>
+    <ProtectedRoute allowedRoles={['Admin', 'EVM_Staff', 'Dealer_Manager']}>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto p-6">
           <div className="mb-8">
@@ -110,7 +110,7 @@ export default function AdminPage() {
             </RoleBasedComponent>
 
             {/* Staff sections */}
-            <RoleBasedComponent allowedRoles={['EVM Staff', 'Admin']}>
+            <RoleBasedComponent allowedRoles={['EVM_Staff', 'Admin']}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -140,7 +140,7 @@ export default function AdminPage() {
             </RoleBasedComponent>
 
             {/* Dealer Manager section */}
-            <RoleBasedComponent allowedRoles={['Dealer Manager', 'Admin']}>
+            <RoleBasedComponent allowedRoles={['Dealer_Manager', 'Admin']}>
               <Card>
                 <CardHeader>
                   <CardTitle>Quản lý đại lý</CardTitle>

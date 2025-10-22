@@ -7,11 +7,7 @@ public class CategoryRes {
     private String brand;
     private String version;
     private String type;
-    private Double battery;
-    private Integer range;
-    private Integer hp;
-    private Integer torque;
-    private Double basePrice;
+    private Long basePrice;
     private Integer warranty;
     private Boolean isSpecial;
     private String description;
@@ -59,43 +55,11 @@ public class CategoryRes {
         this.type = type;
     }
 
-    public Double getBattery() {
-        return battery;
-    }
-
-    public void setBattery(Double battery) {
-        this.battery = battery;
-    }
-
-    public Integer getRange() {
-        return range;
-    }
-
-    public void setRange(Integer range) {
-        this.range = range;
-    }
-
-    public Integer getHp() {
-        return hp;
-    }
-
-    public void setHp(Integer hp) {
-        this.hp = hp;
-    }
-
-    public Integer getTorque() {
-        return torque;
-    }
-
-    public void setTorque(Integer torque) {
-        this.torque = torque;
-    }
-
-    public Double getBasePrice() {
+    public Long getBasePrice() {
         return basePrice;
     }
 
-    public void setBasePrice(Double basePrice) {
+    public void setBasePrice(long basePrice) {
         this.basePrice = basePrice;
     }
 

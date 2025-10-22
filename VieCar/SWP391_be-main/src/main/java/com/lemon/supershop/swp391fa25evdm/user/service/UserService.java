@@ -4,10 +4,10 @@ import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.role.repository.RoleRepo;
-import com.lemon.supershop.swp391fa25evdm.user.model.dto.AddUserReq;
 import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserReq;
 import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserRes;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
+import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
 import com.lemon.supershop.swp391fa25evdm.user.repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,6 +41,12 @@ public class UserService {
         }).collect(Collectors.toList());
     }
 
+    public List<UserRes> getAllActiveUsers() {
+        return userRepo.findByStatus(UserStatus.ACTIVE).stream().map(user -> {
+            return convertUsertoUserRes(user);
+        }).collect(Collectors.toList());
+    }
+
     public List<UserRes> getBlackList() {
         return userRepo.findByIsBlackTrue().stream().map(user -> {
             return convertUsertoUserRes(user);
@@ -68,34 +74,10 @@ public class UserService {
         }).collect(Collectors.toList());
     }
 
-    public UserRes addUser(AddUserReq dto) {
-        User user = new User();
-        if (dto.getRoleName() != null){
-            Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(dto.getRoleName());
-            if(role.isPresent()){
-                user.setRole(role.get());
-                role.get().addUser(user);
-            }
-        }
-
-        if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()) {
-            user.setPhone(dto.getPhone());
-        }
-        if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()) {
-            user.setEmail(dto.getEmail());
-        }
-        if (dto.getDealerId() > 0) {
-            Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
-            if (dealer.isPresent()) {
-                user.setDealer(dealer.get());
-            }
-        }
-
-        if (dto.getUsername() != null) {
-            user.setUsername(dto.getUsername());
-        }
-        userRepo.save(user);
-        return convertUsertoUserRes(user);
+    public List<UserRes> findDealerManagersWithoutDealer() {
+        return userRepo.findByRole_NameAndDealerIsNull("dealer manager").stream().map(user -> {
+            return convertUsertoUserRes(user);
+        }).collect(Collectors.toList());
     }
 
     public UserRes updateProfile(int id, UserReq dto){
@@ -144,12 +126,9 @@ public class UserService {
     public boolean removeUser(int id) {
         Optional<User> user = userRepo.findById(id);
         if(user.isPresent()){
-            Optional<Role> role = roleRepo.findById(user.get().getRole().getId());
-            if(role.isPresent()){
-                role.get().removeUser(user.orElse(null));
-                userRepo.delete(user.get());
-                return true;
-            }
+            user.get().setStatus(UserStatus.INACTIVE);
+            userRepo.save(user.get());
+            return true;
         }
         return false;
     }
@@ -172,6 +151,15 @@ public class UserService {
             }
             if(user.getRole() != null){
                 dto.setRole(user.getRole().getName());
+            }
+            if (user.getStatus() != null){
+                dto.setStatus(user.getStatus());
+            }
+            // Thêm thông tin dealer nếu user thuộc về dealer
+            if(user.getDealer() != null){
+                dto.setDealerId(user.getDealer().getId());
+                dto.setDealerName(user.getDealer().getName());
+                dto.setDealerAddress(user.getDealer().getAddress());
             }
         }
         return dto;

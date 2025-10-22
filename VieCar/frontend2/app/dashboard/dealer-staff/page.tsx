@@ -1,504 +1,341 @@
-"use client";
+﻿"use client";
 
 import { ProtectedRoute } from "@/components/auth-guards";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Car, Users, Calendar, ShoppingCart, Truck, PlusCircle, Edit, FileText, MessageSquare, ArrowLeft, LogOut, UserCog } from "lucide-react";
+import { 
+  ShoppingCart,
+  Car,
+  Users,
+  Calendar,
+  Tag,
+  FileText,
+  CheckCircle2,
+  TrendingUp,
+  ClipboardList,
+  UserPlus,
+  Settings
+} from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import DealerStaffLayout from "@/components/layout/dealer-staff-layout";
+import { useEffect, useState } from "react";
 
 export default function DealerStaffDashboard() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    pendingOrders: 0,
+    totalCustomers: 0,
+    todayTestDrives: 0,
+    availableVehicles: 0,
+  });
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
+  useEffect(() => {
+    // TODO: Fetch real statistics from API
+    setStats({
+      pendingOrders: 12,
+      totalCustomers: 45,
+      todayTestDrives: 3,
+      availableVehicles: 28,
+    });
+  }, []);
 
   return (
-    <ProtectedRoute allowedRoles={['Dealer Staff', 'Dealer Manager', 'Admin']}>
-      <div className="dashboard-shell relative min-h-screen overflow-hidden bg-gradient-to-br from-white via-slate-50 to-slate-100 text-slate-900">
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.12),_transparent_65%)]" />
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.12),_transparent_55%)]" />
-
-        <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 text-sm font-medium text-slate-700">
-            <div className="flex items-center gap-4">
-              <Link href="/">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Trang chủ
-                </Button>
-              </Link>
-              <div>
-                <h2 className="text-base font-semibold uppercase tracking-wide text-indigo-600">VieCar</h2>
-                <p className="text-xs text-slate-500">Bảng điều khiển Nhân viên đại lý</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="border-slate-200 bg-gradient-to-r from-indigo-500/10 to-sky-500/10 text-indigo-600 shadow-[0_12px_30px_-18px_rgba(79,70,229,0.45)] transition hover:border-indigo-200 hover:from-indigo-500/20 hover:to-sky-500/20"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Đăng xuất
-            </Button>
+    <ProtectedRoute allowedRoles={['Dealer Staff', 'Admin']}>
+      <DealerStaffLayout>
+        <div className="p-6 space-y-8">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard Nhân viên Đại lý</h1>
+            <p className="text-muted-foreground mt-2">
+              Xin chào, {user?.username}. Quản lý bán hàng và chăm sóc khách hàng.
+            </p>
           </div>
-        </header>
 
-        <main className="relative z-10 w-full px-4 py-10">
-          <div className="mx-auto w-full max-w-7xl space-y-10">
-            <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs uppercase tracking-[0.3em] text-indigo-600">
-                <UserCog className="h-3.5 w-3.5 text-indigo-500" />
-                Nhân viên đại lý
-              </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 lg:text-4xl">Bảng điều khiển Nhân viên đại lý</h1>
-              <p className="max-w-2xl text-sm text-slate-600">Xin chào, {user?.username}. Tạo yêu cầu và hỗ trợ khách hàng.</p>
-            </div>
-
-            <div className="space-y-10">
-
-          {/* Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Khách hàng</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <Users className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Đơn chờ xử lý</CardTitle>
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">24</div>
-                <p className="text-xs text-slate-500 mt-1">Đang chăm sóc</p>
+                <div className="text-2xl font-bold">{stats.pendingOrders}</div>
+                <p className="text-xs text-muted-foreground">Cần xác nhận</p>
               </CardContent>
             </Card>
 
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Doanh số</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <ShoppingCart className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Khách hàng</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">₫280M</div>
-                <p className="text-xs text-slate-500 mt-1">Tháng này</p>
+                <div className="text-2xl font-bold">{stats.totalCustomers}</div>
+                <p className="text-xs text-muted-foreground">Tổng số</p>
               </CardContent>
             </Card>
 
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Lái thử</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <Calendar className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Lịch lái thử hôm nay</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">15</div>
-                <p className="text-xs text-slate-500 mt-1">Đã tạo tháng này</p>
+                <div className="text-2xl font-bold">{stats.todayTestDrives}</div>
+                <p className="text-xs text-muted-foreground">Buổi</p>
               </CardContent>
             </Card>
 
-            <Card className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)] transition-all duration-300 hover:border-indigo-200 hover:shadow-[0_35px_60px_-15px_rgba(79,70,229,0.3)]">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-700">Giao xe</CardTitle>
-                <div className="rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 p-2 text-indigo-600 group-hover:from-indigo-200 group-hover:to-sky-200">
-                  <Truck className="h-4 w-4" />
-                </div>
+                <CardTitle className="text-sm font-medium">Xe có sẵn</CardTitle>
+                <Car className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">6</div>
-                <p className="text-xs text-slate-500 mt-1">Đang theo dõi</p>
+                <div className="text-2xl font-bold">{stats.availableVehicles}</div>
+                <p className="text-xs text-muted-foreground">Chiếc</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main Content Tabs */}
-          <Tabs defaultValue="vehicles" className="space-y-6">
-            <TabsList className="grid w-full gap-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm grid-cols-5">
-              <TabsTrigger value="vehicles" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Xe</TabsTrigger>
-              <TabsTrigger value="customers" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Khách hàng</TabsTrigger>
-              <TabsTrigger value="sales" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Bán hàng</TabsTrigger>
-              <TabsTrigger value="test-drives" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Lái thử</TabsTrigger>
-              <TabsTrigger value="deliveries" className="rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition data-[state=active]:border-indigo-200 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600">Giao xe</TabsTrigger>
-            </TabsList>
-
-            {/* Vehicles Tab - Browse available vehicles */}
-            <TabsContent value="vehicles" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
+          {/* Module 1: Bán hàng */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <ShoppingCart className="mr-2 h-6 w-6" />
+              Module 1: Bán hàng
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center text-xl font-semibold text-slate-900">
-                    <Car className="mr-2 h-5 w-5 text-indigo-600" />
-                    Danh sách xe (Read-only)
+                  <CardTitle className="flex items-center text-base">
+                    <ShoppingCart className="mr-2 h-5 w-5 text-blue-600" />
+                    Đơn đặt xe
                   </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Xem thông tin xe để tư vấn khách hàng
-                  </CardDescription>
+                  <CardDescription>Quản lý đơn hàng</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {['VF3', 'VF5', 'VF8', 'VF9'].map((model, i) => (
-                      <div key={i} className="p-3 border border-slate-200 rounded-2xl hover:border-indigo-200 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-medium text-slate-900">VinFast {model}</p>
-                          <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">{(i + 1) * 5} xe sẵn sàng</Badge>
-                        </div>
-                        <p className="text-sm text-slate-600 mb-2">
-                          Giá: ₫{(250 + i * 200)}M - {(i + 1) * 2} phiên bản
-                        </p>
-                        <Button size="sm" variant="outline" className="w-full border-slate-200 hover:border-indigo-300 hover:bg-indigo-50">
-                          Xem chi tiết
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Customers Tab - Customer records */}
-            <TabsContent value="customers" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl font-semibold text-slate-900">
-                    <span className="flex items-center">
-                      <Users className="mr-2 h-5 w-5 text-indigo-600" />
-                      Quản lý khách hàng
-                    </span>
-                    <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-700 hover:to-sky-700">
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Thêm khách hàng
+                  <Link href="/dashboard/dealer-staff/orders">
+                    <Button className="w-full">
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Xem đơn hàng
                     </Button>
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Tạo, chỉnh sửa hồ sơ khách hàng, ghi nhận khiếu nại
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tổng khách hàng</p>
-                      <p className="text-2xl font-bold text-slate-900">24</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Khách tiềm năng</p>
-                      <p className="text-2xl font-bold text-blue-600">12</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Đã mua</p>
-                      <p className="text-2xl font-bold text-green-600">8</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-900">Khách hàng của tôi</h4>
-                    {[
-                      { name: 'Nguyễn Văn A', phone: '0912345678', status: 'Tiềm năng' },
-                      { name: 'Trần Thị B', phone: '0923456789', status: 'Đã mua' },
-                      { name: 'Lê Văn C', phone: '0934567890', status: 'Đang tư vấn' },
-                      { name: 'Phạm Thị D', phone: '0945678901', status: 'Tiềm năng' }
-                    ].map((customer, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 border border-slate-200 rounded-2xl hover:border-indigo-200 transition-colors">
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">{customer.name}</p>
-                          <p className="text-sm text-slate-600">{customer.phone}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">{customer.status}</Badge>
-                          <Button variant="outline" size="sm" className="border-slate-200 hover:border-indigo-300 hover:bg-indigo-50">
-                            <Edit className="w-4 h-4 mr-1" />
-                            Sửa
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 p-4 border rounded-lg bg-yellow-50">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4" />
-                      Khiếu nại cần xử lý
-                    </h4>
-                    <p className="text-sm text-slate-600 mb-2">
-                      2 khiếu nại chưa ghi nhận
-                    </p>
-                    <Button size="sm" variant="outline">Ghi nhận khiếu nại</Button>
-                  </div>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View, Create</p>
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* Sales Tab - Create quotes & orders */}
-            <TabsContent value="sales" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
+              <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl font-semibold text-slate-900">
-                    <span className="flex items-center">
-                      <ShoppingCart className="mr-2 h-5 w-5 text-indigo-600" />
-                      Bán hàng
-                    </span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="border-slate-200 hover:border-indigo-300 hover:bg-indigo-50">
-                        <PlusCircle className="w-4 h-4 mr-2" />
-                        Tạo báo giá
-                      </Button>
-                      <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-700 hover:to-sky-700">
-                        <PlusCircle className="w-4 h-4 mr-2" />
-                        Tạo đơn hàng
-                      </Button>
-                    </div>
+                  <CardTitle className="flex items-center text-base">
+                    <CheckCircle2 className="mr-2 h-5 w-5 text-green-600" />
+                    Xử lý đơn hàng
                   </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Tạo báo giá, đơn hàng, tạo giao dịch thanh toán cho khách
-                  </CardDescription>
+                  <CardDescription>Xác nhận & cập nhật</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Doanh số tháng</p>
-                      <p className="text-2xl font-bold">₫280M</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Báo giá</p>
-                      <p className="text-2xl font-bold text-blue-600">15</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Đơn hàng</p>
-                      <p className="text-2xl font-bold text-green-600">8</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Thanh toán</p>
-                      <p className="text-2xl font-bold">₫240M</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold mb-3">📋 Báo giá của tôi</h4>
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg mb-2">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">Báo giá #QT{2025000 + i}</p>
-                            <p className="text-sm text-slate-600">
-                              VF{i + 5} - Nguyễn Văn {String.fromCharCode(65 + i)} - ₫{(250 + i * 50)}M
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge variant="secondary">Chờ duyệt</Badge>
-                            <Button variant="outline" size="sm">Chi tiết</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold mb-3">🛒 Đơn hàng của tôi</h4>
-                      {[1, 2].map((i) => (
-                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg mb-2">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">Đơn hàng #ORD{2025000 + i}</p>
-                            <p className="text-sm text-slate-600">
-                              VF{i + 6} - Trần Thị {String.fromCharCode(65 + i)} - ₫{(300 + i * 100)}M
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge variant="default">Đã xác nhận</Badge>
-                            <Button variant="outline" size="sm">Chi tiết</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold mb-3">💳 Giao dịch thanh toán</h4>
-                      {[1, 2].map((i) => (
-                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg mb-2">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">Giao dịch #PAY{2025000 + i}</p>
-                            <p className="text-sm text-slate-600">
-                              Lê Văn {String.fromCharCode(65 + i)} - ₫{(80 + i * 40)}M
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge variant="secondary">Chờ duyệt</Badge>
-                            <Button variant="outline" size="sm">Chi tiết</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 p-4 border rounded-lg bg-blue-50">
-                    <p className="text-sm font-medium mb-2">💡 Lưu ý</p>
-                    <p className="text-sm text-slate-600">
-                      Tất cả báo giá, đơn hàng, thanh toán do Dealer Staff tạo đều cần Dealer Manager duyệt.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Test Drives Tab */}
-            <TabsContent value="test-drives" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center">
-                      <Calendar className="mr-2 h-5 w-5" />
-                      Quản lý lịch lái thử
-                    </span>
-                    <Button size="sm">
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Tạo lịch mới
+                  <Link href="/dashboard/dealer-staff/orders?filter=pending">
+                    <Button variant="outline" className="w-full">
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Xử lý
                     </Button>
-                  </CardTitle>
-                  <CardDescription>
-                    Tạo, chỉnh sửa, xác nhận lịch lái thử cho khách hàng
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Lịch tháng này</p>
-                      <p className="text-2xl font-bold">15</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Hôm nay</p>
-                      <p className="text-2xl font-bold text-blue-600">5</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Tuần tới</p>
-                      <p className="text-2xl font-bold text-green-600">8</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-slate-900">Lịch hẹn hôm nay</h4>
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="border-l-4 border-l-blue-500 p-3 bg-blue-50 rounded-r-lg">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">Khách: Nguyễn Văn {String.fromCharCode(65 + i)}</p>
-                            <p className="text-sm text-slate-600">
-                              VF{i + 5} - {9 + i * 2}:00 AM - {['Chờ duyệt', 'Đã duyệt', 'Đã xác nhận'][i % 3]}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
-                              <Edit className="w-4 h-4 mr-1" />
-                              Sửa
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6">
-                    <h4 className="font-semibold mb-3">Lịch sắp tới</h4>
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center justify-between p-3 border rounded-lg mb-2">
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">Trần Thị {String.fromCharCode(65 + i)}</p>
-                          <p className="text-sm text-slate-600">
-                            VF{i + 6} - {15 + i}/11/2025 - {10 + i}:00 AM
-                          </p>
-                        </div>
-                        <Badge variant="outline">Đã xác nhận</Badge>
-                      </div>
-                    ))}
-                  </div>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Update</p>
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* Deliveries Tab */}
-            <TabsContent value="deliveries" className="space-y-6">
-              <Card className="rounded-3xl border border-slate-200 bg-white shadow-[0_25px_45px_-30px_rgba(15,23,42,0.2)]">
+              <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Truck className="mr-2 h-5 w-5" />
-                    Quản lý giao xe
+                  <CardTitle className="flex items-center text-base">
+                    <Car className="mr-2 h-5 w-5 text-purple-600" />
+                    Danh mục xe
                   </CardTitle>
-                  <CardDescription>
-                    Nhận xe, cập nhật trạng thái giao xe cho khách hàng
-                  </CardDescription>
+                  <CardDescription>Xem xe có sẵn</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Chờ giao</p>
-                      <p className="text-2xl font-bold">6</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Đang giao</p>
-                      <p className="text-2xl font-bold text-blue-600">3</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-600">Đã giao</p>
-                      <p className="text-2xl font-bold text-green-600">12</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-900">Xe cần giao</h4>
-                    {[
-                      { customer: 'Nguyễn Văn A', vehicle: 'VF8 Plus', date: '15/11/2025', status: 'ready' },
-                      { customer: 'Trần Thị B', vehicle: 'VF5', date: '18/11/2025', status: 'in_transit' },
-                      { customer: 'Lê Văn C', vehicle: 'VF9', date: '20/11/2025', status: 'ready' }
-                    ].map((delivery, i) => (
-                      <div key={i} className={`border-l-4 p-3 rounded-r-lg ${
-                        delivery.status === 'in_transit' ? 'border-l-blue-500 bg-blue-50' : 'border-l-green-500 bg-green-50'
-                      }`}>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">{delivery.customer}</p>
-                            <p className="text-sm text-slate-600">
-                              VinFast {delivery.vehicle} - Giao: {delivery.date}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge variant={delivery.status === 'in_transit' ? 'secondary' : 'default'}>
-                              {delivery.status === 'in_transit' ? 'Đang giao' : 'Sẵn sàng'}
-                            </Badge>
-                            <Button variant="outline" size="sm">Cập nhật</Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 p-4 border rounded-lg">
-                    <h4 className="font-semibold mb-2">📊 Hiệu suất cá nhân</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-slate-600">Doanh số</p>
-                        <p className="font-medium text-slate-900">₫280M</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-600">Xe đã giao</p>
-                        <p className="font-medium text-slate-900">12 xe</p>
-                      </div>
-                    </div>
-                  </div>
+                  <Link href="/dashboard/dealer-staff/dealer-category">
+                    <Button variant="outline" className="w-full">
+                      <Car className="mr-2 h-4 w-4" />
+                      Xem danh mục
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Tag className="mr-2 h-5 w-5 text-orange-600" />
+                    Danh mục Category
+                  </CardTitle>
+                  <CardDescription>Phân loại sản phẩm</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/categories">
+                    <Button variant="outline" className="w-full">
+                      <Tag className="mr-2 h-4 w-4" />
+                      Xem phân loại
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Module 2: Khách hàng */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <Users className="mr-2 h-6 w-6" />
+              Module 2: Quản lý khách hàng
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Users className="mr-2 h-5 w-5 text-blue-600" />
+                    Danh sách khách hàng
+                  </CardTitle>
+                  <CardDescription>Xem thông tin KH</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/customers">
+                    <Button variant="outline" className="w-full">
+                      <Users className="mr-2 h-4 w-4" />
+                      Xem khách hàng
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <UserPlus className="mr-2 h-5 w-5 text-green-600" />
+                    Thêm khách hàng
+                  </CardTitle>
+                  <CardDescription>Tạo hồ sơ mới</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/customers/create">
+                    <Button className="w-full">
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Tạo mới
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Create</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Settings className="mr-2 h-5 w-5 text-purple-600" />
+                    Cập nhật thông tin
+                  </CardTitle>
+                  <CardDescription>Chỉnh sửa hồ sơ</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/customers">
+                    <Button variant="outline" className="w-full">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Cập nhật
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Update</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <FileText className="mr-2 h-5 w-5 text-teal-600" />
+                    Lịch sử mua hàng
+                  </CardTitle>
+                  <CardDescription>Theo dõi đơn hàng</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/customers?view=history">
+                    <Button variant="outline" className="w-full">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Xem lịch sử
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Module 3: Lịch lái thử */}
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center">
+              <Calendar className="mr-2 h-6 w-6" />
+              Module 3: Lịch lái thử
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Calendar className="mr-2 h-5 w-5 text-blue-600" />
+                    Quản lý lịch hẹn
+                  </CardTitle>
+                  <CardDescription>Xem & sắp xếp lịch</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/test-drives">
+                    <Button className="w-full">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Xem lịch
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View, Create</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <CheckCircle2 className="mr-2 h-5 w-5 text-green-600" />
+                    Xác nhận lịch
+                  </CardTitle>
+                  <CardDescription>Phê duyệt yêu cầu</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/test-drives?filter=pending">
+                    <Button variant="outline" className="w-full">
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Xác nhận
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ Update</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <TrendingUp className="mr-2 h-5 w-5 text-purple-600" />
+                    Thống kê lái thử
+                  </CardTitle>
+                  <CardDescription>Báo cáo hiệu quả</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/dealer-staff/test-drives/reports">
+                    <Button variant="outline" className="w-full">
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      Xem báo cáo
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-2">✅ View</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
-          </div>
-        </main>
-      </div>
+      </DealerStaffLayout>
     </ProtectedRoute>
   );
 }

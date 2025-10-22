@@ -171,7 +171,6 @@ public class OrderService {
     public boolean deleteOrder(int orderId) {
         Optional<Order> order = orderRepo.findById(orderId);
         if (order.isPresent()){
-            order.get().getProduct().getOrders().remove(order);
             productRepo.save(order.get().getProduct());
             order.get().getDealer().getOrders().remove(order);
             dealerRepo.save(order.get().getDealer());

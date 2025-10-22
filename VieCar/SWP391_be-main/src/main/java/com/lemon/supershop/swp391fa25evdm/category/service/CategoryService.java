@@ -49,7 +49,7 @@ public class CategoryService {
         categoryRepository.save(category);
         return convertToRes(category);
     }
-  
+
     public CategoryRes updateCategory(int id, CategoryReq dto) {
         if (dto == null) {
             throw new IllegalArgumentException("Category request cannot be null");
@@ -62,7 +62,16 @@ public class CategoryService {
             throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
         }
 
-        updateEntityFromDto(category, dto);
+        category.setName(dto.getName());
+        category.setBrand(dto.getBrand());
+        category.setVersion(dto.getVersion());
+        category.setType(dto.getType());
+        category.setBasePrice(dto.getBasePrice() != null ? dto.getBasePrice() : category.getBasePrice());
+        category.setWarranty(dto.getWarranty() != null ? dto.getWarranty() : category.getWarranty());
+        category.setDescription(dto.getDescription());
+        category.setStatus(dto.getStatus() != null ? dto.getStatus() : category.getStatus());
+        // Handle null Boolean - keep existing value if null
+        category.setSpecial(dto.isSpecial() != null ? dto.isSpecial() : category.isSpecial());
         Category updatedCategory = categoryRepository.save(category);
         return convertToRes(updatedCategory);
     }
@@ -105,27 +114,21 @@ public class CategoryService {
     // Helper methods for conversion
     private Category convertToEntity(CategoryReq dto) {
         Category category = new Category();
-        updateEntityFromDto(category, dto);
-        return category;
-    }
 
-    private void updateEntityFromDto(Category category, CategoryReq dto) {
         category.setName(dto.getName());
         category.setBrand(dto.getBrand());
         category.setVersion(dto.getVersion());
         category.setType(dto.getType());
-        category.setBattery(dto.getBattery());
-        category.setRange(dto.getRange());
-        category.setHp(dto.getHp());
-        category.setTorque(dto.getTorque());
-        category.setBasePrice(dto.getBasePrice());
-        category.setWarranty(dto.getWarranty());
-        category.setSpecial(dto.getSpecial() != null ? dto.getSpecial() : Boolean.FALSE);
+        // Handle null Boolean - default to false if null
+        category.setSpecial(dto.isSpecial() != null ? dto.isSpecial() : false);
+        category.setBasePrice(dto.getBasePrice() != null ? dto.getBasePrice() : 0L);
+        category.setWarranty(dto.getWarranty() != null ? dto.getWarranty() : 0);
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus() != null ? dto.getStatus() : "ACTIVE");
+        return category;
     }
 
-    public CategoryRes updateCategoryBasePrice(Integer id, Double newBasePrice) {
+    public CategoryRes updateCategoryBasePrice(Integer id, Long newBasePrice) {
         if (id == null) {
             throw new IllegalArgumentException("Category ID cannot be null");
         }
@@ -159,26 +162,11 @@ public class CategoryService {
             if (category.getType() != null) {
                 categoryRes.setType(category.getType());
             }
-            if (category.getBattery() > 0){
-                categoryRes.setBattery(category.getBattery());
-            }
-            if (category.getRange() > 0){
-                categoryRes.setRange(category.getRange());
-            }
-            if (category.getHp() > 0){
-                categoryRes.setHp(category.getHp());
-            }
-            if (category.getTorque() > 0){
-                categoryRes.setTorque(category.getTorque());
-            }
             if (category.getBasePrice() > 0){
                 categoryRes.setBasePrice(category.getBasePrice());
             }
             if (category.getWarranty() > 0){
                 categoryRes.setWarranty(category.getWarranty());
-            }
-            if (category.isSpecial()){
-                categoryRes.setSpecial(true);
             }
             if (category.getDescription() != null){
                 categoryRes.setDescription(category.getDescription());

@@ -5,6 +5,7 @@ import com.lemon.supershop.swp391fa25evdm.refra.JwtUtil;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.role.repository.RoleRepo;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
+import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
 import com.lemon.supershop.swp391fa25evdm.user.repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,87 +34,111 @@ public class AuthenService {
 
 
     public LoginRes login(LoginReq dto) {
-        Optional<User> user = Optional.empty();
+        Optional<User> userOpt = Optional.empty();
         if (dto.getIdentifier() != null){
             if (EMAIL_PATTERN.matcher(dto.getIdentifier()).matches()){
-                user = userRepo.findByEmail(dto.getIdentifier());
+                userOpt = userRepo.findByEmail(dto.getIdentifier());
             } else {
-                user = userRepo.findByUsername(dto.getIdentifier());
+                userOpt = userRepo.findByUsername(dto.getIdentifier());
             }
         }
 
-        if (!user.isPresent()) {
+        if (!userOpt.isPresent()) {
             throw new RuntimeException("User not found");
         }
-        if (!user.get().getPassword().equals(dto.getPassword())) {
+        
+        User user = userOpt.get();
+        
+        if (!user.getPassword().equals(dto.getPassword())) {
             throw new RuntimeException("Invalid password");
         }
 
-        String token = jwtUtil.generateToken(user.get().getUsername());
-        String refreshToken = jwtUtil.generateRefreshToken(user.get().getUsername());
+        String token = jwtUtil.generateToken(user.getUsername());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
 
-        LoginRes response = new LoginRes(token, refreshToken, user.get().getUsername(), user.get().getRole().getName());
+        LoginRes response = new LoginRes(token, refreshToken, user.getUsername(), user.getRole().getName());
+        
+        // Thêm thông tin user và dealer nếu có
+        response.setUserId(user.getId());
+        if (user.getDealer() != null) {
+            response.setDealerId(user.getDealer().getId());
+            response.setDealerName(user.getDealer().getName());
+            response.setDealerAddress(user.getDealer().getAddress());
+        }
 
         return response;
     }
 
     public void register(RegisterReq dto) {
         User user = new User();
-        String requestedRole = dto.getRoleName() != null ? dto.getRoleName() : "Customer";
-        Optional<Role> role = roleRepo.findByNameContainingIgnoreCase("Customer");
-
-        user.setRole(role.orElse(null));
-
-        if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
-            user.setPhone(dto.getPhone());
+        User newUser = converttoEntity(user, dto);
+        if (newUser != null) {
+            userRepo.save(newUser);
         }
-        if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()){
-            if ( role.isPresent() && userRepo.existsByEmail(dto.getEmail())){
-                throw new RuntimeException("EMAIL_DUPLICATE");
-            } else {
-                user.setEmail(dto.getEmail());
-            }
-        }
-        if (role.isPresent()) {
-            role.get().addUser(user);
-        }
-        if (dto.getPassword().equals(dto.getConfirmPassword())){
-            user.setPassword(dto.getPassword());
-        }
-        user.setUsername(dto.getUsername());
-        user.setAddress(dto.getAddress());
-        userRepo.save(user);
-    }
-
-    public void registerAmin(RegisterReq dto) {
-        User user = new User();
-        Optional<Role> role = roleRepo.findByNameContainingIgnoreCase("Admin");
-
-        user.setRole(role.get());
-
-        if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
-            user.setPhone(dto.getPhone());
-        }
-
-        if (dto.getPassword().equals(dto.getConfirmPassword())){
-            user.setPassword(dto.getPassword());
-        }
-        user.setUsername(dto.getPhone());
-        role.get().addUser(user);
-        userRepo.save(user);
     }
 
     public void changePassword(int id, ChangePassReq dto){
-        Optional<User> user = userRepo.findById(id);
-        if (user.isPresent()) {
-            if (dto.getOldPass().equals(user.get().getPassword())){
-                if (!dto.getNewPass().equals(user.get().getPassword())){
-                    if (dto.getNewPass().equals(dto.getConfirmPass())){
-                        user.get().setPassword(dto.getNewPass());
-                    }
+        Optional<User> userOpt = userRepo.findById(id);
+        if (!userOpt.isPresent()) {
+            throw new RuntimeException("User not found");
+        }
+
+        User user = userOpt.get();
+        String oldPass = dto.getOldPass();
+        String newPass = dto.getNewPass();
+        String confirmPass = dto.getConfirmPass();
+
+        if (oldPass == null || newPass == null || confirmPass == null) {
+            throw new RuntimeException("Password fields must not be null");
+        }
+
+        if (!oldPass.equals(user.getPassword())) {
+            throw new RuntimeException("Old password does not match");
+        }
+
+        if (newPass.equals(user.getPassword())) {
+            throw new RuntimeException("New password must be different from old password");
+        }
+
+        if (!newPass.equals(confirmPass)) {
+            throw new RuntimeException("Confirm password does not match new password");
+        }
+
+        user.setPassword(newPass);
+        userRepo.save(user);
+    }
+
+    public User converttoEntity(User user, RegisterReq dto){
+        if (user != null) {
+            if (dto.getRoleName() != null){
+                Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(dto.getRoleName());
+                if (role.isPresent()) {
+                    user.setRole(role.get());
+                    role.get().addUser(user);
                 }
             }
+            if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
+                user.setPhone(dto.getPhone());
+            }
+            if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()){
+                if (userRepo.existsByEmail(dto.getEmail())){
+                    throw new RuntimeException("EMAIL_DUPLICATE");
+                } else {
+                    user.setEmail(dto.getEmail());
+                }
+            }
+            if (dto.getPassword().equals(dto.getConfirmPassword())){
+                user.setPassword(dto.getPassword());
+            }
+            if (dto.getUsername() != null) {
+                user.setUsername(dto.getUsername());
+            }
+            if (dto.getAddress() != null){
+                user.setAddress(dto.getAddress());
+            }
+            user.setStatus(UserStatus.ACTIVE);
+            return user;
         }
-        userRepo.save(user.get());
+        return null;
     }
 }

@@ -12,20 +12,7 @@ import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.promotion.model.entity.Promotion;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "orders")
@@ -35,11 +22,6 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "Id", columnDefinition = "BIGINT")
     private int id;
-
-    @ManyToOne
-    @JoinColumn(name = "ProductId")
-    @JsonIgnore
-    private Product product;
 
     @Column(name = "Status", columnDefinition = "VARCHAR(20)")
     private String status;
@@ -60,6 +42,10 @@ public class Order {
     @JoinColumn(name = "UserId")
     @JsonIgnore
     private User user;
+
+    @OneToOne
+    @JoinColumn(name = "ProductId")
+    private Product product;
 
     @Column(insertable = false, updatable = false, name = "OrderDate", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)

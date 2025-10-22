@@ -5,11 +5,13 @@ import java.util.Optional;
 
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.lemon.supershop.swp391fa25evdm.category.model.dto.DealerCategoryReq;
 import com.lemon.supershop.swp391fa25evdm.category.model.dto.DealerCategoryRes;
+import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
 import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepository;
 import com.lemon.supershop.swp391fa25evdm.category.repository.DealerCategoryRepository;
@@ -107,6 +109,9 @@ public class DealerCategoryService {
     private DealerCategoryRes convertToRes (DealerCategory dealerCategory) {
         if (dealerCategory != null) {
             DealerCategoryRes dto = new DealerCategoryRes();
+            if (dealerCategory.getId() > 0){
+                dto.setId(dealerCategory.getId());
+            }
             if (dealerCategory.getName() != null){
                 dto.setName(dealerCategory.getName());
             }

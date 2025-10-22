@@ -5,13 +5,13 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.lemon.supershop.swp391fa25evdm.user.model.dto.AddUserReq;
 import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserReq;
 import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserRes;
 import com.lemon.supershop.swp391fa25evdm.user.service.UserService;
 
 @RestController
 @RequestMapping("/api/user")
+@CrossOrigin("*")
 public class UserController {
 
     @Autowired
@@ -26,6 +26,12 @@ public class UserController {
     @GetMapping("/blackListUser")
     public ResponseEntity<List<UserRes>> getBlackListUsers() {
         List<UserRes> users = userService.getBlackList();
+        return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/listActiceUser")
+    public ResponseEntity<List<UserRes>> getAllActiceUsers() {
+        List<UserRes> users = userService.getAllActiveUsers();
         return ResponseEntity.ok(users);
     }
 
@@ -47,21 +53,10 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    @PostMapping("/addUser")
-    public ResponseEntity<UserRes> addUser(@RequestBody AddUserReq dto) {
-        try {
-            UserRes user = userService.addUser(dto);
-            if (user != null) {
-                return ResponseEntity.ok(user);
-            } else {
-                return ResponseEntity.badRequest().build();
-            }
-        } catch (IllegalArgumentException ex) {
-            if ("EMAIL_DUPLICATE".equals(ex.getMessage())) {
-                return ResponseEntity.badRequest().build();
-            }
-            throw ex;
-        }
+    @GetMapping("/available-dealer-managers")
+    public ResponseEntity<List<UserRes>> getAvailableDealerManagers() {
+        List<UserRes> users = userService.findDealerManagersWithoutDealer();
+        return ResponseEntity.ok(users);
     }
 
     @PostMapping("/addBlackList/{id}")

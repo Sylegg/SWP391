@@ -12,20 +12,8 @@ import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.entity.TestDrive;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
+import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "users")
@@ -53,6 +41,10 @@ public class User {
 
     @Column(name = "IsBlack")
     private boolean isBlack;
+
+    @Column(name = "Status", columnDefinition = "NVARCHAR(20)")
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
 
     @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
@@ -92,14 +84,7 @@ public class User {
     public User() {
     }
 
-    public User(String username, String password, String email, String phone, String address, Role role) {
-        this.username = username;
-        this.password = password;
-        this.email = email;
-        this.phone = phone;
-        this.address = address;
-        this.role = role;
-    }
+
 
     public int getId() {
         return id;
@@ -223,5 +208,13 @@ public class User {
 
     public void setDealer(Dealer dealer) {
         this.dealer = dealer;
+    }
+
+    public UserStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(UserStatus status) {
+        this.status = status;
     }
 }

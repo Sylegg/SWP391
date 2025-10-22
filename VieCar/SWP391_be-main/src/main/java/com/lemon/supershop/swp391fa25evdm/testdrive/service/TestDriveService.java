@@ -3,13 +3,16 @@ package com.lemon.supershop.swp391fa25evdm.testdrive.service;
 import java.util.List;
 import java.util.Optional;
 
-import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.dealer.service.DealerService;
+import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
+import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserRes;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
+import com.lemon.supershop.swp391fa25evdm.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import com.lemon.supershop.swp391fa25evdm.category.repository.DealerCategoryRepository;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.TestDriveReq;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.TestDriveRes;
@@ -27,7 +30,11 @@ public class TestDriveService {
     @Autowired
     private DealerRepo dealerRepo;
     @Autowired
-    private DealerCategoryRepository dealerCategoryRepository;
+    private ProductRepo productRepo;
+    @Autowired
+    private DealerService dealerService;
+    @Autowired
+    private UserService userService;
 
     public List<TestDriveRes> getAllTestDrive() {
         List<TestDrive> testDrives = testDriveRepository.findAll();
@@ -47,11 +54,6 @@ public class TestDriveService {
 
     public List<TestDriveRes> getTestDriveByDealerId(int dealerId) {
         List<TestDrive> testDrives = testDriveRepository.findByDealerId(dealerId);
-        return testDrives.stream().map(this::convertToRes).toList();
-    }
-
-    public List<TestDriveRes> getTestDriveByDealerCategoryId(int dealerCategoryId) {
-        List<TestDrive> testDrives = testDriveRepository.findByDealerCategoryId(dealerCategoryId);
         return testDrives.stream().map(this::convertToRes).toList();
     }
 
@@ -84,38 +86,42 @@ public class TestDriveService {
     //tham chiếu đến một phương thức của object và sử dụng nó như một biểu thức lambda.
     //không cần thêm logic
     private TestDrive convertToEntity(TestDrive testDrive, TestDriveReq req) {
-        if (testDrive != null || req != null) {
+        if (testDrive != null && req != null) {
             if (req.getScheduleDate() != null) {
                 testDrive.setScheduleDate(req.getScheduleDate());
             }
-            if (req.getLocation() != null) {
-                testDrive.setLocation(req.getLocation());
-            }
             if (req.getStatus() != null) {
                 testDrive.setStatus(req.getStatus());
+            } else {
+                // Set default status if not provided
+                testDrive.setStatus("PENDING");
             }
-            if (req.getNotes() != null) {
+            if (req.getNotes() != null && !req.getNotes().isEmpty()) {
                 testDrive.setNotes(req.getNotes());
             }
             if (req.getUserId() > 0){
                 Optional<User> user = userRepo.findById(req.getUserId());
                 if (user.isPresent()) {
-                    testDrive.setUser(user.orElse(null));
-                    user.get().getTestDrives().add(testDrive);
+                    testDrive.setUser(user.get());
+                    if (user.get().getTestDrives() != null) {
+                        user.get().getTestDrives().add(testDrive);
+                    }
                 }
             }
             if (req.getDealerId() > 0){
                 Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
                 if (dealer.isPresent()) {
                     testDrive.setDealer(dealer.get());
-                    dealer.get().getTestDrives().add(testDrive);
+                    if (dealer.get().getTestDrives() != null) {
+                        dealer.get().getTestDrives().add(testDrive);
+                    }
                 }
             }
-            if (req.getDealerCategoryId() > 0){
-                Optional<DealerCategory> dealerCategory = dealerCategoryRepository.findById(req.getDealerCategoryId());
-                if (dealerCategory.isPresent()) {
-                    testDrive.setDealerCategory(dealerCategory.get());
-                    dealerCategory.get().getTestDrives().add(testDrive);
+            if (req.getProductId() > 0){
+                Optional<Product> product = productRepo.findById(req.getProductId());
+                if (product.isPresent()) {
+                    // Remove status constraint - allow any product to be test driven
+                    testDrive.setProduct(product.get());
                 }
             }
             return testDrive;
@@ -132,9 +138,6 @@ public class TestDriveService {
             if (testDrive.getScheduleDate() != null) {
                 res.setScheduleDate(testDrive.getScheduleDate());
             }
-            if (testDrive.getLocation() != null) {
-                res.setLocation(testDrive.getLocation());
-            }
             if (testDrive.getStatus() != null) {
                 res.setStatus(testDrive.getStatus());
             }
@@ -144,19 +147,21 @@ public class TestDriveService {
             if (testDrive.getUser() != null) {
                 Optional<User> user = userRepo.findById(testDrive.getUser().getId());
                 if (user.isPresent()){
-                    res.setUserId(user.get().getId());
+                    UserRes userRes = userService.convertUsertoUserRes(user.get());
+                    res.setUser(userRes);
                 }
             }
             if (testDrive.getDealer() != null) {
                 Optional<Dealer> dealer = dealerRepo.findById(testDrive.getDealer().getId());
                 if (dealer.isPresent()){
-                    res.setDealerId(dealer.get().getId());
+                    DealerRes dealerRes = dealerService.convertDealertoDealerRes(dealer.get());
+                    res.setDealer(dealerRes);
                 }
             }
-            if (testDrive.getDealerCategory() != null) {
-                Optional<DealerCategory> category = dealerCategoryRepository.findById(testDrive.getDealerCategory().getId());
-                if (category.isPresent()){
-                    res.setDealerCategoryId(category.get().getId());
+            if (testDrive.getProduct() != null) {
+                Optional<Product> product = productRepo.findById(testDrive.getProduct().getId());
+                if (product.isPresent()){
+                    res.setProductName(product.get().getName());
                 }
             }
             return res;

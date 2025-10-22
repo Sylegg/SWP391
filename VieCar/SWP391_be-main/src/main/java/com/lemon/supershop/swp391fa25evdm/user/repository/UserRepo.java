@@ -3,6 +3,7 @@ package com.lemon.supershop.swp391fa25evdm.user.repository;
 import java.util.List;
 import java.util.Optional;
 
+import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,6 +17,9 @@ public interface UserRepo extends JpaRepository<User, Long> {
     Optional<User> findById(int id);
     List<User> findByIsBlackTrue();
     List<User> findByIsBlackFalse();
+    List<User> findByStatus(UserStatus status);
     Optional<User> findUsersByDealer_Id(int dealerId);
+    List<User> findByRole_Name(String roleName);
+    List<User> findByRole_NameAndDealerIsNull(String roleName);
 
 }

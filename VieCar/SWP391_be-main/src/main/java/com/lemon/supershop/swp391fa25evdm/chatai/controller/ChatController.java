@@ -18,9 +18,9 @@ public class ChatController {
     @Autowired
     private ChatService chatService;
 
-    @PostMapping("/chat")
-    public ResponseEntity<ChatRes> chat (@RequestBody ChatReq request) {
-        ChatRes response = chatService.chat(request);
-        return ResponseEntity.ok(response);
-    }
+//    @PostMapping("/chat")
+//    public ResponseEntity<ChatRes> chat (@RequestBody ChatReq request) {
+//        ChatRes response = chatService.chat(request);
+//        return ResponseEntity.ok(response);
+//    }
 }

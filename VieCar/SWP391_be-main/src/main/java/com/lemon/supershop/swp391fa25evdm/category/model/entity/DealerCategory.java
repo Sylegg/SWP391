@@ -41,9 +41,6 @@ public class DealerCategory {
     @OneToMany(mappedBy = "dealerCategory", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Product> products;
 
-    @OneToMany(mappedBy = "dealerCategory", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<TestDrive> testDrives;
-
     public DealerCategory() {}
 
     public int getId() {
@@ -108,13 +105,5 @@ public class DealerCategory {
 
     public void setProducts(List<Product> products) {
         this.products = products;
-    }
-
-    public List<TestDrive> getTestDrives() {
-        return testDrives;
-    }
-
-    public void setTestDrives(List<TestDrive> testDrives) {
-        this.testDrives = testDrives;
     }
 }

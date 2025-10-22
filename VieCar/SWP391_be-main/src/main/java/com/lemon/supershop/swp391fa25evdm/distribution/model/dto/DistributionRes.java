@@ -1,8 +1,12 @@
 package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
 
+import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductReq;
+import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 public class DistributionRes {
 
@@ -10,6 +14,7 @@ public class DistributionRes {
     private int categoryId;
     private int dealerId;
     private int contractId;
+    private List<ProductRes> products;
 
     public DistributionRes() {
     }
@@ -51,6 +56,14 @@ public class DistributionRes {
 
     public void setContractId(int contractId) {
         this.contractId = contractId;
+    }
+
+    public List<ProductRes> getProducts() {
+        return products;
+    }
+
+    public void setProducts(List<ProductRes> products) {
+        this.products = products;
     }
 }
 

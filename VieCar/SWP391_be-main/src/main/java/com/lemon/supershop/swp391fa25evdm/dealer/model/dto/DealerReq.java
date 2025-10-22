@@ -6,6 +6,7 @@ public class   DealerReq {
     private String phone;
     private String email;
     private String taxcode;
+    private Integer userId; // ID của user có role dealer manager
 
     public DealerReq() {}
 
@@ -27,5 +28,13 @@ public class   DealerReq {
 
     public String getTaxcode() {
         return taxcode;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 }

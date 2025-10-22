@@ -22,7 +22,7 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
   if (!userRole) return null;
 
   const getRoleConfig = (roleName: string) => {
-    switch (roleName as RoleName) {
+    switch (roleName) {
       case 'Customer':
         return {
           icon: User,

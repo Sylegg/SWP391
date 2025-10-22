@@ -1,0 +1,311 @@
+"use client";
+
+import { ProtectedRoute } from "@/components/auth-guards";
+import { useAuth } from "@/contexts/AuthContext";
+import DealerManagerLayout from "@/components/layout/dealer-manager-layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { 
+  Briefcase, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  Calendar,
+  Edit,
+  Building2,
+  User,
+  FileText,
+  Globe,
+  AlertCircle
+} from "lucide-react";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { getMyDealer } from "@/lib/dealerApi";
+import type { DealerRes } from "@/types/dealer";
+
+export default function DealerInfoPage() {
+  const { user } = useAuth();
+  const [dealer, setDealer] = useState<DealerRes | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadDealerInfo = async () => {
+      if (!user?.email) {
+        setError("Không tìm thấy thông tin user");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const dealerData = await getMyDealer(user.email);
+        if (dealerData) {
+          setDealer(dealerData);
+        } else {
+          setError("Bạn chưa có đại lý. Vui lòng liên hệ admin để tạo đại lý.");
+        }
+      } catch (err: any) {
+        console.error("Error loading dealer:", err);
+        setError(err.message || "Không thể tải thông tin đại lý");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDealerInfo();
+  }, [user]);
+
+  return (
+    <ProtectedRoute allowedRoles={['Dealer Manager', 'Admin']}>
+      <DealerManagerLayout>
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center">
+                <Briefcase className="mr-2 h-8 w-8" />
+                Thông tin đại lý
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Xem và cập nhật thông tin đại lý của bạn
+              </p>
+            </div>
+            <Link href="/dashboard/dealer-manager/dealer-info/edit">
+              <Button size="lg">
+                <Edit className="mr-2 h-4 w-4" />
+                Chỉnh sửa thông tin
+              </Button>
+            </Link>
+          </div>
+
+          {/* Status Badge */}
+          <div className="flex items-center gap-2">
+            <Badge 
+              className={dealerInfo.status === "active" 
+                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+              }
+            >
+              {dealerInfo.status === "active" ? "Đang hoạt động" : "Không hoạt động"}
+            </Badge>
+            <span className="text-muted-foreground text-sm">
+              Mã đại lý: <code className="bg-muted px-2 py-1 rounded">{dealerInfo.code}</code>
+            </span>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tổng nhân viên</CardTitle>
+                <User className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dealerInfo.totalStaff}</div>
+                <p className="text-xs text-muted-foreground">Dealer Staff</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Đơn phân phối</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dealerInfo.totalDistributions}</div>
+                <p className="text-xs text-muted-foreground">Tổng đơn đã đặt</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Xe đã bán</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dealerInfo.totalSales}</div>
+                <p className="text-xs text-muted-foreground">Tổng số xe bán được</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Dealer Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* General Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Building2 className="mr-2 h-5 w-5" />
+                  Thông tin chung
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Tên đại lý</label>
+                  <p className="text-lg font-semibold mt-1">{dealerInfo.name}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Mã đại lý</label>
+                  <p className="text-lg mt-1">
+                    <code className="bg-muted px-3 py-1.5 rounded font-mono">
+                      {dealerInfo.code}
+                    </code>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Ngày thành lập
+                  </label>
+                  <p className="text-lg mt-1">
+                    {new Date(dealerInfo.establishedDate).toLocaleDateString('vi-VN', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contact Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Phone className="mr-2 h-5 w-5" />
+                  Thông tin liên hệ
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Địa chỉ
+                  </label>
+                  <p className="text-lg mt-1">{dealerInfo.address}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {dealerInfo.district}, {dealerInfo.city}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Số điện thoại
+                  </label>
+                  <p className="text-lg mt-1">{dealerInfo.phone}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </label>
+                  <p className="text-lg mt-1">{dealerInfo.email}</p>
+                </div>
+
+                {dealerInfo.website && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      Website
+                    </label>
+                    <a 
+                      href={dealerInfo.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-lg mt-1 text-blue-600 hover:underline"
+                    >
+                      {dealerInfo.website}
+                    </a>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Manager Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <User className="mr-2 h-5 w-5" />
+                Thông tin Dealer Manager
+              </CardTitle>
+              <CardDescription>
+                Người quản lý đại lý hiện tại
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Họ tên</label>
+                  <p className="text-lg font-semibold mt-1">{dealerInfo.managerName}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Số điện thoại
+                  </label>
+                  <p className="text-lg mt-1">{dealerInfo.managerPhone}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </label>
+                  <p className="text-lg mt-1">{dealerInfo.managerEmail}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Thao tác nhanh</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Link href="/dashboard/dealer-manager/dealer-info/edit">
+                  <Button variant="outline" className="w-full">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Chỉnh sửa thông tin
+                  </Button>
+                </Link>
+                <Link href="/dashboard/dealer-manager/staff">
+                  <Button variant="outline" className="w-full">
+                    <User className="mr-2 h-4 w-4" />
+                    Quản lý nhân viên
+                  </Button>
+                </Link>
+                <Link href="/dashboard/dealer-manager/reports">
+                  <Button variant="outline" className="w-full">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Xem báo cáo
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Note */}
+          <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <CardContent className="pt-6">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Lưu ý:</strong> Một số thông tin như tên đại lý, mã đại lý chỉ có thể được chỉnh sửa bởi EVM Staff. 
+                Bạn có thể cập nhật thông tin liên hệ cơ bản như số điện thoại, email, địa chỉ.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </DealerManagerLayout>
+    </ProtectedRoute>
+  );
+}

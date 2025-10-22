@@ -1,13 +1,17 @@
 package com.lemon.supershop.swp391fa25evdm.distribution.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductReq;
+import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
+import com.lemon.supershop.swp391fa25evdm.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +36,9 @@ public class DistributionService {
     private ContractRepo contractRepo;
     @Autowired
     private ProductRepo productRepo;
+    @Autowired
+    private ProductService productService;
+
 
     public List<DistributionRes> getAllDistributions() {
         List<Distribution> distributions = distributionRepo.findAll();
@@ -80,10 +87,16 @@ public class DistributionService {
 
     private Distribution convertToEntity(Distribution distribution ,DistributionReq req) {
         if (distribution != null){
-            if (req.getProductId() > 0){
-                Optional<Product> product = productRepo.findById(req.getProductId());
-                if (product.isPresent()){
-                    distribution.setProduct(product.get());
+            if (!req.getProductId().isEmpty()){
+                List<Product> validProducts = new ArrayList<>();
+                for (Integer Req : req.getProductId()) {
+                    Optional<Product> productOpt = productRepo.findById(Req);
+                    if (productOpt.isPresent()) {
+                        validProducts.add(productOpt.get());
+                    }
+                }
+                if (!validProducts.isEmpty()){
+                    distribution.setProducts(validProducts);
                 }
             }
             if (req.getCategoryId() > 0){
@@ -120,6 +133,19 @@ public class DistributionService {
         }
         if (distribution.getContract() != null) {
             res.setContractId(distribution.getContract().getId());
+        }
+        if (!distribution.getProducts().isEmpty()){
+            List<ProductRes> validProducts = new ArrayList<>();
+            for (Product product : distribution.getProducts()) {
+                Optional<Product> productOpt = productRepo.findById(product.getId());
+                if (productOpt.isPresent()) {
+                    ProductRes productRes = productService.convertToRes(productOpt.get());
+                    validProducts.add(productRes);
+                }
+            }
+            if (!validProducts.isEmpty()){
+                res.setProducts(validProducts);
+            }
         }
         res.setId(distribution.getId());
         return res;

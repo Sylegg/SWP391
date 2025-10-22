@@ -2,6 +2,8 @@ package com.lemon.supershop.swp391fa25evdm.product.model.dto;
 
 import java.sql.Date;
 
+import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,28 +12,20 @@ public class ProductReq {
     private String name;
     private String vinNum;
     private String engineNum;
+    private double battery;
+    private int range;
+    private int hp;
+    private int torque;
+    private String color;
     private Date manufacture_date;
-    private double dealerPrice;
+    private long dealerPrice;
     private String description;
-    private String status;
+    private ProductStatus status;
     private int categoryId;
     private int dealerCategoryId;
     private String image;
 
     public ProductReq() {
-    }
-
-    public ProductReq(String name, String vinNum, String engineNum, Date manufacture_date, double dealerPrice, String description, String status, int categoryId, int dealerCategoryId, String image) {
-        this.name = name;
-        this.vinNum = vinNum;
-        this.engineNum = engineNum;
-        this.manufacture_date = manufacture_date;
-        this.dealerPrice = dealerPrice;
-        this.description = description;
-        this.status = status;
-        this.categoryId = categoryId;
-        this.dealerCategoryId = dealerCategoryId;
-        this.image = image;
     }
 
     public String getName() {
@@ -66,11 +60,11 @@ public class ProductReq {
         this.manufacture_date = manufacture_date;
     }
 
-    public double getDealerPrice() {
+    public long getDealerPrice() {
         return dealerPrice;
     }
 
-    public void setDealerPrice(double dealerPrice) {
+    public void setDealerPrice(long dealerPrice) {
         this.dealerPrice = dealerPrice;
     }
 
@@ -82,11 +76,11 @@ public class ProductReq {
         this.description = description;
     }
 
-    public String getStatus() {
+    public ProductStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(ProductStatus status) {
         this.status = status;
     }
 
@@ -112,5 +106,45 @@ public class ProductReq {
 
     public void setImage(String image) {
         this.image = image;
+    }
+
+    public double getBattery() {
+        return battery;
+    }
+
+    public void setBattery(double battery) {
+        this.battery = battery;
+    }
+
+    public int getRange() {
+        return range;
+    }
+
+    public void setRange(int range) {
+        this.range = range;
+    }
+
+    public int getHp() {
+        return hp;
+    }
+
+    public void setHp(int hp) {
+        this.hp = hp;
+    }
+
+    public int getTorque() {
+        return torque;
+    }
+
+    public void setTorque(int torque) {
+        this.torque = torque;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
     }
 }

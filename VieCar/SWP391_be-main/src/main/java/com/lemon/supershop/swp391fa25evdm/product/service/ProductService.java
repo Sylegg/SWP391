@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
+import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -39,55 +41,52 @@ public class ProductService {
     }
 
     public boolean deleteProductById(int id){
-        if (productRepo.existsById(id)) {
-            productRepo.deleteById(id);
+        Optional<Product> productOpt = productRepo.findById(id);
+        if (productOpt.isPresent()) {
+            productOpt.get().setStatus(ProductStatus.INACTIVE);
             return true;
         }
         return false;
     }
 
-    public ProductRes addProduct (ProductReq productReq) {
+    public ProductRes createProduct (ProductReq productReq) {
         Product product = new Product();
-        Product product1 = convertReqToEntity(product, productReq);
-        productRepo.save(product1);
-        return convertToRes(product1);
+        Product newProduct = convertReqToEntity(product, productReq);
+        productRepo.save(newProduct);
+        return convertToRes(newProduct);
     }
 
     public ProductRes updateProduct (int id, ProductReq productReq) {
         Optional<Product> existingProductOpt = productRepo.findById(id);
         if (existingProductOpt.isPresent()) {
-            convertReqToEntity(existingProductOpt.get(), productReq);
-            productRepo.save(existingProductOpt.get());
-            return convertToRes(existingProductOpt.get());
+            Product existingProduct = convertReqToEntity(existingProductOpt.get(), productReq);
+            productRepo.save(existingProduct);
+            return convertToRes(existingProduct);
         }
         return null;
     }
 
-    public List<ProductRes> getProductByCategoryId(int categoryId){
-         return productRepo.findByCategoryId(categoryId).stream().map(product -> {
-            return convertToRes(product);
-        }).collect(Collectors.toList());
+    public List<ProductRes> getProductByCategoryId(Integer categoryId){
+        List<Product> products = productRepo.findByCategoryId(categoryId);
+        return products.stream().map(this::convertToRes).toList();
     }
 
     public List<ProductRes> getProductByVinNum(String vinNum){
-        return productRepo.findByVinNumContainingIgnoreCase(vinNum).stream().map(product -> {
-            return convertToRes(product);
-        }).collect(Collectors.toList());
+        List<Product> productOpt = productRepo.findByVinNumContainingIgnoreCase(vinNum);
+        return productOpt.isEmpty() ? null : productOpt.stream().map(this::convertToRes).toList();
     }
 
     public List<ProductRes> getProductByName(String name){
-        return productRepo.findByNameContainingIgnoreCase(name).stream().map(product -> {
-            return convertToRes(product);
-        }).collect(Collectors.toList());
+        List<Product> productOpt = productRepo.findByNameContainingIgnoreCase(name);
+        return productOpt.isEmpty() ? null : productOpt.stream().map(this::convertToRes).toList();
     }
 
     public List<ProductRes> getProductByEngineNum(String engineNum){
-        return productRepo.findByEngineNumContainingIgnoreCase(engineNum).stream().map(product -> {
-            return convertToRes(product);
-        }).collect(Collectors.toList());
+        List<Product> productOpt = productRepo.findByEngineNumContainingIgnoreCase(engineNum);
+        return productOpt.isEmpty() ? null : productOpt.stream().map(this::convertToRes).toList();
     }
 
-    private ProductRes convertToRes(Product product) {
+    public ProductRes convertToRes(Product product) {
         if (product != null) {
             ProductRes productRes = new ProductRes();
             productRes.setId(product.getId());
@@ -100,11 +99,26 @@ public class ProductService {
             if (product.getEngineNum() != null) {
                 productRes.setEngineNum(product.getEngineNum());
             }
+            if (product.getHp() > 0){
+                productRes.setHp(product.getHp());
+            }
+            if (product.getRange() > 0){
+                productRes.setRange(product.getRange());
+            }
+            if (product.getTorque() > 0) {
+                productRes.setTorque(product.getTorque());
+            }
+            if (product.getBattery() > 0) {
+                productRes.setBattery(product.getBattery());
+            }
+
             if (product.getDescription() != null) {
                 productRes.setDescription(product.getDescription());
             }
             if (product.getStatus() != null) {
                 productRes.setStatus(product.getStatus());
+            } else {
+                productRes.setStatus(ProductStatus.INACTIVE);
             }
             if (product.getImage() != null) {
                 productRes.setImage(product.getImage());
@@ -116,6 +130,7 @@ public class ProductService {
                 Optional<Category> category = categoryRepository.findById(product.getCategory().getId());
                 if (category.isPresent()) {
                     productRes.setCategoryId(category.get().getId());
+                    productRes.setSpecial(category.get().isSpecial());
                 }
             }
             if (product.getDealerCategory() != null) {
@@ -130,7 +145,7 @@ public class ProductService {
     }
 
     // Convert ProductReq to Product entity using Repository
-    private Product convertReqToEntity(Product product, ProductReq productReq) {
+    public Product convertReqToEntity(Product product, ProductReq productReq) {
         if (product != null || productReq != null){
             if (productReq.getName() != null){
                 product.setName(productReq.getName());
@@ -140,6 +155,21 @@ public class ProductService {
             }
             if (productReq.getEngineNum() != null){
                 product.setEngineNum(productReq.getEngineNum());
+            }
+            if (productReq.getHp() > 0){
+                product.setHp(productReq.getHp());
+            }
+            if (productReq.getRange() > 0){
+                product.setRange(productReq.getRange());
+            }
+            if (productReq.getBattery() > 0) {
+                product.setBattery(productReq.getBattery());
+            }
+            if (productReq.getTorque() > 0){
+                product.setTorque(productReq.getTorque());
+            }
+            if (productReq.getColor() != null){
+                product.setColor(productReq.getColor());
             }
             if (productReq.getDescription() != null){
                 product.setDescription(productReq.getDescription());

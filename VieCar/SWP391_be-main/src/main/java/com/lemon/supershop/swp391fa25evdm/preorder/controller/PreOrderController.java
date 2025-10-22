@@ -20,7 +20,7 @@ import com.lemon.supershop.swp391fa25evdm.preorder.service.PreOrderService;
 
 @RestController
 @RequestMapping("/api/preorders")
-@CrossOrigin(origins = "*")
+@CrossOrigin("*")
 public class PreOrderController {
     
     @Autowired

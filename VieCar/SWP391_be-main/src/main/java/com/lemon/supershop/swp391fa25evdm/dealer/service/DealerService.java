@@ -5,6 +5,8 @@ import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.enums.DealerStatus;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
+import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
+import com.lemon.supershop.swp391fa25evdm.user.repository.UserRepo;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,9 @@ public class DealerService {
 
     @Autowired
     private DealerRepo dealerRepo;
+
+    @Autowired
+    private UserRepo userRepo;
 
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$", Pattern.CASE_INSENSITIVE);
@@ -73,6 +78,17 @@ public class DealerService {
         }
         dealer.setStatus(DealerStatus.ACTIVE);
         dealerRepo.save(dealer);
+        
+        // Liên kết user với dealer nếu có userId
+        if (dto.getUserId() != null && dto.getUserId() > 0) {
+            Optional<User> user = userRepo.findById(dto.getUserId());
+            if (user.isPresent()) {
+                User dealerManager = user.get();
+                dealerManager.setDealer(dealer);
+                userRepo.save(dealerManager);
+            }
+        }
+        
         return  convertDealertoDealerRes(dealer);
     }
 
