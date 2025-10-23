@@ -130,8 +130,9 @@ export const getProductStats = (products: ProductRes[]) => {
     total: products.length,
     active: products.filter(p => p.status === ProductStatus.ACTIVE).length,
     inactive: products.filter(p => p.status === ProductStatus.INACTIVE).length,
-    outOfStock: products.filter(p => p.status === ProductStatus.OUT_OF_STOCK).length,
-    available: products.filter(p => p.status === ProductStatus.AVAILABLE).length,
+    soldout: products.filter(p => p.status === ProductStatus.SOLDOUT).length,
+    testDrive: products.filter(p => p.status === ProductStatus.TEST_DRIVE).length,
+    reserved: products.filter(p => p.status === ProductStatus.RESERVED).length,
     special: products.filter(p => p.isSpecial).length,
   };
 };
@@ -164,12 +165,15 @@ export const formatDate = (date: string | Date): string => {
 export const getStatusColor = (status: ProductStatus): string => {
   switch (status) {
     case ProductStatus.ACTIVE:
-    case ProductStatus.AVAILABLE:
       return 'green';
     case ProductStatus.INACTIVE:
       return 'gray';
-    case ProductStatus.OUT_OF_STOCK:
+    case ProductStatus.SOLDOUT:
       return 'red';
+    case ProductStatus.TEST_DRIVE:
+      return 'blue';
+    case ProductStatus.RESERVED:
+      return 'yellow';
     default:
       return 'gray';
   }
@@ -184,10 +188,12 @@ export const getStatusLabel = (status: ProductStatus): string => {
       return 'Hoạt động';
     case ProductStatus.INACTIVE:
       return 'Không hoạt động';
-    case ProductStatus.OUT_OF_STOCK:
-      return 'Hết hàng';
-    case ProductStatus.AVAILABLE:
-      return 'Có sẵn';
+    case ProductStatus.SOLDOUT:
+      return 'Đã bán hết';
+    case ProductStatus.TEST_DRIVE:
+      return 'Xe lái thử';
+    case ProductStatus.RESERVED:
+      return 'Đã đặt cọc';
     default:
       return status;
   }

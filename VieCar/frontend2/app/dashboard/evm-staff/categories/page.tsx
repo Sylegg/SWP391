@@ -66,8 +66,6 @@ export default function EvmStaffCategoriesPage() {
   const [formData, setFormData] = useState<CategoryReq>({
     name: "",
     brand: "",
-    version: "",
-    type: "",
     basePrice: 0,
     warranty: 0,
     isSpecial: false,
@@ -186,8 +184,6 @@ export default function EvmStaffCategoriesPage() {
     setFormData({
       name: category.name,
       brand: category.brand,
-      version: category.version,
-      type: category.type,
       basePrice: category.basePrice,
       warranty: category.warranty,
       isSpecial: category.isSpecial ?? false,
@@ -202,8 +198,6 @@ export default function EvmStaffCategoriesPage() {
     setFormData({
       name: "",
       brand: "",
-      version: "",
-      type: "",
       basePrice: 0,
       warranty: 0,
       isSpecial: false,
@@ -263,26 +257,7 @@ export default function EvmStaffCategoriesPage() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="create-version">Phiên bản</Label>
-                      <Input
-                        id="create-version"
-                        value={formData.version}
-                        onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                        placeholder="VD: Standard, Plus, Eco"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="create-type">Loại xe</Label>
-                      <Input
-                        id="create-type"
-                        value={formData.type}
-                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                        placeholder="VD: SUV, Sedan"
-                      />
-                    </div>
-                  </div>
+                  {/* Removed fields: version, type */}
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
@@ -377,8 +352,7 @@ export default function EvmStaffCategoriesPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Tên</TableHead>
                   <TableHead>Thương hiệu</TableHead>
-                  <TableHead>Phiên bản</TableHead>
-                  <TableHead>Loại</TableHead>
+                  {/* Removed columns: Phiên bản, Loại */}
                   <TableHead>Giá cơ bản</TableHead>
                   <TableHead>Bảo hành</TableHead>
                   <TableHead>Trạng thái</TableHead>
@@ -407,8 +381,7 @@ export default function EvmStaffCategoriesPage() {
                         {category.isSpecial && <span className="ml-2">⭐</span>}
                       </TableCell>
                       <TableCell>{category.brand}</TableCell>
-                      <TableCell>{category.version}</TableCell>
-                      <TableCell>{category.type}</TableCell>
+                      {/* Removed cells: version, type */}
                       <TableCell>{category.basePrice ? category.basePrice.toLocaleString('vi-VN') : '0'} ₫</TableCell>
                       <TableCell>{category.warranty || 0} năm</TableCell>
                       <TableCell>
@@ -479,24 +452,7 @@ export default function EvmStaffCategoriesPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-version">Phiên bản</Label>
-                    <Input
-                      id="edit-version"
-                      value={formData.version}
-                      onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-type">Loại xe</Label>
-                    <Input
-                      id="edit-type"
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    />
-                  </div>
-                </div>
+                {/* Removed fields: version, type */}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">

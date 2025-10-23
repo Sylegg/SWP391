@@ -24,6 +24,7 @@ import {
   FileText,
   AlertCircle,
   ShoppingCart,
+  Trash2,
 } from 'lucide-react';
 import {
   getDistributionsByDealer,
@@ -31,6 +32,10 @@ import {
   submitDistributionOrder,
   confirmDistributionReceived,
 } from '@/lib/distributionApi';
+import { getAllProducts } from '@/lib/productApi';
+import { getAllCategories } from '@/lib/categoryApi';
+import type { ProductRes } from '@/types/product';
+import type { CategoryRes } from '@/types/category';
 import {
   DistributionRes,
   DistributionStatus,
@@ -43,19 +48,10 @@ export default function DealerDistributionsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [distributions, setDistributions] = useState<DistributionRes[]>([]);
+  const [products, setProducts] = useState<ProductRes[]>([]);
+  const [categories, setCategories] = useState<CategoryRes[]>([]);
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionRes | null>(null);
   
-  // Hardcoded VinFast products - không cần API
-  const VINFAST_PRODUCTS = [
-    { id: 1, name: 'VinFast VF 3' },
-    { id: 2, name: 'VinFast VF 5' },
-    { id: 3, name: 'VinFast VF 6' },
-    { id: 4, name: 'VinFast VF 7' },
-    { id: 5, name: 'VinFast VF 8' },
-    { id: 6, name: 'VinFast VF 9' },
-    { id: 7, name: 'VinFast VF e34' },
-    { id: 8, name: 'VinFast Limo Green' },
-  ];
   
   // Dialog states
   const [isRespondDialogOpen, setIsRespondDialogOpen] = useState(false);
@@ -69,18 +65,20 @@ export default function DealerDistributionsPage() {
     notes: '',
   });
   
-  const [orderForm, setOrderForm] = useState({
-    productId: 0,
-    requestedQuantity: 1,
-    notes: '',
-    requestedDeliveryDate: '',
-  });
-  
+  // Multi-item order form state
+  const [orderItems, setOrderItems] = useState<{ categoryId?: number; productId: number; color?: string; quantity: number; }[]>([
+    { categoryId: undefined, productId: 0, color: undefined, quantity: 1 },
+  ]);
+  const [orderNotes, setOrderNotes] = useState('');
+  const [orderRequestedDeliveryDate, setOrderRequestedDeliveryDate] = useState('');
+  const totalOrderQty = orderItems.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+
   const [completeForm, setCompleteForm] = useState({
-    actualDeliveryDate: '',
     receivedQuantity: 0,
-    feedback: '',
   });
+  const [receivedItems, setReceivedItems] = useState<
+    { id: number; name?: string; color?: string; ordered: number; received: number }[]
+  >([]);
   
   // Stats
   const [stats, setStats] = useState({
@@ -108,9 +106,15 @@ export default function DealerDistributionsPage() {
 
     try {
       setLoading(true);
-      const distData = await getDistributionsByDealer(user.dealerId);
+      const [distData, productData, categoryData] = await Promise.all([
+        getDistributionsByDealer(user.dealerId),
+        getAllProducts(),
+        getAllCategories(),
+      ]);
       
       setDistributions(distData);
+      setProducts(productData || []);
+      setCategories(categoryData || []);
       
       // Calculate stats
       const statsData = {
@@ -120,13 +124,17 @@ export default function DealerDistributionsPage() {
         ).length,
         planned: distData.filter(d => d.status === DistributionStatus.PLANNED).length,
         completed: distData.filter(d => d.status === DistributionStatus.COMPLETED).length,
-        totalProducts: distData.reduce((sum, d) => sum + (d.products?.length || 0), 0),
+        totalProducts: distData.reduce((sum, d) => {
+          const itemQty = d.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0;
+          const productCount = d.products?.length || 0;
+          return sum + (itemQty || productCount);
+        }, 0),
       };
       setStats(statsData);
       
       toast({
         title: '✅ Tải thành công',
-        description: `Đã tải ${distData.length} phân phối`,
+        description: `Đã tải ${distData.length} phân phối, ${productData?.length || 0} sản phẩm, ${categoryData?.length || 0} danh mục`,
       });
     } catch (error: any) {
       toast({
@@ -162,6 +170,8 @@ export default function DealerDistributionsPage() {
       
       // If accepted, open order dialog immediately
       if (respondForm.accepted) {
+        // Update local selection status to allow submit guard to pass
+        setSelectedDistribution((prev) => prev ? { ...prev, status: DistributionStatus.ACCEPTED } : prev);
         setIsOrderDialogOpen(true);
       }
       
@@ -178,27 +188,53 @@ export default function DealerDistributionsPage() {
 
   // Step 3: Submit detailed order
   const handleSubmitOrder = async () => {
-    if (!selectedDistribution || !orderForm.productId || !orderForm.requestedQuantity) {
+    if (!selectedDistribution) {
       toast({
         title: '⚠️ Thiếu thông tin',
-        description: 'Vui lòng chọn sản phẩm và nhập số lượng',
+        description: 'Không xác định được phân phối',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // If not ACCEPTED, auto-accept before submit to streamline flow
+    if (selectedDistribution.status !== DistributionStatus.ACCEPTED) {
+      try {
+        await respondToInvitation(selectedDistribution.id, true, undefined);
+        setSelectedDistribution((prev) => prev ? { ...prev, status: DistributionStatus.ACCEPTED } : prev);
+      } catch (err: any) {
+        toast({
+          title: '❌ Lỗi',
+          description: err?.message || 'Không thể chấp nhận lời mời',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    const validItems = orderItems
+      .filter((it) => it.productId > 0 && (it.quantity || 0) > 0)
+      .map((it) => ({ productId: it.productId, color: it.color || undefined, quantity: it.quantity }));
+
+    if (validItems.length === 0) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng thêm ít nhất 1 dòng sản phẩm hợp lệ',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      // Convert date to datetime format (add time component)
       const requestData = {
-        productIds: [orderForm.productId],  // Backend expect array
-        requestedQuantity: orderForm.requestedQuantity,
-        dealerNotes: orderForm.notes || undefined,
-        requestedDeliveryDate: orderForm.requestedDeliveryDate 
-          ? `${orderForm.requestedDeliveryDate}T00:00:00` 
+        items: validItems,
+        dealerNotes: orderNotes || undefined,
+        requestedDeliveryDate: orderRequestedDeliveryDate 
+          ? `${orderRequestedDeliveryDate}T00:00:00`
           : undefined,
       };
-      
-      await submitDistributionOrder(selectedDistribution.id, requestData);
+
+  await submitDistributionOrder(selectedDistribution.id, requestData);
       toast({
         title: '✅ Gửi đơn thành công',
         description: 'Đơn nhập hàng đã được gửi đến EVM để duyệt',
@@ -217,21 +253,43 @@ export default function DealerDistributionsPage() {
 
   // Step 6: Confirm received
   const handleConfirmReceived = async () => {
-    if (!selectedDistribution || !completeForm.actualDeliveryDate || !completeForm.receivedQuantity) {
+    if (!selectedDistribution) {
       toast({
         title: '⚠️ Thiếu thông tin',
-        description: 'Vui lòng nhập đầy đủ thông tin',
+        description: 'Không xác định được phân phối',
         variant: 'destructive',
       });
       return;
     }
-
+    const totalReceived = receivedItems.length > 0
+      ? receivedItems.reduce((s, it) => s + (Number(it.received) || 0), 0)
+      : completeForm.receivedQuantity;
+    if (!totalReceived || totalReceived < 0) {
+      toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập số lượng đã nhận', variant: 'destructive' });
+      return;
+    }
+    if (receivedItems.length > 0) {
+      const over = receivedItems.find(it => (Number(it.received) || 0) > (Number(it.ordered) || 0));
+      if (over) {
+        toast({ title: '⚠️ Không hợp lệ', description: 'Số lượng nhận từng dòng không được vượt quá số đã đặt', variant: 'destructive' });
+        return;
+      }
+    }
     try {
       // Convert date to datetime format (add time component)
+      // Tự động gán ngày hiện tại
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
       const requestData = {
-        receivedQuantity: completeForm.receivedQuantity,
-        actualDeliveryDate: `${completeForm.actualDeliveryDate}T00:00:00`,
-        feedback: completeForm.feedback || undefined,
+        receivedQuantity: totalReceived,
+        actualDeliveryDate: `${yyyy}-${mm}-${dd}T00:00:00`,
+        items: receivedItems.length > 0
+          ? receivedItems
+              .filter((it) => (Number(it.received) || 0) > 0)
+              .map((it) => ({ distributionItemId: it.id, receivedQuantity: Number(it.received) || 0 }))
+          : undefined,
       };
       
       await confirmDistributionReceived(selectedDistribution.id, requestData);
@@ -256,11 +314,14 @@ export default function DealerDistributionsPage() {
   };
 
   const resetOrderForm = () => {
-    setOrderForm({ productId: 0, requestedQuantity: 1, notes: '', requestedDeliveryDate: '' });
+    setOrderItems([{ categoryId: undefined, productId: 0, color: undefined, quantity: 1 }]);
+    setOrderNotes('');
+    setOrderRequestedDeliveryDate('');
   };
 
   const resetCompleteForm = () => {
-    setCompleteForm({ actualDeliveryDate: '', receivedQuantity: 0, feedback: '' });
+    setCompleteForm({ receivedQuantity: 0 });
+    setReceivedItems([]);
   };
 
   const openRespondDialog = async (distribution: DistributionRes, accepted: boolean) => {
@@ -274,6 +335,8 @@ export default function DealerDistributionsPage() {
           title: '✅ Đã chấp nhận',
           description: 'Tạo đơn nhập hàng ngay',
         });
+        // Update selected distribution to ACCEPTED locally
+        setSelectedDistribution({ ...distribution, status: DistributionStatus.ACCEPTED });
         setIsOrderDialogOpen(true);  // Mở dialog tạo đơn luôn
         loadData();
       } catch (error: any) {
@@ -297,10 +360,22 @@ export default function DealerDistributionsPage() {
 
   const openCompleteDialog = (distribution: DistributionRes) => {
     setSelectedDistribution(distribution);
-    setCompleteForm({
-      ...completeForm,
-      receivedQuantity: distribution.products?.length || 0,
-    });
+    // Build per-item list if available; default received = ordered
+    if (distribution.items && distribution.items.length > 0) {
+      const list = distribution.items.map((it) => ({
+        id: it.id,
+        name: it.product?.name,
+        color: it.color,
+        ordered: it.quantity || 0,
+        received: it.quantity || 0,
+      }));
+      setReceivedItems(list);
+      const total = list.reduce((s, it) => s + (it.received || 0), 0);
+      setCompleteForm({ receivedQuantity: total });
+    } else {
+      setReceivedItems([]);
+      setCompleteForm({ receivedQuantity: (distribution.products?.length || 0) });
+    }
     setIsCompleteDialogOpen(true);
   };
 
@@ -576,7 +651,7 @@ export default function DealerDistributionsPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Dialog: Submit Order */}
+          {/* Dialog: Submit Order (multi-item) */}
           <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
@@ -586,35 +661,127 @@ export default function DealerDistributionsPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
+                {/* Items list */}
                 <div className="space-y-2">
-                  <Label htmlFor="product">Sản phẩm *</Label>
-                  <Select
-                    value={orderForm.productId > 0 ? orderForm.productId.toString() : undefined}
-                    onValueChange={(value) => setOrderForm({ ...orderForm, productId: parseInt(value) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn sản phẩm (VF3, VF5, VF7...)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {VINFAST_PRODUCTS.map((product) => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Số lượng *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    placeholder="VD: 10"
-                    value={orderForm.requestedQuantity}
-                    onChange={(e) => setOrderForm({ ...orderForm, requestedQuantity: parseInt(e.target.value) || 1 })}
-                  />
+                  <Label>Chi tiết đơn hàng</Label>
+                  <div className="space-y-3">
+                    {orderItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border rounded-md p-3">
+                        <div className="md:col-span-4">
+                          <Label className="text-sm">Danh mục</Label>
+                          <Select
+                            value={item.categoryId ? item.categoryId.toString() : undefined}
+                            onValueChange={(value) => {
+                              const next = [...orderItems];
+                              next[idx].categoryId = parseInt(value);
+                              // reset product when category changes
+                              next[idx].productId = 0;
+                              setOrderItems(next);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Danh mục" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.length === 0 ? (
+                                <div className="px-2 py-1 text-sm text-muted-foreground">Chưa có danh mục</div>
+                              ) : (
+                                categories.map((cat) => (
+                                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                                    {cat.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-4">
+                          <Label className="text-sm">Sản phẩm</Label>
+                          <Select
+                            value={item.productId > 0 ? item.productId.toString() : undefined}
+                            onValueChange={(value) => {
+                              const next = [...orderItems];
+                              next[idx].productId = parseInt(value);
+                              setOrderItems(next);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sản phẩm" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {products.length === 0 ? (
+                                <div className="px-2 py-1 text-sm text-muted-foreground">
+                                  Chưa có sản phẩm khả dụng
+                                </div>
+                              ) : (
+                                (item.categoryId
+                                  ? products.filter((p) => p.categoryId === item.categoryId)
+                                  : products
+                                ).map((product) => (
+                                  <SelectItem key={product.id} value={product.id.toString()}>
+                                    {product.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label className="text-sm">Màu</Label>
+                          <Select
+                            value={item.color}
+                            onValueChange={(value) => {
+                              const next = [...orderItems];
+                              next[idx].color = value;
+                              setOrderItems(next);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Màu" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {['Red','Blue','White','Black','Grey','Silver','Green'].map((c) => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label className="text-sm">Số lượng</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const next = [...orderItems];
+                              next[idx].quantity = parseInt(e.target.value) || 1;
+                              setOrderItems(next);
+                            }}
+                          />
+                        </div>
+                        <div className="md:col-span-2 flex md:justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="text-red-600"
+                            onClick={() => setOrderItems((prev) => prev.filter((_, i) => i !== idx))}
+                            disabled={orderItems.length === 1}
+                          >
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    <div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setOrderItems((prev) => [...prev, { productId: 0, color: undefined, quantity: 1 }])}
+                      >
+                        + Thêm dòng
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -622,8 +789,8 @@ export default function DealerDistributionsPage() {
                   <Input
                     id="requestedDate"
                     type="date"
-                    value={orderForm.requestedDeliveryDate}
-                    onChange={(e) => setOrderForm({ ...orderForm, requestedDeliveryDate: e.target.value })}
+                    value={orderRequestedDeliveryDate}
+                    onChange={(e) => setOrderRequestedDeliveryDate(e.target.value)}
                   />
                 </div>
 
@@ -632,8 +799,8 @@ export default function DealerDistributionsPage() {
                   <Textarea
                     id="orderNotes"
                     placeholder="VD: Cần giao hàng vào buổi sáng, liên hệ trước 1 ngày"
-                    value={orderForm.notes}
-                    onChange={(e) => setOrderForm({ ...orderForm, notes: e.target.value })}
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
                     rows={3}
                   />
                 </div>
@@ -659,36 +826,50 @@ export default function DealerDistributionsPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="actualDate">Ngày nhận thực tế *</Label>
-                  <Input
-                    id="actualDate"
-                    type="date"
-                    value={completeForm.actualDeliveryDate}
-                    onChange={(e) => setCompleteForm({ ...completeForm, actualDeliveryDate: e.target.value })}
-                  />
-                </div>
+                {receivedItems.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground">Các xe trong đơn (đã gửi trước đó)</Label>
+                    <div className="mt-2 space-y-2">
+                      {receivedItems.map((row, idx) => (
+                        <div key={row.id ?? idx} className="p-3 border rounded-md">
+                          <div className="font-medium">{row.name || 'Sản phẩm'}</div>
+                          <div className="text-sm text-muted-foreground mb-2">
+                            {row.color ? `Màu: ${row.color} • ` : ''}Số lượng đã đặt: {row.ordered}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 items-center">
+                            <Label className="text-sm">Số lượng nhận</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={row.ordered}
+                              value={row.received}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value || '0');
+                                setReceivedItems((prev) => {
+                                  const next = [...prev];
+                                  next[idx] = { ...next[idx], received: isNaN(val) ? 0 : val };
+                                  return next;
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Số lượng đã nhận *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={completeForm.receivedQuantity}
-                    onChange={(e) => setCompleteForm({ ...completeForm, receivedQuantity: parseInt(e.target.value) })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="feedback">Đánh giá / Phản hồi</Label>
-                  <Textarea
-                    id="feedback"
-                    placeholder="VD: Hàng đến đúng hạn, đầy đủ số lượng, chất lượng tốt"
-                    value={completeForm.feedback}
-                    onChange={(e) => setCompleteForm({ ...completeForm, feedback: e.target.value })}
-                    rows={3}
-                  />
-                </div>
+                {receivedItems.length === 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Số lượng đã nhận *</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      value={completeForm.receivedQuantity}
+                      onChange={(e) => setCompleteForm({ ...completeForm, receivedQuantity: parseInt(e.target.value) })}
+                    />
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
@@ -767,6 +948,21 @@ export default function DealerDistributionsPage() {
                             </div>
                             <div className="text-sm font-medium text-green-600">
                               {product.price?.toLocaleString('vi-VN')}đ
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedDistribution.items && selectedDistribution.items.length > 0 && (
+                    <div>
+                      <Label className="text-muted-foreground">Chi tiết đơn ({selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)} xe)</Label>
+                      <div className="mt-2 space-y-2">
+                        {selectedDistribution.items.map((it, idx) => (
+                          <div key={idx} className="p-3 border rounded-md">
+                            <div className="font-medium">{it.product?.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {it.color ? `Màu: ${it.color} • ` : ''}Số lượng: {it.quantity}
                             </div>
                           </div>
                         ))}

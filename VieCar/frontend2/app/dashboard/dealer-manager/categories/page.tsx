@@ -2,6 +2,7 @@
 
 import { ProtectedRoute } from "@/components/auth-guards";
 import DealerManagerLayout from "@/components/layout/dealer-manager-layout";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,22 +28,40 @@ import {
   RefreshCw,
   Tag,
   Eye,
-  Info
+  Info,
+  Package,
+  PlusCircle
 } from "lucide-react";
 import {
   getAllCategories,
   searchCategoriesByName,
+  createCategory,
   type CategoryRes,
+  type CategoryReq,
 } from "@/lib/categoryApi";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 export default function DealerManagerCategoriesPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [categories, setCategories] = useState<CategoryRes[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryRes | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [formData, setFormData] = useState<CategoryReq>({
+    name: "",
+    brand: "",
+    basePrice: 0,
+    warranty: 0,
+    isSpecial: false,
+    description: "",
+    status: "ACTIVE",
+  });
 
   // Load categories
   const loadCategories = async () => {
@@ -92,6 +111,44 @@ export default function DealerManagerCategoriesPage() {
     setIsViewDialogOpen(true);
   };
 
+  const goToInventory = (category: CategoryRes) => {
+    // Navigate to the category inventory management page
+    window.location.href = `/dashboard/dealer-manager/categories/${category.id}`;
+  };
+
+  const handleCreate = async () => {
+    // Basic validations
+    if (!formData.name.trim()) {
+      toast({ variant: "destructive", title: "Thiếu tên danh mục", description: "Vui lòng nhập tên danh mục" });
+      return;
+    }
+    if (!formData.brand.trim()) {
+      toast({ variant: "destructive", title: "Thiếu thương hiệu", description: "Vui lòng nhập thương hiệu" });
+      return;
+    }
+    try {
+      setLoading(true);
+      await createCategory(formData);
+      toast({ title: "Thành công", description: "Tạo danh mục thành công" });
+      setIsCreateDialogOpen(false);
+      setFormData({
+        name: "",
+        brand: "",
+        basePrice: 0,
+        warranty: 0,
+        isSpecial: false,
+        description: "",
+        status: "ACTIVE",
+      });
+      loadCategories();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || "Không thể tạo danh mục";
+      toast({ variant: "destructive", title: "Lỗi", description: msg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ProtectedRoute allowedRoles={['Dealer Manager', 'Dealer Staff', 'Admin']}>
       <DealerManagerLayout>
@@ -105,13 +162,112 @@ export default function DealerManagerCategoriesPage() {
                   Danh mục sản phẩm
                 </h1>
                 <p className="text-muted-foreground mt-2">
-                  Xem thông tin danh mục xe điện (Chỉ xem)
+                  Xem danh mục gốc và tạo danh mục cho riêng đại lý
                 </p>
               </div>
-              <Badge variant="secondary" className="text-sm">
-                <Info className="w-4 h-4 mr-1" />
-                Chế độ xem
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-sm">
+                  <Info className="w-4 h-4 mr-1" />
+                  Dành cho Dealer Manager
+                </Badge>
+                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => setIsCreateDialogOpen(true)}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Tạo danh mục
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Tạo danh mục mới</DialogTitle>
+                      <DialogDescription>Nhập thông tin danh mục mới</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="create-name">Tên danh mục</Label>
+                          <Input
+                            id="create-name"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="Nhập tên danh mục"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="create-brand">Thương hiệu</Label>
+                          <Input
+                            id="create-brand"
+                            value={formData.brand}
+                            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                            placeholder="VD: VinFast, Tesla"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Removed fields: version, type */}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="create-basePrice">Giá cơ bản (VNĐ)</Label>
+                          <Input
+                            id="create-basePrice"
+                            type="number"
+                            value={formData.basePrice}
+                            onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
+                            placeholder="VD: 500000000"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="create-warranty">Bảo hành (năm)</Label>
+                          <Input
+                            id="create-warranty"
+                            type="number"
+                            value={formData.warranty}
+                            onChange={(e) => setFormData({ ...formData, warranty: parseInt(e.target.value) || 0 })}
+                            placeholder="VD: 5"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="create-description">Mô tả</Label>
+                        <Input
+                          id="create-description"
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          placeholder="Nhập mô tả"
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="create-status">Trạng thái</Label>
+                        <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn trạng thái" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                            <SelectItem value="INACTIVE">INACTIVE</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="create-special">Danh mục đặc biệt</Label>
+                        <Switch
+                          id="create-special"
+                          checked={formData.isSpecial}
+                          onCheckedChange={(checked) => setFormData({ ...formData, isSpecial: checked })}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Hủy</Button>
+                      <Button onClick={handleCreate} disabled={loading}>Tạo</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
 
@@ -143,12 +299,11 @@ export default function DealerManagerCategoriesPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Tên danh mục</TableHead>
                   <TableHead>Thương hiệu</TableHead>
-                  <TableHead>Phiên bản</TableHead>
-                  <TableHead>Loại xe</TableHead>
+                  {/* Removed columns: Phiên bản, Loại xe */}
                   <TableHead>Giá cơ bản</TableHead>
                   <TableHead>Bảo hành</TableHead>
                   <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Chi tiết</TableHead>
+                  <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -173,8 +328,7 @@ export default function DealerManagerCategoriesPage() {
                         {category.isSpecial && <span className="ml-2">⭐</span>}
                       </TableCell>
                       <TableCell>{category.brand}</TableCell>
-                      <TableCell>{category.version}</TableCell>
-                      <TableCell>{category.type}</TableCell>
+                      {/* Removed cells: version, type */}
                       <TableCell className="font-medium">
                         {category.basePrice ? category.basePrice.toLocaleString('vi-VN') : '0'} ₫
                       </TableCell>
@@ -191,7 +345,7 @@ export default function DealerManagerCategoriesPage() {
                           {category.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -200,6 +354,14 @@ export default function DealerManagerCategoriesPage() {
                           <Eye className="h-4 w-4 mr-2" />
                           Xem
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => goToInventory(category)}
+                        >
+                          <Package className="h-4 w-4 mr-2" />
+                          Kho
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -207,6 +369,7 @@ export default function DealerManagerCategoriesPage() {
               </TableBody>
             </Table>
           </div>
+
 
           {/* View Detail Dialog */}
           <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -249,16 +412,7 @@ export default function DealerManagerCategoriesPage() {
                     <div className="col-span-3">{selectedCategory.brand}</div>
                   </div>
 
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <div className="font-medium text-right">Phiên bản:</div>
-                    <div className="col-span-3">{selectedCategory.version}</div>
-                  </div>
-
-                  {/* Type */}
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <div className="font-medium text-right">Loại xe:</div>
-                    <div className="col-span-3">{selectedCategory.type}</div>
-                  </div>
+                  {/* Removed fields: Version, Type */}
 
                   {/* Price and Warranty */}
                   <div className="grid grid-cols-4 items-center gap-4">

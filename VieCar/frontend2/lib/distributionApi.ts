@@ -142,11 +142,17 @@ export const submitDistributionOrder = async (
   id: number,
   data: DistributionOrderReq
 ): Promise<DistributionRes> => {
-  const response = await api.put<DistributionRes>(
-    `${DISTRIBUTION_BASE}/${id}/submit-order`,
-    data
-  );
-  return response.data;
+  try {
+    const response = await api.put<DistributionRes>(
+      `${DISTRIBUTION_BASE}/${id}/submit-order`,
+      data
+    );
+    return response.data;
+  } catch (err: any) {
+    // Surface backend message when 4xx/5xx occurs
+    const msg = err?.response?.data?.message || err?.message || 'Request failed';
+    throw new Error(msg);
+  }
 };
 
 /**
