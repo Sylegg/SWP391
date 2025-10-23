@@ -66,6 +66,12 @@ const navigationItems: NavigationItem[] = [
     icon: Car,
     section: "catalog"
   },
+  {
+    title: "Phân phối sản phẩm",
+    href: "/dashboard/evm-staff/distributions",
+    icon: Truck,
+    section: "catalog"
+  },
   // Module 2: Thanh toán
   {
     title: "💰 Thanh toán & Công nợ",

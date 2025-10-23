@@ -10,9 +10,11 @@ import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution
 @Repository
 public interface DistributionRepo extends JpaRepository<Distribution, Integer> {
 
-    List<Distribution> findByCategoryId(int categoryId);
+    // ❌ Xóa query không dùng
+    // List<Distribution> findByCategoryId(int categoryId);
 
     List<Distribution> findByDealerId(int dealerId);
 
-    List<Distribution> findByContractId(int contractId);
+    // ❌ Xóa query không dùng Contract
+    // List<Distribution> findByContractId(int contractId);
 }

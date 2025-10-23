@@ -78,36 +78,6 @@ const navigationItems = [
 		href: "/dashboard/admin/customers",
 		icon: Users,
 		roles: ["Admin"]
-	},
-	{
-		title: "Đơn hàng",
-		href: "/dashboard/admin/orders",
-		icon: ShoppingCart,
-		roles: ["Admin", "EVM Staff"]
-	},
-	{
-		title: "Thanh toán & Hoa hồng",
-		href: "/dashboard/admin/payments",
-		icon: DollarSign,
-		roles: ["Admin"]
-	},
-	{
-		title: "Báo cáo & Phân tích",
-		href: "/dashboard/admin/reports",
-		icon: BarChart,
-		roles: ["Admin"]
-	},
-	{
-		title: "Trung tâm thông báo",
-		href: "/dashboard/admin/notifications",
-		icon: Bell,
-		roles: ["Admin"]
-	},
-	{
-		title: "Cài đặt hệ thống",
-		href: "/dashboard/admin/settings",
-		icon: Settings,
-		roles: ["Admin"]
 	}
 ];
 

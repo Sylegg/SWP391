@@ -62,6 +62,12 @@ const navigationItems: NavigationItem[] = [
     icon: Tag,
     section: "category"
   },
+  {
+    title: "Phân phối từ Hãng",
+    href: "/dashboard/dealer-manager/distributions",
+    icon: Truck,
+    section: "category"
+  },
   // Module 2: Thanh toán (Payment)
   {
     title: "💰 Thanh toán",

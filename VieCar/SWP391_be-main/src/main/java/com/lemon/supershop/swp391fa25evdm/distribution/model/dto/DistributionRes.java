@@ -1,61 +1,80 @@
 package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
 
-import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductReq;
+// ❌ Xóa CategoryRes import - không dùng
+// import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class DistributionRes {
 
-    private int id;
-    private int categoryId;
-    private int dealerId;
-    private int contractId;
+    private Integer id;
+    private String status;
+    // ❌ Xóa category - không dùng
+    // private CategoryRes category;
+    private DealerRes dealer;
     private List<ProductRes> products;
+    
+    // Messages/Notes
+    private String invitationMessage;
+    private String dealerNotes;
+    private String evmNotes;
+    private String feedback;
+    
+    // Timeline - CHỈ 2 FIELD ĐANG DÙNG
+    private LocalDateTime createdAt;
+    private LocalDateTime invitedAt;
+    // ❌ Xóa 5 timeline fields không dùng
+    // private LocalDateTime respondedAt;
+    // private LocalDateTime submittedAt;
+    // private LocalDateTime approvedAt;
+    // private LocalDateTime plannedAt;
+    // private LocalDateTime completedAt;
+    
+    // Dates
+    private LocalDateTime deadline;
+    private LocalDateTime requestedDeliveryDate;
+    private LocalDateTime estimatedDeliveryDate;
+    private LocalDateTime actualDeliveryDate;
+    
+    // Quantities - CHỈ 2 FIELD ĐANG DÙNG
+    private Integer requestedQuantity;
+    private Integer receivedQuantity;
+    // ❌ Xóa 2 quantity fields không dùng
+    // private Integer approvedQuantity;
+    // private Integer actualQuantity;
 
-    public DistributionRes() {
-    }
+    public DistributionRes() {}
 
-    public DistributionRes(int id, int categoryId, int dealerId, int contractId) {
-        this.id = id;
-        this.categoryId = categoryId;
-        this.dealerId = dealerId;
-        this.contractId = contractId;
-    }
-
-    public int getId() {
+    // Getters and Setters
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
-    public int getCategoryId() {
-        return categoryId;
+    public String getStatus() {
+        return status;
     }
 
-    public void setCategoryId(int categoryId) {
-        this.categoryId = categoryId;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
-    public int getDealerId() {
-        return dealerId;
+    // ❌ Xóa category getter/setter - không dùng
+    // public CategoryRes getCategory() { return category; }
+    // public void setCategory(CategoryRes category) { this.category = category; }
+
+    public DealerRes getDealer() {
+        return dealer;
     }
 
-    public void setDealerId(int dealerId) {
-        this.dealerId = dealerId;
-    }
-
-    public int getContractId() {
-        return contractId;
-    }
-
-    public void setContractId(int contractId) {
-        this.contractId = contractId;
+    public void setDealer(DealerRes dealer) {
+        this.dealer = dealer;
     }
 
     public List<ProductRes> getProducts() {
@@ -64,6 +83,120 @@ public class DistributionRes {
 
     public void setProducts(List<ProductRes> products) {
         this.products = products;
+    }
+
+    public String getInvitationMessage() {
+        return invitationMessage;
+    }
+
+    public void setInvitationMessage(String invitationMessage) {
+        this.invitationMessage = invitationMessage;
+    }
+
+    public String getDealerNotes() {
+        return dealerNotes;
+    }
+
+    public void setDealerNotes(String dealerNotes) {
+        this.dealerNotes = dealerNotes;
+    }
+
+    public String getEvmNotes() {
+        return evmNotes;
+    }
+
+    public void setEvmNotes(String evmNotes) {
+        this.evmNotes = evmNotes;
+    }
+
+    public String getFeedback() {
+        return feedback;
+    }
+
+    public void setFeedback(String feedback) {
+        this.feedback = feedback;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getInvitedAt() {
+        return invitedAt;
+    }
+
+    public void setInvitedAt(LocalDateTime invitedAt) {
+        this.invitedAt = invitedAt;
+    }
+
+    // ❌ Xóa 5 timeline getters/setters không dùng
+    // public LocalDateTime getRespondedAt() { return respondedAt; }
+    // public void setRespondedAt(LocalDateTime respondedAt) { this.respondedAt = respondedAt; }
+    // public LocalDateTime getSubmittedAt() { return submittedAt; }
+    // public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    // public LocalDateTime getApprovedAt() { return approvedAt; }
+    // public void setApprovedAt(LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
+    // public LocalDateTime getPlannedAt() { return plannedAt; }
+    // public void setPlannedAt(LocalDateTime plannedAt) { this.plannedAt = plannedAt; }
+    // public LocalDateTime getCompletedAt() { return completedAt; }
+    // public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
+
+    public LocalDateTime getDeadline() {
+        return deadline;
+    }
+
+    public void setDeadline(LocalDateTime deadline) {
+        this.deadline = deadline;
+    }
+
+    public LocalDateTime getRequestedDeliveryDate() {
+        return requestedDeliveryDate;
+    }
+
+    public void setRequestedDeliveryDate(LocalDateTime requestedDeliveryDate) {
+        this.requestedDeliveryDate = requestedDeliveryDate;
+    }
+
+    public LocalDateTime getEstimatedDeliveryDate() {
+        return estimatedDeliveryDate;
+    }
+
+    public void setEstimatedDeliveryDate(LocalDateTime estimatedDeliveryDate) {
+        this.estimatedDeliveryDate = estimatedDeliveryDate;
+    }
+
+    public LocalDateTime getActualDeliveryDate() {
+        return actualDeliveryDate;
+    }
+
+    public void setActualDeliveryDate(LocalDateTime actualDeliveryDate) {
+        this.actualDeliveryDate = actualDeliveryDate;
+    }
+
+    public Integer getRequestedQuantity() {
+        return requestedQuantity;
+    }
+
+    public void setRequestedQuantity(Integer requestedQuantity) {
+        this.requestedQuantity = requestedQuantity;
+    }
+
+    // ❌ Xóa 2 quantity getters/setters không dùng
+    // public Integer getApprovedQuantity() { return approvedQuantity; }
+    // public void setApprovedQuantity(Integer approvedQuantity) { this.approvedQuantity = approvedQuantity; }
+    // public Integer getActualQuantity() { return actualQuantity; }
+    // public void setActualQuantity(Integer actualQuantity) { this.actualQuantity = actualQuantity; }
+
+    public Integer getReceivedQuantity() {
+        return receivedQuantity;
+    }
+
+    public void setReceivedQuantity(Integer receivedQuantity) {
+        this.receivedQuantity = receivedQuantity;
     }
 }
 

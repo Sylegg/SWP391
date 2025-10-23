@@ -1,10 +1,12 @@
 package com.lemon.supershop.swp391fa25evdm.category.model.entity;
 
-import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
+// ❌ Xóa Distribution import - relationship đã xóa
+// import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
 import com.lemon.supershop.swp391fa25evdm.policies.model.entity.Policy;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.promotion.model.entity.Promotion;
-import com.lemon.supershop.swp391fa25evdm.testdrive.model.entity.TestDrive;
+// ❌ Xóa unused import
+// import com.lemon.supershop.swp391fa25evdm.testdrive.model.entity.TestDrive;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
@@ -52,8 +54,9 @@ public class Category {
     @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<DealerCategory> dealerCategories = new ArrayList<>();
 
-    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<Distribution> distributions = new ArrayList<>();
+    // ❌ Xóa distributions - Distribution không còn category field
+    // @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    // private List<Distribution> distributions = new ArrayList<>();
 
     @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Policy> policies = new ArrayList<>();
@@ -152,13 +155,9 @@ public class Category {
         this.dealerCategories = dealerCategories;
     }
 
-    public List<Distribution> getDistributions() {
-        return distributions;
-    }
-
-    public void setDistributions(List<Distribution> distributions) {
-        this.distributions = distributions;
-    }
+    // ❌ Xóa distributions getter/setter
+    // public List<Distribution> getDistributions() { return distributions; }
+    // public void setDistributions(List<Distribution> distributions) { this.distributions = distributions; }
 
     public List<Policy> getPolicies() {
         return policies;
