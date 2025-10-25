@@ -1,0 +1,235 @@
+"use client";
+
+import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Home,
+  Car,
+  Package,
+  Calendar,
+  FileText,
+  ShoppingCart,
+  Gift,
+  MessageSquare,
+  ArrowLeft,
+  LogOut,
+  Tag,
+  Truck,
+  DollarSign,
+  Building2,
+  Settings,
+  CheckCircle2,
+  Users,
+  CreditCard
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { LucideIcon } from "lucide-react";
+
+interface EvmStaffLayoutProps {
+  children: ReactNode;
+}
+
+interface NavigationItem {
+  title: string;
+  href?: string;
+  icon?: LucideIcon;
+  section: string;
+  isHeader?: boolean;
+}
+
+const navigationItems: NavigationItem[] = [
+  {
+    title: "Tổng quan",
+    href: "/dashboard/evm-staff",
+    icon: Home,
+    section: "main"
+  },
+  // Module 1: Danh mục & Sản phẩm
+  {
+    title: "📦 Danh mục & Sản phẩm",
+    isHeader: true,
+    section: "catalog"
+  },
+  {
+    title: "Quản lý danh mục",
+    href: "/dashboard/evm-staff/categories",
+    icon: Tag,
+    section: "catalog"
+  },
+  {
+    title: "Quản lý mẫu xe",
+    href: "/dashboard/evm-staff/products",
+    icon: Car,
+    section: "catalog"
+  },
+  {
+    title: "Phân phối sản phẩm",
+    href: "/dashboard/evm-staff/distributions",
+    icon: Truck,
+    section: "catalog"
+  },
+  // Module 2: Thanh toán
+  {
+    title: "💰 Thanh toán & Công nợ",
+    isHeader: true,
+    section: "payment"
+  },
+  {
+    title: "Thanh toán đại lý",
+    href: "/dashboard/evm-staff/payments",
+    icon: CreditCard,
+    section: "payment"
+  },
+  {
+    title: "Xuất hóa đơn",
+    href: "/dashboard/evm-staff/payments/invoices",
+    icon: FileText,
+    section: "payment"
+  },
+  {
+    title: "Quản lý công nợ",
+    href: "/dashboard/evm-staff/debt-management",
+    icon: DollarSign,
+    section: "payment"
+  },
+  // Module 5: Đại lý
+  {
+    title: "🏢 Quản lý đại lý",
+    isHeader: true,
+    section: "dealers"
+  },
+  {
+    title: "Danh sách đại lý",
+    href: "/dashboard/evm-staff/dealers",
+    icon: Building2,
+    section: "dealers"
+  },
+  {
+    title: "Tạo đại lý mới",
+    href: "/dashboard/evm-staff/dealers/create",
+    icon: Users,
+    section: "dealers"
+  }
+];
+
+export default function EvmStaffLayout({ children }: EvmStaffLayoutProps) {
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+
+  return (
+    <div className="flex min-h-screen bg-background">
+      {/* Sidebar */}
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
+        <div className="flex flex-col flex-grow bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800">
+          {/* Logo */}
+          <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200 dark:border-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              EVM Staff
+            </h2>
+          </div>
+
+          {/* Navigation */}
+          <ScrollArea className="flex-1 px-3 py-4">
+            <nav className="space-y-1">
+              {navigationItems.map((item, index) => {
+                // Render section header
+                if (item.isHeader) {
+                  return (
+                    <div key={`header-${index}`} className={cn("pt-4 pb-2", index > 0 && "mt-2")}>
+                      <h3 className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        {item.title}
+                      </h3>
+                    </div>
+                  );
+                }
+
+                // Skip if no href (safety check)
+                if (!item.href || !item.icon) return null;
+
+                const isActive = pathname === item.href;
+                const Icon = item.icon as LucideIcon;
+
+                return (
+                  <Link key={item.href} href={item.href as string}>
+                    <Button
+                      variant={isActive ? "default" : "ghost"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        isActive && "bg-primary text-primary-foreground"
+                      )}
+                    >
+                      <Icon className="mr-3 h-4 w-4" />
+                      {item.title}
+                    </Button>
+                  </Link>
+                );
+              })}
+              
+              {/* Separator */}
+              <div className="my-4">
+                <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
+              </div>
+
+              {/* Quick actions */}
+              <div className="space-y-1">
+                <Link href="/">
+                  <Button variant="ghost" className="w-full justify-start text-left font-normal">
+                    <ArrowLeft className="mr-3 h-4 w-4" />
+                    Quay về trang chủ
+                  </Button>
+                </Link>
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start text-left font-normal text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="mr-3 h-4 w-4" />
+                  Đăng xuất
+                </Button>
+              </div>
+            </nav>
+          </ScrollArea>
+
+          {/* User info */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                  <span className="text-sm font-medium text-primary-foreground">
+                    {user?.username?.[0]?.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {user?.username}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {user?.role?.name}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="lg:pl-64 flex flex-col flex-1">
+        <main className="flex-1">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

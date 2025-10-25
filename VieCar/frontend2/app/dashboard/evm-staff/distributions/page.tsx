@@ -1,0 +1,776 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { ProtectedRoute } from '@/components/auth-guards';
+import EvmStaffLayout from '@/components/layout/evm-staff-layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Plus,
+  Package,
+  Building2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Truck,
+  Calendar,
+  MessageSquare,
+  AlertCircle,
+  TrendingUp,
+  Filter,
+  Search,
+} from 'lucide-react';
+import {
+  getAllDistributions,
+  sendDistributionInvitation,
+  approveDistributionOrder,
+  planDistributionDelivery,
+  getDistributionStats,
+} from '@/lib/distributionApi';
+import { getAllDealers } from '@/lib/dealerApi';
+import {
+  DistributionRes,
+  DistributionStatus,
+  getDistributionStatusLabel,
+  getDistributionStatusColor,
+} from '@/types/distribution';
+import { DealerRes } from '@/types/dealer';
+
+export default function EvmDistributionsPage() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [distributions, setDistributions] = useState<DistributionRes[]>([]);
+  const [dealers, setDealers] = useState<DealerRes[]>([]);
+  const [filteredDistributions, setFilteredDistributions] = useState<DistributionRes[]>([]);
+  const [selectedDistribution, setSelectedDistribution] = useState<DistributionRes | null>(null);
+  
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Dialog states
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  
+  // Form states
+  const [inviteForm, setInviteForm] = useState({
+    dealerId: 0,
+    message: '',
+    deadline: '',
+  });
+  
+  const [approveForm, setApproveForm] = useState({
+    approved: true,
+    evmNotes: '',
+  });
+  
+  const [planForm, setPlanForm] = useState({
+    estimatedDeliveryDate: '',
+    planningNotes: '',
+  });
+  
+  // Stats
+  const [stats, setStats] = useState({
+    totalInvitations: 0,
+    pendingApproval: 0,
+    confirmed: 0,
+    completed: 0,
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    filterDistributions();
+  }, [distributions, filterStatus, searchQuery]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [distData, dealerData] = await Promise.all([
+        getAllDistributions(),
+        getAllDealers(),
+      ]);
+      
+      setDistributions(distData);
+      setDealers(dealerData);
+      
+      // Calculate stats
+      const statsData = {
+        totalInvitations: distData.filter(d => d.status === DistributionStatus.INVITED).length,
+        pendingApproval: distData.filter(d => d.status === DistributionStatus.PENDING).length,
+        confirmed: distData.filter(d => d.status === DistributionStatus.CONFIRMED).length,
+        completed: distData.filter(d => d.status === DistributionStatus.COMPLETED).length,
+      };
+      setStats(statsData);
+      
+      toast({
+        title: '✅ Tải thành công',
+        description: `Đã tải ${distData.length} phân phối`,
+      });
+    } catch (error: any) {
+      toast({
+        title: '❌ Lỗi',
+        description: error.message || 'Không thể tải dữ liệu',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterDistributions = () => {
+    let filtered = distributions;
+    
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(d => d.status === filterStatus);
+    }
+    
+    if (searchQuery) {
+      filtered = filtered.filter(d => 
+        d.dealerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.id.toString().includes(searchQuery)
+      );
+    }
+    
+    setFilteredDistributions(filtered);
+  };
+
+  // Step 1: Send invitation
+  const handleSendInvitation = async () => {
+    console.log('🚀 Sending invitation...', inviteForm);
+    
+    if (!inviteForm.dealerId) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng chọn đại lý',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Convert date to datetime format (add time component)
+      const requestData = {
+        dealerId: inviteForm.dealerId,
+        invitationMessage: inviteForm.message,  // Map message -> invitationMessage
+        deadline: inviteForm.deadline 
+          ? `${inviteForm.deadline}T23:59:59` 
+          : undefined,
+      };
+      
+      console.log('📤 Calling API with data:', requestData);
+      await sendDistributionInvitation(requestData);
+      
+      console.log('✅ API Success!');
+      toast({
+        title: '✅ Gửi lời mời thành công',
+        description: 'Đại lý sẽ nhận được thông báo',
+      });
+      setIsInviteDialogOpen(false);
+      resetInviteForm();
+      loadData();
+    } catch (error: any) {
+      console.error('❌ API Error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      
+      toast({
+        title: '❌ Lỗi API',
+        description: error.response?.data?.message || error.message || 'Backend chưa có endpoint này. Kiểm tra console để biết thêm chi tiết.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Step 4: Approve/Reject order
+  const handleApproveOrder = async () => {
+    if (!selectedDistribution) return;
+
+    try {
+      // Map approved boolean to backend decision string
+      const requestData = {
+        decision: approveForm.approved ? 'CONFIRMED' : 'CANCELED',  // Backend expect "CONFIRMED" or "CANCELED"
+        evmNotes: approveForm.evmNotes || undefined,
+        approvedQuantity: selectedDistribution.requestedQuantity,
+      };
+      
+      await approveDistributionOrder(selectedDistribution.id, requestData);
+      
+      // Close approve dialog first
+      setIsApproveDialogOpen(false);
+      
+      toast({
+        title: approveForm.approved ? '✅ Đã duyệt đơn' : '❌ Đã từ chối đơn',
+        description: approveForm.approved 
+          ? 'Lên kế hoạch giao hàng ngay'
+          : 'Đơn nhập hàng đã bị từ chối',
+      });
+      
+      // If approved, open planning dialog immediately
+      if (approveForm.approved) {
+        setIsPlanDialogOpen(true);
+      }
+      
+      resetApproveForm();
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: '❌ Lỗi',
+        description: error.message || 'Không thể xử lý đơn',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Step 5: Plan delivery
+  const handlePlanDelivery = async () => {
+    if (!selectedDistribution || !planForm.estimatedDeliveryDate) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng nhập ngày giao hàng dự kiến',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Convert date to datetime format (add time component)
+      const requestData = {
+        ...planForm,
+        estimatedDeliveryDate: `${planForm.estimatedDeliveryDate}T00:00:00`,
+      };
+      
+      await planDistributionDelivery(selectedDistribution.id, requestData);
+      toast({
+        title: '✅ Lên kế hoạch thành công',
+        description: 'Đã cập nhật kế hoạch giao hàng',
+      });
+      setIsPlanDialogOpen(false);
+      resetPlanForm();
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: '❌ Lỗi',
+        description: error.message || 'Không thể lên kế hoạch',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const resetInviteForm = () => {
+    setInviteForm({ dealerId: 0, message: '', deadline: '' });
+  };
+
+  const resetApproveForm = () => {
+    setApproveForm({ approved: true, evmNotes: '' });
+  };
+
+  const resetPlanForm = () => {
+    setPlanForm({ estimatedDeliveryDate: '', planningNotes: '' });
+  };
+
+  const openApproveDialog = async (distribution: DistributionRes, approved: boolean) => {
+    setSelectedDistribution(distribution);
+    
+    if (approved) {
+      // Nếu duyệt → gọi API ngay và mở dialog lên kế hoạch
+      try {
+        const requestData = {
+          decision: 'CONFIRMED',
+          evmNotes: undefined,
+          approvedQuantity: distribution.requestedQuantity,
+        };
+        
+        await approveDistributionOrder(distribution.id, requestData);
+        toast({
+          title: '✅ Đã duyệt đơn',
+          description: 'Lên kế hoạch giao hàng ngay',
+        });
+        setIsPlanDialogOpen(true);  // Mở dialog lên kế hoạch luôn
+        loadData();
+      } catch (error: any) {
+        toast({
+          title: '❌ Lỗi',
+          description: error.message || 'Không thể duyệt đơn',
+          variant: 'destructive',
+        });
+      }
+    } else {
+      // Nếu từ chối → mở dialog xác nhận từ chối
+      setApproveForm({ approved: false, evmNotes: '' });
+      setIsApproveDialogOpen(true);
+    }
+  };
+
+  const openPlanDialog = (distribution: DistributionRes) => {
+    setSelectedDistribution(distribution);
+    setIsPlanDialogOpen(true);
+  };
+
+  const openDetailDialog = (distribution: DistributionRes) => {
+    setSelectedDistribution(distribution);
+    setIsDetailDialogOpen(true);
+  };
+
+  return (
+    <ProtectedRoute allowedRoles={['EVM Staff', 'Admin']}>
+      <EvmStaffLayout>
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">📦 Quản lý Phân phối</h1>
+              <p className="text-muted-foreground mt-1">
+                Gửi lời mời, duyệt đơn và lên kế hoạch giao hàng cho đại lý
+              </p>
+            </div>
+            <Button onClick={() => setIsInviteDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Gửi lời mời mới
+            </Button>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Lời mời đang chờ</CardTitle>
+                <Clock className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalInvitations}</div>
+                <p className="text-xs text-muted-foreground">Chờ dealer phản hồi</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Chờ duyệt</CardTitle>
+                <AlertCircle className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.pendingApproval}</div>
+                <p className="text-xs text-muted-foreground">Đơn cần xem xét</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Đã duyệt</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.confirmed}</div>
+                <p className="text-xs text-muted-foreground">Chờ lên kế hoạch</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Hoàn thành</CardTitle>
+                <TrendingUp className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.completed}</div>
+                <p className="text-xs text-muted-foreground">Đã giao thành công</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Tìm theo tên đại lý hoặc mã phân phối..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[200px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                    <SelectItem value={DistributionStatus.INVITED}>Đã gửi lời mời</SelectItem>
+                    <SelectItem value={DistributionStatus.ACCEPTED}>Đã chấp nhận</SelectItem>
+                    <SelectItem value={DistributionStatus.PENDING}>Chờ duyệt</SelectItem>
+                    <SelectItem value={DistributionStatus.CONFIRMED}>Đã duyệt</SelectItem>
+                    <SelectItem value={DistributionStatus.PLANNED}>Đã lên kế hoạch</SelectItem>
+                    <SelectItem value={DistributionStatus.COMPLETED}>Hoàn thành</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Distribution List */}
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="mt-2 text-muted-foreground">Đang tải...</p>
+            </div>
+          ) : filteredDistributions.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Chưa có phân phối nào</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {filteredDistributions.map((dist) => (
+                <Card key={dist.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CardTitle>Phân phối #{dist.id}</CardTitle>
+                          <Badge className={getDistributionStatusColor(dist.status)}>
+                            {getDistributionStatusLabel(dist.status)}
+                          </Badge>
+                        </div>
+                        <CardDescription>
+                          <div className="flex items-center gap-4 mt-2">
+                            <span className="flex items-center gap-1">
+                              <Building2 className="h-4 w-4" />
+                              {dist.dealerName || `Dealer #${dist.dealerId}`}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {dist.createdAt ? new Date(dist.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                            </span>
+                          </div>
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDetailDialog(dist)}
+                        >
+                          Chi tiết
+                        </Button>
+                        
+                        {/* Step 4: Approve/Reject buttons for PENDING status */}
+                        {dist.status === DistributionStatus.PENDING && (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openApproveDialog(dist, true)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Duyệt
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => openApproveDialog(dist, false)}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Từ chối
+                            </Button>
+                          </>
+                        )}
+                        
+                        {/* Step 5: Plan button for CONFIRMED status */}
+                        {dist.status === DistributionStatus.CONFIRMED && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => openPlanDialog(dist)}
+                            className="bg-purple-600 hover:bg-purple-700"
+                          >
+                            <Truck className="h-4 w-4 mr-1" />
+                            Lên kế hoạch
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      {dist.invitationMessage && (
+                        <div className="flex items-start gap-2">
+                          <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                          <span className="text-muted-foreground">{dist.invitationMessage}</span>
+                        </div>
+                      )}
+                      {dist.products && dist.products.length > 0 && (
+                        <div>
+                          <span className="font-medium">Sản phẩm ({dist.products.length}):</span>
+                          <ul className="ml-6 mt-1 space-y-1">
+                            {dist.products.slice(0, 3).map((product, idx) => (
+                              <li key={idx} className="text-muted-foreground">
+                                • {product.name} - VIN: {product.vinNum}
+                              </li>
+                            ))}
+                            {dist.products.length > 3 && (
+                              <li className="text-muted-foreground">
+                                ... và {dist.products.length - 3} sản phẩm khác
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                      {dist.deadline && dist.status === DistributionStatus.INVITED && (
+                        <div className="text-amber-600">
+                          ⏰ Hạn phản hồi: {new Date(dist.deadline).toLocaleDateString('vi-VN')}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Dialog: Send Invitation */}
+          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>📨 Gửi lời mời nhập hàng</DialogTitle>
+                <DialogDescription>
+                  Mời đại lý tham gia đợt phân phối sản phẩm
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dealer">Đại lý *</Label>
+                  <Select
+                    value={inviteForm.dealerId > 0 ? inviteForm.dealerId.toString() : undefined}
+                    onValueChange={(value) => setInviteForm({ ...inviteForm, dealerId: parseInt(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn đại lý" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dealers.map((dealer) => (
+                        <SelectItem key={dealer.id} value={dealer.id.toString()}>
+                          {dealer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="message">Lời nhắn</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="VD: Hãng đang mở đợt phân phối tháng 11, quý đại lý có muốn nhập không?"
+                    value={inviteForm.message}
+                    onChange={(e) => setInviteForm({ ...inviteForm, message: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deadline">Hạn phản hồi</Label>
+                  <Input
+                    id="deadline"
+                    type="date"
+                    value={inviteForm.deadline}
+                    onChange={(e) => setInviteForm({ ...inviteForm, deadline: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+                  Hủy
+                </Button>
+                <Button onClick={handleSendInvitation}>
+                  Gửi lời mời
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: Approve/Reject Order (CHỈ hiện khi TỪ CHỐI) */}
+          <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>❌ Từ chối đơn nhập hàng</DialogTitle>
+                <DialogDescription>
+                  Phân phối #{selectedDistribution?.id} - {selectedDistribution?.dealerName}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="evmNotes">Lý do từ chối (không bắt buộc)</Label>
+                  <Textarea
+                    id="evmNotes"
+                    placeholder="VD: Kho không đủ hàng, vui lòng điều chỉnh số lượng"
+                    value={approveForm.evmNotes}
+                    onChange={(e) => setApproveForm({ ...approveForm, evmNotes: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
+                  Hủy
+                </Button>
+                <Button 
+                  onClick={handleApproveOrder}
+                  variant="destructive"
+                >
+                  Từ chối
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: Plan Delivery */}
+          <Dialog open={isPlanDialogOpen} onOpenChange={setIsPlanDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>🚚 Lên kế hoạch giao hàng</DialogTitle>
+                <DialogDescription>
+                  Phân phối #{selectedDistribution?.id} - {selectedDistribution?.dealerName}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryDate">Ngày giao hàng dự kiến *</Label>
+                  <Input
+                    id="deliveryDate"
+                    type="date"
+                    value={planForm.estimatedDeliveryDate}
+                    onChange={(e) => setPlanForm({ ...planForm, estimatedDeliveryDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="planningNotes">Ghi chú kế hoạch</Label>
+                  <Textarea
+                    id="planningNotes"
+                    placeholder="VD: Xe sẽ được giao bằng xe tải, liên hệ trước 1 ngày"
+                    value={planForm.planningNotes}
+                    onChange={(e) => setPlanForm({ ...planForm, planningNotes: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPlanDialogOpen(false)}>
+                  Hủy
+                </Button>
+                <Button onClick={handlePlanDelivery}>
+                  Lưu kế hoạch
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: Distribution Detail */}
+          <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Chi tiết Phân phối #{selectedDistribution?.id}</DialogTitle>
+                <DialogDescription>
+                  <Badge className={getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)}>
+                    {getDistributionStatusLabel(selectedDistribution?.status || DistributionStatus.INVITED)}
+                  </Badge>
+                </DialogDescription>
+              </DialogHeader>
+              {selectedDistribution && (
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground">Đại lý</Label>
+                      <p className="font-medium">{selectedDistribution.dealerName || `Dealer #${selectedDistribution.dealerId}`}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Ngày tạo</Label>
+                      <p className="font-medium">
+                        {selectedDistribution.createdAt 
+                          ? new Date(selectedDistribution.createdAt).toLocaleDateString('vi-VN')
+                          : 'N/A'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {selectedDistribution.invitationMessage && (
+                    <div>
+                      <Label className="text-muted-foreground">Lời mời</Label>
+                      <p className="mt-1 p-3 bg-blue-50 rounded-md">{selectedDistribution.invitationMessage}</p>
+                    </div>
+                  )}
+                  
+                  {selectedDistribution.dealerNotes && (
+                    <div>
+                      <Label className="text-muted-foreground">Ghi chú của Dealer</Label>
+                      <p className="mt-1 p-3 bg-amber-50 rounded-md">{selectedDistribution.dealerNotes}</p>
+                    </div>
+                  )}
+                  
+                  {selectedDistribution.evmNotes && (
+                    <div>
+                      <Label className="text-muted-foreground">Ghi chú của EVM</Label>
+                      <p className="mt-1 p-3 bg-green-50 rounded-md">{selectedDistribution.evmNotes}</p>
+                    </div>
+                  )}
+                  
+                  {selectedDistribution.products && selectedDistribution.products.length > 0 && (
+                    <div>
+                      <Label className="text-muted-foreground">Sản phẩm ({selectedDistribution.products.length})</Label>
+                      <div className="mt-2 space-y-2">
+                        {selectedDistribution.products.map((product, idx) => (
+                          <div key={idx} className="p-3 border rounded-md">
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              VIN: {product.vinNum} | Engine: {product.engineNum}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Giá: {product.price?.toLocaleString('vi-VN')}đ
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedDistribution.estimatedDeliveryDate && (
+                    <div>
+                      <Label className="text-muted-foreground">Ngày giao dự kiến</Label>
+                      <p className="font-medium">
+                        {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+                  Đóng
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </EvmStaffLayout>
+    </ProtectedRoute>
+  );
+}
