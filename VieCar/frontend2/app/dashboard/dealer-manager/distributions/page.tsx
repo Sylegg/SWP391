@@ -31,8 +31,9 @@ import {
   respondToInvitation,
   submitDistributionOrder,
   confirmDistributionReceived,
+  respondToManufacturerPrice,
 } from '@/lib/distributionApi';
-import { getAllProducts } from '@/lib/productApi';
+import { getAllProducts, getProductsByCategory } from '@/lib/productApi';
 import { getAllCategories } from '@/lib/categoryApi';
 import type { ProductRes } from '@/types/product';
 import type { CategoryRes } from '@/types/category';
@@ -56,8 +57,10 @@ export default function DealerDistributionsPage() {
   // Dialog states
   const [isRespondDialogOpen, setIsRespondDialogOpen] = useState(false);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
   
   // Form states
   const [respondForm, setRespondForm] = useState({
@@ -65,9 +68,9 @@ export default function DealerDistributionsPage() {
     notes: '',
   });
   
-  // Multi-item order form state
-  const [orderItems, setOrderItems] = useState<{ categoryId?: number; productId: number; color?: string; quantity: number; }[]>([
-    { categoryId: undefined, productId: 0, color: undefined, quantity: 1 },
+  // Multi-item order form state (loại bỏ sản phẩm, dùng theo danh mục)
+  const [orderItems, setOrderItems] = useState<{ categoryId?: number; color?: string; quantity: number; }[]>([
+    { categoryId: undefined, color: undefined, quantity: 1 },
   ]);
   const [orderNotes, setOrderNotes] = useState('');
   const [orderRequestedDeliveryDate, setOrderRequestedDeliveryDate] = useState('');
@@ -79,6 +82,11 @@ export default function DealerDistributionsPage() {
   const [receivedItems, setReceivedItems] = useState<
     { id: number; name?: string; color?: string; ordered: number; received: number }[]
   >([]);
+  // Ngày nhập kho của đại lý (chọn khi xác nhận nhận hàng)
+  const [receiptDate, setReceiptDate] = useState<string>('');
+  
+  // Vietnamese color options
+  const COLOR_OPTIONS = ['Đỏ','Xanh dương','Trắng','Đen','Xám','Bạc','Xanh lá'];
   
   // Stats
   const [stats, setStats] = useState({
@@ -212,20 +220,78 @@ export default function DealerDistributionsPage() {
       }
     }
 
-    const validItems = orderItems
-      .filter((it) => it.productId > 0 && (it.quantity || 0) > 0)
-      .map((it) => ({ productId: it.productId, color: it.color || undefined, quantity: it.quantity }));
+    // Validate by category and resolve to backend-required productId
+    const categoryItems = orderItems.filter((it) => (it.categoryId || 0) > 0 && (it.quantity || 0) > 0);
+
+    if (categoryItems.length === 0) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng thêm ít nhất 1 dòng danh mục hợp lệ',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Try resolve category -> productId using local cache first
+    const resolveLocalProductId = (cid?: number) => {
+      if (!cid) return undefined;
+      const candidate = products.find((p) => p.categoryId === cid);
+      return candidate?.id;
+    };
+
+    // Initial mapping
+    let mapped = categoryItems.map((it) => ({
+      categoryId: it.categoryId!,
+      productId: resolveLocalProductId(it.categoryId),
+      color: it.color || undefined,
+      quantity: it.quantity,
+    }));
+
+    // Find unresolved categories and fetch lazily
+    const unresolvedCategoryIds = Array.from(new Set(mapped.filter(m => !m.productId).map(m => m.categoryId))).filter(Boolean) as number[];
+    if (unresolvedCategoryIds.length > 0) {
+      try {
+        const fetchedPairs = await Promise.all(
+          unresolvedCategoryIds.map(async (cid) => {
+            const list = await getProductsByCategory(cid);
+            return { cid, pid: list && list.length > 0 ? list[0].id : undefined };
+          })
+        );
+        const pidByCid = new Map<number, number>();
+        for (const { cid, pid } of fetchedPairs) {
+          if (pid) pidByCid.set(cid, pid);
+        }
+        mapped = mapped.map((m) => (!m.productId ? { ...m, productId: pidByCid.get(m.categoryId) } : m));
+      } catch (fetchErr: any) {
+        toast({ title: '❌ Lỗi', description: fetchErr?.message || 'Không thể tải sản phẩm theo danh mục', variant: 'destructive' });
+        return;
+      }
+    }
+
+    // Ensure all resolved to a productId; otherwise backend will 400
+    const missing = mapped.find((vi) => !vi.productId);
+    if (missing) {
+      toast({
+        title: '⚠️ Thiếu dữ liệu',
+        description: 'Danh mục đã chọn chưa có sản phẩm khả dụng. Vui lòng tạo sản phẩm cho danh mục này trước.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const validItems = mapped.map((m) => ({ productId: m.productId as number, color: m.color, quantity: m.quantity }));
 
     if (validItems.length === 0) {
       toast({
         title: '⚠️ Thiếu thông tin',
-        description: 'Vui lòng thêm ít nhất 1 dòng sản phẩm hợp lệ',
+  description: 'Vui lòng thêm ít nhất 1 dòng danh mục hợp lệ',
         variant: 'destructive',
       });
       return;
     }
 
     try {
+      setIsSubmittingOrder(true);
       const requestData = {
         items: validItems,
         dealerNotes: orderNotes || undefined,
@@ -248,6 +314,9 @@ export default function DealerDistributionsPage() {
         description: error.message || 'Không thể gửi đơn',
         variant: 'destructive',
       });
+    }
+    finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -276,15 +345,21 @@ export default function DealerDistributionsPage() {
       }
     }
     try {
-      // Convert date to datetime format (add time component)
-      // Tự động gán ngày hiện tại
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
+      // Sử dụng ngày nhập kho do đại lý chọn (receiptDate). API yêu cầu actualDeliveryDate là string,
+      // nên nếu chưa chọn thì dùng ngày hôm nay.
+      const actualDeliveryDate = receiptDate
+        ? `${receiptDate}T00:00:00`
+        : (() => {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}T00:00:00`;
+          })();
+
       const requestData = {
         receivedQuantity: totalReceived,
-        actualDeliveryDate: `${yyyy}-${mm}-${dd}T00:00:00`,
+        actualDeliveryDate,
         items: receivedItems.length > 0
           ? receivedItems
               .filter((it) => (Number(it.received) || 0) > 0)
@@ -314,7 +389,7 @@ export default function DealerDistributionsPage() {
   };
 
   const resetOrderForm = () => {
-    setOrderItems([{ categoryId: undefined, productId: 0, color: undefined, quantity: 1 }]);
+    setOrderItems([{ categoryId: undefined, color: undefined, quantity: 1 }]);
     setOrderNotes('');
     setOrderRequestedDeliveryDate('');
   };
@@ -376,6 +451,12 @@ export default function DealerDistributionsPage() {
       setReceivedItems([]);
       setCompleteForm({ receivedQuantity: (distribution.products?.length || 0) });
     }
+    // Đặt mặc định ngày nhập kho là hôm nay
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    setReceiptDate(`${yyyy}-${mm}-${dd}`);
     setIsCompleteDialogOpen(true);
   };
 
@@ -384,8 +465,33 @@ export default function DealerDistributionsPage() {
     setIsDetailDialogOpen(true);
   };
 
+  const openPriceDialog = (distribution: DistributionRes) => {
+    setSelectedDistribution(distribution);
+    setIsPriceDialogOpen(true);
+  };
+
+  const handleRespondToPrice = async (accepted: boolean) => {
+    if (!selectedDistribution) return;
+    try {
+      const notes = accepted ? 'Đồng ý với giá hãng và số lượng đã duyệt' : 'Không đồng ý với giá hãng';
+      await respondToManufacturerPrice(selectedDistribution.id, accepted, notes);
+      toast({
+        title: accepted ? '✅ Đã chấp nhận giá' : '❌ Đã từ chối giá',
+        description: accepted ? 'EVM Staff sẽ lên kế hoạch giao hàng' : 'Đơn hàng đã bị hủy',
+      });
+      setIsPriceDialogOpen(false);
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: '❌ Lỗi',
+        description: error.message || 'Không thể phản hồi giá',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
-    <ProtectedRoute allowedRoles={['Dealer Manager', 'Admin']}>
+  <ProtectedRoute allowedRoles={['Dealer Manager']}>
       <DealerManagerLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
@@ -553,6 +659,37 @@ export default function DealerDistributionsPage() {
                           </Badge>
                         )}
                         
+                        {/* Status PRICE_SENT: EVM gửi giá hãng, chờ dealer phản hồi */}
+                        {dist.status === DistributionStatus.PRICE_SENT && (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openPriceDialog(dist)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Xem giá & Chấp nhận
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => openPriceDialog(dist)}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Từ chối giá
+                            </Button>
+                          </>
+                        )}
+                        
+                        {/* Status PRICE_REJECTED: Dealer đã từ chối giá */}
+                        {dist.status === DistributionStatus.PRICE_REJECTED && (
+                          <Badge className="bg-red-100 text-red-800">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Đã từ chối giá hãng
+                          </Badge>
+                        )}
+                        
                         {/* Step 6: Confirm received button for PLANNED status */}
                         {dist.status === DistributionStatus.PLANNED && (
                           <Button
@@ -667,15 +804,13 @@ export default function DealerDistributionsPage() {
                   <div className="space-y-3">
                     {orderItems.map((item, idx) => (
                       <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border rounded-md p-3">
-                        <div className="md:col-span-4">
+                        <div className="md:col-span-6">
                           <Label className="text-sm">Danh mục</Label>
                           <Select
                             value={item.categoryId ? item.categoryId.toString() : undefined}
                             onValueChange={(value) => {
                               const next = [...orderItems];
                               next[idx].categoryId = parseInt(value);
-                              // reset product when category changes
-                              next[idx].productId = 0;
                               setOrderItems(next);
                             }}
                           >
@@ -695,38 +830,8 @@ export default function DealerDistributionsPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="md:col-span-4">
-                          <Label className="text-sm">Sản phẩm</Label>
-                          <Select
-                            value={item.productId > 0 ? item.productId.toString() : undefined}
-                            onValueChange={(value) => {
-                              const next = [...orderItems];
-                              next[idx].productId = parseInt(value);
-                              setOrderItems(next);
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Sản phẩm" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products.length === 0 ? (
-                                <div className="px-2 py-1 text-sm text-muted-foreground">
-                                  Chưa có sản phẩm khả dụng
-                                </div>
-                              ) : (
-                                (item.categoryId
-                                  ? products.filter((p) => p.categoryId === item.categoryId)
-                                  : products
-                                ).map((product) => (
-                                  <SelectItem key={product.id} value={product.id.toString()}>
-                                    {product.name}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="md:col-span-2">
+                        {/* Đã loại bỏ phần chọn Sản phẩm */}
+                        <div className="md:col-span-3">
                           <Label className="text-sm">Màu</Label>
                           <Select
                             value={item.color}
@@ -740,13 +845,13 @@ export default function DealerDistributionsPage() {
                               <SelectValue placeholder="Màu" />
                             </SelectTrigger>
                             <SelectContent>
-                              {['Red','Blue','White','Black','Grey','Silver','Green'].map((c) => (
+                              {COLOR_OPTIONS.map((c) => (
                                 <SelectItem key={c} value={c}>{c}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="md:col-span-2">
+                        <div className="md:col-span-3">
                           <Label className="text-sm">Số lượng</Label>
                           <Input
                             type="number"
@@ -776,7 +881,7 @@ export default function DealerDistributionsPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setOrderItems((prev) => [...prev, { productId: 0, color: undefined, quantity: 1 }])}
+                        onClick={() => setOrderItems((prev) => [...prev, { categoryId: undefined, color: undefined, quantity: 1 }])}
                       >
                         + Thêm dòng
                       </Button>
@@ -809,7 +914,7 @@ export default function DealerDistributionsPage() {
                 <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
                   Hủy
                 </Button>
-                <Button onClick={handleSubmitOrder}>
+                <Button type="button" onClick={handleSubmitOrder} disabled={isSubmittingOrder}>
                   Gửi đơn nhập hàng
                 </Button>
               </DialogFooter>
@@ -870,6 +975,17 @@ export default function DealerDistributionsPage() {
                     />
                   </div>
                 )}
+              </div>
+              {/* Receipt date selector */}
+              <div className="space-y-2">
+                <Label htmlFor="receiptDate">Ngày nhập kho của đại lý</Label>
+                <Input
+                  id="receiptDate"
+                  type="date"
+                  value={receiptDate}
+                  onChange={(e) => setReceiptDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Dùng để ghi nhận ngày nhập kho. Mặc định là hôm nay.</p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
@@ -949,6 +1065,11 @@ export default function DealerDistributionsPage() {
                             <div className="text-sm font-medium text-green-600">
                               {product.price?.toLocaleString('vi-VN')}đ
                             </div>
+                            {product.stockInDate && (
+                              <div className="text-sm text-muted-foreground mt-1">
+                                Ngày nhập kho: {new Date(product.stockInDate as any).toLocaleDateString('vi-VN')}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -999,6 +1120,77 @@ export default function DealerDistributionsPage() {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
                   Đóng
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: Price Negotiation (chấp nhận hoặc từ chối giá hãng) */}
+          <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>💰 Xác nhận Giá Hãng</DialogTitle>
+                <DialogDescription>
+                  Phân phối #{selectedDistribution?.id}
+                </DialogDescription>
+              </DialogHeader>
+              {selectedDistribution && (
+                <div className="space-y-4 py-4">
+                  <div className="p-4 bg-amber-50 rounded-md border border-amber-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="h-5 w-5 text-amber-600" />
+                      <span className="font-semibold text-amber-900">
+                        EVM Staff đã duyệt đơn với số lượng khác với yêu cầu
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-3">
+                      <div>
+                        <Label className="text-sm text-muted-foreground">Số lượng yêu cầu</Label>
+                        <p className="text-lg font-bold">{selectedDistribution.requestedQuantity || 0} xe</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">Giá hãng (mỗi xe)</Label>
+                        <p className="text-lg font-bold text-green-600">
+                          {selectedDistribution.manufacturerPrice?.toLocaleString('vi-VN')}đ
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 p-3 bg-white rounded border">
+                      <Label className="text-sm font-medium">Tổng giá trị đơn hàng</Label>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {((selectedDistribution.manufacturerPrice || 0) * (selectedDistribution.requestedQuantity || 0)).toLocaleString('vi-VN')}đ
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {selectedDistribution.evmNotes && (
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Ghi chú từ EVM Staff</Label>
+                      <p className="mt-1 p-3 bg-green-50 rounded-md text-sm">{selectedDistribution.evmNotes}</p>
+                    </div>
+                  )}
+                  
+                  <div className="text-sm text-muted-foreground">
+                    Nếu bạn chấp nhận, EVM Staff sẽ tiếp tục lên kế hoạch giao hàng. Nếu từ chối, đơn hàng sẽ bị hủy.
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPriceDialogOpen(false)}>
+                  Đóng
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => handleRespondToPrice(false)}
+                >
+                  Từ chối
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() => handleRespondToPrice(true)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Chấp nhận
                 </Button>
               </DialogFooter>
             </DialogContent>

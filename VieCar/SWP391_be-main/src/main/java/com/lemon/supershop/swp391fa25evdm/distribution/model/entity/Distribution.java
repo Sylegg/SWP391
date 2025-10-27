@@ -18,7 +18,10 @@ public class Distribution {
     private int id;
 
     @Column(name = "Status", columnDefinition = "VARCHAR(20)")
-    private String status; // INVITED, ACCEPTED, DECLINED, PENDING, CONFIRMED, CANCELED, PLANNED, COMPLETED
+    private String status; // INVITED, ACCEPTED, DECLINED, PENDING, CONFIRMED, CANCELED, PRICE_SENT, PRICE_ACCEPTED, PRICE_REJECTED, PLANNED, COMPLETED
+
+    @Column(name = "ManufacturerPrice")
+    private Double manufacturerPrice; // Giá hãng gửi cho dealer
 
     // ❌ Xóa Category - không sử dụng, Dealer đã có Category
     // @ManyToOne(fetch = FetchType.LAZY)
@@ -269,5 +272,13 @@ public class Distribution {
 
     public void setReceivedQuantity(Integer receivedQuantity) {
         this.receivedQuantity = receivedQuantity;
+    }
+
+    public Double getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Double manufacturerPrice) {
+        this.manufacturerPrice = manufacturerPrice;
     }
 }

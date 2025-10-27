@@ -1,13 +1,12 @@
 package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
 
 import java.math.BigDecimal;
-public class DistributionReceivedItemReq {
+
+public class DistributionItemPriceReq {
     private Integer distributionItemId;
-    private Integer receivedQuantity;
-    // Optional: allow dealer to update dealerPrice upon receipt
     private BigDecimal dealerPrice;
 
-    public DistributionReceivedItemReq() {}
+    public DistributionItemPriceReq() {}
 
     public Integer getDistributionItemId() {
         return distributionItemId;
@@ -15,14 +14,6 @@ public class DistributionReceivedItemReq {
 
     public void setDistributionItemId(Integer distributionItemId) {
         this.distributionItemId = distributionItemId;
-    }
-
-    public Integer getReceivedQuantity() {
-        return receivedQuantity;
-    }
-
-    public void setReceivedQuantity(Integer receivedQuantity) {
-        this.receivedQuantity = receivedQuantity;
     }
 
     public BigDecimal getDealerPrice() {

@@ -1,14 +1,14 @@
 package com.lemon.supershop.swp391fa25evdm.distribution.service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
-// ❌ Xóa Category imports - không dùng
-// import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
-// import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
+import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
+import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepository;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.*;
@@ -31,9 +31,8 @@ public class DistributionService {
 
     @Autowired
     private DistributionRepo distributionRepo;
-    // ❌ Xóa CategoryRepository - không dùng
-    // @Autowired
-    // private CategoryRepository categoryRepository;
+    @Autowired
+    private CategoryRepository categoryRepository;
     @Autowired
     private DealerRepo dealerRepo;
     // ❌ Xóa: @Autowired private ContractRepo contractRepo;
@@ -164,11 +163,60 @@ public class DistributionService {
             throw new RuntimeException("Invalid status. Expected PENDING, got: " + distribution.getStatus());
         }
         
-        // Update based on decision
-        distribution.setStatus(req.getDecision()); // "CONFIRMED" or "CANCELED"
-        // ❌ Xóa: distribution.setApprovedQuantity(req.getApprovedQuantity());
-        distribution.setEvmNotes(req.getEvmNotes());
-        // ❌ Xóa: distribution.setApprovedAt(LocalDateTime.now());
+        // If CONFIRMED, require manufacturerPrice and approvedQuantity
+        if ("CONFIRMED".equals(req.getDecision())) {
+            if (req.getManufacturerPrice() == null || req.getManufacturerPrice() <= 0) {
+                throw new RuntimeException("Manufacturer price is required when approving");
+            }
+            if (req.getApprovedQuantity() == null || req.getApprovedQuantity() <= 0) {
+                throw new RuntimeException("Approved quantity is required when approving");
+            }
+            
+            // Update category base price with manufacturer price
+            updateCategoryBasePriceFromDistribution(distribution, req.getManufacturerPrice());
+            
+            // Always send price to dealer for confirmation (regardless of quantity match)
+            // Dealer must accept the price before proceeding to delivery planning
+            distribution.setStatus("PRICE_SENT");
+            
+            distribution.setManufacturerPrice(req.getManufacturerPrice());
+            distribution.setEvmNotes(req.getEvmNotes());
+        } else {
+            // CANCELED
+            distribution.setStatus(req.getDecision());
+            distribution.setEvmNotes(req.getEvmNotes());
+        }
+        
+        distributionRepo.save(distribution);
+        return convertToRes(distribution);
+    }
+
+    // Step 4a: Dealer Manager phản hồi về giá hãng (chấp nhận hoặc từ chối)
+    public DistributionRes respondToPrice(int id, String decision, String dealerNotes) {
+        Optional<Distribution> opt = distributionRepo.findById(id);
+        if (!opt.isPresent()) {
+            throw new RuntimeException("Distribution not found with id: " + id);
+        }
+        
+        Distribution distribution = opt.get();
+        
+        // Validate status
+        if (!"PRICE_SENT".equals(distribution.getStatus())) {
+            throw new RuntimeException("Invalid status. Expected PRICE_SENT, got: " + distribution.getStatus());
+        }
+        
+        if ("PRICE_ACCEPTED".equals(decision)) {
+            distribution.setStatus("CONFIRMED");
+        } else if ("PRICE_REJECTED".equals(decision)) {
+            distribution.setStatus("PRICE_REJECTED");
+        } else {
+            throw new RuntimeException("Invalid decision. Expected PRICE_ACCEPTED or PRICE_REJECTED");
+        }
+        
+        if (dealerNotes != null && !dealerNotes.isEmpty()) {
+            String existing = distribution.getDealerNotes();
+            distribution.setDealerNotes(existing != null ? existing + " | " + dealerNotes : dealerNotes);
+        }
         
         distributionRepo.save(distribution);
         return convertToRes(distribution);
@@ -256,6 +304,12 @@ public class DistributionService {
                                 p.setCategory(template.getCategory());
                             }
                         }
+                        // Set manufacturer price from distribution
+                        if (distribution.getManufacturerPrice() != null) {
+                            p.setDealerPrice(distribution.getManufacturerPrice().longValue());
+                        } else {
+                            p.setDealerPrice(0L);
+                        }
                         // Link to this distribution and set color from item
                         p.setDistribution(distribution);
                         p.setColor(orderedItem.getColor());
@@ -264,7 +318,13 @@ public class DistributionService {
                         p.setVinNum("VIN-" + uniqueCode);
                         p.setEngineNum("ENG-" + uniqueCode);
                         p.setRange(0);
+                        // Manufacture date giữ nguyên theo template hoặc set hôm nay
                         p.setManufacture_date(new java.util.Date());
+                        // Tự động set ngày nhập kho = actualDeliveryDate (nếu có) hoặc ngày hiện tại
+                        java.util.Date stockIn = (req.getActualDeliveryDate() != null)
+                                ? java.util.Date.from(req.getActualDeliveryDate().atZone(ZoneId.systemDefault()).toInstant())
+                                : new java.util.Date();
+                        p.setStockInDate(stockIn);
                         p.setStatus(com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus.ACTIVE);
                         productRepo.save(p);
                     }
@@ -293,12 +353,42 @@ public class DistributionService {
         return String.valueOf(ts) + String.format("%03d", rnd);
     }
 
+    // Helper method: Update category base price from manufacturer price
+    private void updateCategoryBasePriceFromDistribution(Distribution distribution, Double manufacturerPrice) {
+        if (distribution.getItems() == null || distribution.getItems().isEmpty()) {
+            return; // No items, cannot determine category
+        }
+        
+        // Get category from first item's product
+        for (DistributionItem item : distribution.getItems()) {
+            if (item.getProduct() != null && item.getProduct().getCategory() != null) {
+                Category category = item.getProduct().getCategory();
+                
+                // Update base price (convert Double to long)
+                long newBasePrice = manufacturerPrice.longValue();
+                category.setBasePrice(newBasePrice);
+                categoryRepository.save(category);
+                
+                // Log the update
+                System.out.println("✅ Updated Category ID " + category.getId() + 
+                                   " base price to: " + newBasePrice);
+                break; // Only update once (assume all items same category)
+            }
+        }
+    }
+
     // ===== EXISTING METHODS (updated) =====
 
 
     public List<DistributionRes> getAllDistributions() {
         List<Distribution> distributions = distributionRepo.findAll();
         return distributions.stream().map(this::convertToRes).toList();
+    }
+
+    public DistributionRes getDistributionById(int id) {
+        return distributionRepo.findById(id)
+                .map(this::convertToRes)
+                .orElseThrow(() -> new RuntimeException("Distribution not found with id: " + id));
     }
 
     // ❌ Xóa method không dùng
@@ -457,6 +547,8 @@ public class DistributionService {
         // ❌ Xóa 2 quantity fields không dùng
         // res.setApprovedQuantity(distribution.getApprovedQuantity());
         // res.setActualQuantity(distribution.getActualQuantity());
+        
+        res.setManufacturerPrice(distribution.getManufacturerPrice());
         
         return res;
     }

@@ -35,6 +35,10 @@ public class Product {
     @Column(name = "Manufacture", columnDefinition = "DATETIME2")
     private Date manufacture_date;
 
+    // Ngày nhập kho (tự set khi xác nhận nhận hàng trong luồng phân phối)
+    @Column(name = "StockInDate", columnDefinition = "DATETIME2")
+    private Date stockInDate;
+
     @Column(name = "Battery", columnDefinition = "DECIMAL")
     private double battery;
 
@@ -122,6 +126,14 @@ public class Product {
 
     public void setManufacture_date(Date manufacture_date) {
         this.manufacture_date = manufacture_date;
+    }
+
+    public Date getStockInDate() {
+        return stockInDate;
+    }
+
+    public void setStockInDate(Date stockInDate) {
+        this.stockInDate = stockInDate;
     }
 
     public String getName() {

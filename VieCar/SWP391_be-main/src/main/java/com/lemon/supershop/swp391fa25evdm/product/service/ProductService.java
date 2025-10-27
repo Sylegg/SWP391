@@ -127,6 +127,9 @@ public class ProductService {
             if (product.getManufacture_date() != null){
                 productRes.setManufacture_date(product.getManufacture_date());
             }
+            if (product.getStockInDate() != null) {
+                productRes.setStockInDate(product.getStockInDate());
+            }
             // Map dealer price to response.price for UI
             if (product.getDealerPrice() > 0) {
                 productRes.setPrice(product.getDealerPrice());
@@ -187,6 +190,9 @@ public class ProductService {
             }
             if (productReq.getManufacture_date() != null){
                 product.setManufacture_date(productReq.getManufacture_date());
+            }
+            if (productReq.getStockInDate() != null) {
+                product.setStockInDate(productReq.getStockInDate());
             }
             if (productReq.getDealerPrice() > 0){
                 product.setDealerPrice(productReq.getDealerPrice());

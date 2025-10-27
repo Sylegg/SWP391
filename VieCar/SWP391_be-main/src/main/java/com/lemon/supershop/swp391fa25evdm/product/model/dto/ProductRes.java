@@ -16,6 +16,7 @@ public class ProductRes {
     private int torque;
     private boolean isSpecial;
     private Date manufacture_date;
+    private Date stockInDate;
     private String image;
     private String description;
     private long price;
@@ -159,5 +160,13 @@ public class ProductRes {
 
     public void setStatus(ProductStatus status) {
         this.status = status;
+    }
+
+    public Date getStockInDate() {
+        return stockInDate;
+    }
+
+    public void setStockInDate(Date stockInDate) {
+        this.stockInDate = stockInDate;
     }
 }

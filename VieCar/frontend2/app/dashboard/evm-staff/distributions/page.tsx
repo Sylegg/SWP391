@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
@@ -26,6 +27,7 @@ import {
   TrendingUp,
   Filter,
   Search,
+  Eye,
 } from 'lucide-react';
 import {
   getAllDistributions,
@@ -60,6 +62,7 @@ export default function EvmDistributionsPage() {
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   
   // Form states
   const [inviteForm, setInviteForm] = useState({
@@ -71,12 +74,27 @@ export default function EvmDistributionsPage() {
   const [approveForm, setApproveForm] = useState({
     approved: true,
     evmNotes: '',
+    approvedQuantity: 0,
+    manufacturerPrice: 0,
   });
   
   const [planForm, setPlanForm] = useState({
     estimatedDeliveryDate: '',
     planningNotes: '',
   });
+
+  // Review state (per-item approval)
+  const [reviewItems, setReviewItems] = useState<{
+    id: number;
+    name: string;
+    color?: string;
+    requested: number;
+    approved: boolean;
+    approvedQuantity: number;
+    manufacturerPrice: number;
+  }[]>([]);
+  
+  const [reviewNote, setReviewNote] = useState<string>('');
   
   // Stats
   const [stats, setStats] = useState({
@@ -200,28 +218,40 @@ export default function EvmDistributionsPage() {
   const handleApproveOrder = async () => {
     if (!selectedDistribution) return;
 
+    if (approveForm.approved) {
+      if (!approveForm.approvedQuantity || approveForm.approvedQuantity <= 0) {
+        toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập số lượng duyệt', variant: 'destructive' });
+        return;
+      }
+      if (!approveForm.manufacturerPrice || approveForm.manufacturerPrice <= 0) {
+        toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập giá hãng', variant: 'destructive' });
+        return;
+      }
+    }
+
     try {
-      // Map approved boolean to backend decision string
       const requestData = {
-        decision: approveForm.approved ? 'CONFIRMED' : 'CANCELED',  // Backend expect "CONFIRMED" or "CANCELED"
+        decision: approveForm.approved ? 'CONFIRMED' : 'CANCELED',
         evmNotes: approveForm.evmNotes || undefined,
-        approvedQuantity: selectedDistribution.requestedQuantity,
+        approvedQuantity: approveForm.approved ? approveForm.approvedQuantity : undefined,
+        manufacturerPrice: approveForm.approved ? approveForm.manufacturerPrice : undefined,
       };
       
       await approveDistributionOrder(selectedDistribution.id, requestData);
       
-      // Close approve dialog first
       setIsApproveDialogOpen(false);
+      
+      const qtyMismatch = approveForm.approved && approveForm.approvedQuantity !== selectedDistribution.requestedQuantity;
       
       toast({
         title: approveForm.approved ? '✅ Đã duyệt đơn' : '❌ Đã từ chối đơn',
         description: approveForm.approved 
-          ? 'Lên kế hoạch giao hàng ngay'
+          ? (qtyMismatch ? 'Đã gửi giá hãng cho dealer. Chờ dealer xác nhận.' : 'Lên kế hoạch giao hàng ngay')
           : 'Đơn nhập hàng đã bị từ chối',
       });
       
-      // If approved, open planning dialog immediately
-      if (approveForm.approved) {
+      // If approved and no quantity mismatch, open planning dialog immediately
+      if (approveForm.approved && !qtyMismatch) {
         setIsPlanDialogOpen(true);
       }
       
@@ -276,7 +306,12 @@ export default function EvmDistributionsPage() {
   };
 
   const resetApproveForm = () => {
-    setApproveForm({ approved: true, evmNotes: '' });
+    setApproveForm({ 
+      approved: true, 
+      evmNotes: '',
+      approvedQuantity: 0,
+      manufacturerPrice: 0,
+    });
   };
 
   const resetPlanForm = () => {
@@ -285,35 +320,13 @@ export default function EvmDistributionsPage() {
 
   const openApproveDialog = async (distribution: DistributionRes, approved: boolean) => {
     setSelectedDistribution(distribution);
-    
-    if (approved) {
-      // Nếu duyệt → gọi API ngay và mở dialog lên kế hoạch
-      try {
-        const requestData = {
-          decision: 'CONFIRMED',
-          evmNotes: undefined,
-          approvedQuantity: distribution.requestedQuantity,
-        };
-        
-        await approveDistributionOrder(distribution.id, requestData);
-        toast({
-          title: '✅ Đã duyệt đơn',
-          description: 'Lên kế hoạch giao hàng ngay',
-        });
-        setIsPlanDialogOpen(true);  // Mở dialog lên kế hoạch luôn
-        loadData();
-      } catch (error: any) {
-        toast({
-          title: '❌ Lỗi',
-          description: error.message || 'Không thể duyệt đơn',
-          variant: 'destructive',
-        });
-      }
-    } else {
-      // Nếu từ chối → mở dialog xác nhận từ chối
-      setApproveForm({ approved: false, evmNotes: '' });
-      setIsApproveDialogOpen(true);
-    }
+    setApproveForm({ 
+      approved, 
+      evmNotes: '',
+      approvedQuantity: approved ? (distribution.requestedQuantity || 0) : 0,
+      manufacturerPrice: 0,
+    });
+    setIsApproveDialogOpen(true);
   };
 
   const openPlanDialog = (distribution: DistributionRes) => {
@@ -326,8 +339,109 @@ export default function EvmDistributionsPage() {
     setIsDetailDialogOpen(true);
   };
 
+  const openReviewDialog = (distribution: DistributionRes) => {
+    setSelectedDistribution(distribution);
+    // Initialize review items from dealer's submitted items
+    const items = (distribution.items || []).map((it) => ({
+      id: it.id,
+      name: it.product?.name || 'Sản phẩm',
+      color: it.color,
+      requested: it.quantity || 0,
+      approved: true,
+      approvedQuantity: it.quantity || 0,
+      manufacturerPrice: 0, // Initialize with 0
+    }));
+    setReviewItems(items);
+    setReviewNote(''); // Reset note
+    setIsReviewDialogOpen(true);
+  };
+
+  const totalRequested = reviewItems.reduce((sum, it) => sum + (it.requested || 0), 0);
+  const totalApproved = reviewItems.reduce((sum, it) => sum + (it.approved ? (it.approvedQuantity || 0) : 0), 0);
+
+  const handleSubmitReview = async () => {
+    if (!selectedDistribution) return;
+    if (!reviewItems.length) {
+      toast({ title: '⚠️ Không có dòng nào', description: 'Đơn không có dòng sản phẩm để duyệt', variant: 'destructive' });
+      return;
+    }
+    
+    // Validate quantities and prices for approved items
+    const missingPriceItems: string[] = [];
+    const invalidQuantityItems: string[] = [];
+    
+    for (const it of reviewItems) {
+      if (it.approved) {
+        if (it.approvedQuantity <= 0 || it.approvedQuantity > it.requested) {
+          invalidQuantityItems.push(it.name);
+        }
+        if (!it.manufacturerPrice || it.manufacturerPrice <= 0) {
+          missingPriceItems.push(it.name);
+        }
+      }
+    }
+    
+    if (invalidQuantityItems.length > 0) {
+      toast({ 
+        title: '⚠️ Số lượng không hợp lệ', 
+        description: `Các dòng sau có số lượng không hợp lệ: ${invalidQuantityItems.join(', ')}`, 
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
+    if (missingPriceItems.length > 0) {
+      toast({ 
+        title: '⚠️ Thiếu giá hãng', 
+        description: `Vui lòng nhập giá hãng cho: ${missingPriceItems.join(', ')}`, 
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
+    const approvedQty = reviewItems.filter(i => i.approved).reduce((s, i) => s + (i.approvedQuantity || 0), 0);
+    if (approvedQty <= 0) {
+      toast({ title: '⚠️ Chưa chọn dòng nào', description: 'Chọn ít nhất 1 dòng để duyệt', variant: 'destructive' });
+      return;
+    }
+
+    const requestedQty = selectedDistribution.requestedQuantity || 0;
+    const isInsufficientQty = approvedQty < requestedQty;
+
+    // Calculate average manufacturer price from approved items
+    const approvedItems = reviewItems.filter(i => i.approved);
+    const avgManufacturerPrice = approvedItems.reduce((sum, it) => sum + it.manufacturerPrice, 0) / approvedItems.length;
+
+    try {
+      const requestData: any = {
+        decision: 'CONFIRMED',
+        approvedQuantity: approvedQty,
+        manufacturerPrice: Math.round(avgManufacturerPrice), // Use average price
+        evmNotes: `Duyệt theo dòng: ${reviewItems.map(it => 
+          `${it.name}${it.color ? ' ('+it.color+')' : ''}: ${it.approved ? `${it.approvedQuantity}/${it.requested} xe @ ${it.manufacturerPrice.toLocaleString()} VND` : '0/'+it.requested}`
+        ).join('; ')}${reviewNote ? ` | Ghi chú: ${reviewNote}` : ''}`,
+      };
+
+      await approveDistributionOrder(selectedDistribution.id, requestData);
+      
+      // Always send price to dealer for confirmation
+      toast({ 
+        title: '📤 Đã gửi báo giá', 
+        description: 'Đã gửi giá hãng cho dealer. Chờ dealer xác nhận giá trước khi lên kế hoạch giao hàng.'
+      });
+      
+      setIsReviewDialogOpen(false);
+      
+      // Note: Do not open plan dialog - must wait for dealer to accept price first
+      
+      loadData();
+    } catch (error: any) {
+      toast({ title: '❌ Lỗi', description: error.message || 'Không thể duyệt đơn', variant: 'destructive' });
+    }
+  };
+
   return (
-    <ProtectedRoute allowedRoles={['EVM Staff', 'Admin']}>
+  <ProtectedRoute allowedRoles={['EVM Staff']}>
       <EvmStaffLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
@@ -479,11 +593,11 @@ export default function EvmDistributionsPage() {
                             <Button
                               variant="default"
                               size="sm"
-                              onClick={() => openApproveDialog(dist, true)}
+                              onClick={() => openReviewDialog(dist)}
                               className="bg-green-600 hover:bg-green-700"
                             >
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Duyệt
+                              <Eye className="h-4 w-4 mr-1" />
+                              Xem đơn
                             </Button>
                             <Button
                               variant="destructive"
@@ -607,26 +721,73 @@ export default function EvmDistributionsPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Dialog: Approve/Reject Order (CHỈ hiện khi TỪ CHỐI) */}
+          {/* Dialog: Approve/Reject Order */}
           <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>❌ Từ chối đơn nhập hàng</DialogTitle>
+                <DialogTitle>
+                  {approveForm.approved ? '✅ Duyệt đơn nhập hàng' : '❌ Từ chối đơn nhập hàng'}
+                </DialogTitle>
                 <DialogDescription>
                   Phân phối #{selectedDistribution?.id} - {selectedDistribution?.dealerName}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="evmNotes">Lý do từ chối (không bắt buộc)</Label>
-                  <Textarea
-                    id="evmNotes"
-                    placeholder="VD: Kho không đủ hàng, vui lòng điều chỉnh số lượng"
-                    value={approveForm.evmNotes}
-                    onChange={(e) => setApproveForm({ ...approveForm, evmNotes: e.target.value })}
-                    rows={3}
-                  />
-                </div>
+                {approveForm.approved ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="approvedQuantity">Số lượng duyệt *</Label>
+                      <Input
+                        id="approvedQuantity"
+                        type="number"
+                        min={0}
+                        placeholder="Nhập số lượng duyệt"
+                        value={approveForm.approvedQuantity || ''}
+                        onChange={(e) => setApproveForm({ ...approveForm, approvedQuantity: Number(e.target.value) })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Yêu cầu: {selectedDistribution?.requestedQuantity || 0} xe
+                        {approveForm.approvedQuantity !== selectedDistribution?.requestedQuantity && 
+                          ' • Khác yêu cầu → cần dealer xác nhận'}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="manufacturerPrice">Giá hãng (VND) *</Label>
+                      <Input
+                        id="manufacturerPrice"
+                        type="number"
+                        min={0}
+                        placeholder="VD: 500000000"
+                        value={approveForm.manufacturerPrice || ''}
+                        onChange={(e) => setApproveForm({ ...approveForm, manufacturerPrice: Number(e.target.value) })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Giá này sẽ được gửi cho dealer để xác nhận
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="evmNotes">Ghi chú cho dealer</Label>
+                      <Textarea
+                        id="evmNotes"
+                        placeholder="VD: Giá đã bao gồm VAT, giao hàng trong 2 tuần"
+                        value={approveForm.evmNotes}
+                        onChange={(e) => setApproveForm({ ...approveForm, evmNotes: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="evmNotes">Lý do từ chối (không bắt buộc)</Label>
+                    <Textarea
+                      id="evmNotes"
+                      placeholder="VD: Kho không đủ hàng, vui lòng điều chỉnh số lượng"
+                      value={approveForm.evmNotes}
+                      onChange={(e) => setApproveForm({ ...approveForm, evmNotes: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
@@ -634,9 +795,139 @@ export default function EvmDistributionsPage() {
                 </Button>
                 <Button 
                   onClick={handleApproveOrder}
-                  variant="destructive"
+                  variant={approveForm.approved ? 'default' : 'destructive'}
                 >
-                  Từ chối
+                  {approveForm.approved ? 'Duyệt' : 'Từ chối'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog: Review & per-item approval */}
+          <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>👀 Xem đơn & duyệt theo dòng</DialogTitle>
+                <DialogDescription>
+                  Phân phối #{selectedDistribution?.id} - {selectedDistribution?.dealerName}
+                </DialogDescription>
+              </DialogHeader>
+              {selectedDistribution && (
+                <div className="space-y-4 py-2">
+                  {reviewItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Đơn này chưa có dòng sản phẩm.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {reviewItems.map((it, idx) => (
+                        <div key={it.id ?? idx} className="p-3 border rounded-md">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="font-medium">{it.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {it.color ? `Màu: ${it.color} • ` : ''}Yêu cầu: {it.requested}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                checked={it.approved}
+                                onCheckedChange={(checked) => {
+                                  const val = Boolean(checked);
+                                  setReviewItems((prev) => prev.map((x) => x.id === it.id ? { ...x, approved: val, approvedQuantity: val ? (x.approvedQuantity || x.requested) : 0 } : x));
+                                }}
+                              />
+                              <span className="text-sm">Duyệt</span>
+                            </div>
+                          </div>
+                          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Số lượng duyệt</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={it.requested}
+                                value={it.approvedQuantity}
+                                disabled={!it.approved}
+                                onChange={(e) => {
+                                  const v = Math.max(0, Math.min(it.requested, Number(e.target.value)));
+                                  setReviewItems((prev) => prev.map((x) => x.id === it.id ? { ...x, approvedQuantity: v } : x));
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Giá hãng (VND/xe) *</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                placeholder="VD: 500000000"
+                                value={it.manufacturerPrice || ''}
+                                disabled={!it.approved}
+                                onChange={(e) => {
+                                  const price = Number(e.target.value);
+                                  setReviewItems((prev) => prev.map((x) => x.id === it.id ? { ...x, manufacturerPrice: price } : x));
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="text-muted-foreground">Tổng yêu cầu: <span className="font-medium">{totalRequested}</span></div>
+                        <div> Tổng duyệt: <span className="font-medium">{totalApproved}</span></div>
+                      </div>
+                      
+                      {/* Info box - always show when approving */}
+                      {totalApproved > 0 && (
+                        <div className={`p-3 rounded-md ${
+                          totalApproved < totalRequested 
+                            ? 'bg-amber-50 border border-amber-200'
+                            : 'bg-blue-50 border border-blue-200'
+                        }`}>
+                          <div className="flex items-start gap-2">
+                            <span className={totalApproved < totalRequested ? 'text-amber-600' : 'text-blue-600'}>
+                              {totalApproved < totalRequested ? '⚠️' : 'ℹ️'}
+                            </span>
+                            <div className="flex-1">
+                              <p className={`text-sm font-medium ${
+                                totalApproved < totalRequested ? 'text-amber-800' : 'text-blue-800'
+                              }`}>
+                                {totalApproved < totalRequested ? 'Số lượng không đủ yêu cầu' : 'Số lượng đủ yêu cầu'}
+                              </p>
+                              <p className={`text-xs mt-1 ${
+                                totalApproved < totalRequested ? 'text-amber-700' : 'text-blue-700'
+                              }`}>
+                                Dealer sẽ nhận báo giá và phải xác nhận trước khi lên kế hoạch giao hàng.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* General note for the entire order */}
+                      {totalApproved > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Ghi chú chung (không bắt buộc)</Label>
+                          <Textarea
+                            placeholder="VD: Tổng số lượng xe được duyệt là 7/10 xe do kho không đủ hàng..."
+                            value={reviewNote}
+                            onChange={(e) => setReviewNote(e.target.value)}
+                            rows={3}
+                            className="resize-none"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Ghi chú này sẽ được gửi kèm đơn cho dealer
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>
+                  Hủy
+                </Button>
+                <Button onClick={handleSubmitReview} disabled={!reviewItems.length || totalApproved === 0}>
+                  📤 Gửi báo giá cho dealer
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -723,6 +1014,49 @@ export default function EvmDistributionsPage() {
                     <div>
                       <Label className="text-muted-foreground">Ghi chú của Dealer</Label>
                       <p className="mt-1 p-3 bg-amber-50 rounded-md">{selectedDistribution.dealerNotes}</p>
+                    </div>
+                  )}
+
+                  {selectedDistribution.manufacturerPrice && (
+                    <div>
+                      <Label className="text-muted-foreground">Giá hãng</Label>
+                      <p className="mt-1 p-3 bg-indigo-50 rounded-md font-medium">
+                        {selectedDistribution.manufacturerPrice.toLocaleString('vi-VN')} VND / xe
+                        {selectedDistribution.requestedQuantity && (
+                          <span className="text-sm text-muted-foreground ml-2">
+                            (Tổng: {(selectedDistribution.manufacturerPrice * selectedDistribution.requestedQuantity).toLocaleString('vi-VN')} VND)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Dealer submitted order details */}
+                  {selectedDistribution.items && selectedDistribution.items.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-muted-foreground">Yêu cầu từ Dealer</Label>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedDistribution.requestedDeliveryDate && (
+                            <>Ngày mong muốn: <span className="font-medium">
+                              {new Date(selectedDistribution.requestedDeliveryDate).toLocaleDateString('vi-VN')}
+                            </span></>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-1 space-y-2">
+                        {selectedDistribution.items.map((it, idx) => (
+                          <div key={idx} className="p-3 border rounded-md">
+                            <div className="font-medium">{it.product?.name || 'Sản phẩm'}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {it.color ? `Màu: ${it.color} • ` : ''}Số lượng: {it.quantity}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="text-sm text-muted-foreground">
+                          Tổng số lượng yêu cầu: <span className="font-medium">{selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                   

@@ -14,6 +14,9 @@ export enum DistributionStatus {
   PENDING = 'PENDING',       // Dealer đã tạo đơn chi tiết, chờ EVM duyệt
   CONFIRMED = 'CONFIRMED',   // EVM đã duyệt đơn
   CANCELED = 'CANCELED',     // EVM từ chối đơn
+  PRICE_SENT = 'PRICE_SENT', // EVM gửi giá hãng, chờ dealer phản hồi
+  PRICE_ACCEPTED = 'PRICE_ACCEPTED', // Dealer chấp nhận giá
+  PRICE_REJECTED = 'PRICE_REJECTED', // Dealer từ chối giá
   PLANNED = 'PLANNED',       // EVM đã lên kế hoạch giao hàng
   COMPLETED = 'COMPLETED',   // Dealer xác nhận đã nhận hàng
 }
@@ -32,10 +35,12 @@ export interface DistributionInvitationReq {
  */
 export interface DistributionOrderReq {
   items: {
-    productId: number;
+    // Cho phép tạo theo sản phẩm cụ thể HOẶC theo danh mục (không cần product)
+    productId?: number;
+    categoryId?: number;
     color?: string;
     quantity: number;
-  }[];                         // Danh sách chi tiết: mỗi loại xe có màu và số lượng riêng
+  }[];                         // Danh sách chi tiết: mỗi dòng gồm màu và số lượng
   dealerNotes?: string;        // Ghi chú của dealer
   requestedDeliveryDate?: string; // Ngày mong muốn nhận hàng
 }
@@ -115,6 +120,9 @@ export interface DistributionRes {
   // Quantities
   requestedQuantity?: number;
   receivedQuantity?: number;
+  
+  // Manufacturer price (giá hãng)
+  manufacturerPrice?: number;
 }
 
 /**
@@ -145,6 +153,9 @@ export const getDistributionStatusLabel = (status: DistributionStatus): string =
     [DistributionStatus.PENDING]: 'Chờ duyệt',
     [DistributionStatus.CONFIRMED]: 'Đã duyệt',
     [DistributionStatus.CANCELED]: 'Đã hủy',
+    [DistributionStatus.PRICE_SENT]: 'Chờ xác nhận giá',
+    [DistributionStatus.PRICE_ACCEPTED]: 'Đã chấp nhận giá',
+    [DistributionStatus.PRICE_REJECTED]: 'Đã từ chối giá',
     [DistributionStatus.PLANNED]: 'Đã lên kế hoạch',
     [DistributionStatus.COMPLETED]: 'Hoàn thành',
   };
@@ -160,6 +171,9 @@ export const getDistributionStatusColor = (status: DistributionStatus): string =
     [DistributionStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
     [DistributionStatus.CONFIRMED]: 'bg-green-100 text-green-800',
     [DistributionStatus.CANCELED]: 'bg-red-100 text-red-800',
+    [DistributionStatus.PRICE_SENT]: 'bg-amber-100 text-amber-800',
+    [DistributionStatus.PRICE_ACCEPTED]: 'bg-green-100 text-green-800',
+    [DistributionStatus.PRICE_REJECTED]: 'bg-red-100 text-red-800',
     [DistributionStatus.PLANNED]: 'bg-purple-100 text-purple-800',
     [DistributionStatus.COMPLETED]: 'bg-green-100 text-green-800',
   };

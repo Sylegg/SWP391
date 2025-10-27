@@ -23,6 +23,15 @@ public class DistributionController {
         return ResponseEntity.ok(distributions);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<DistributionRes> getDistributionById(@PathVariable int id) {
+        try {
+            return ResponseEntity.ok(distributionService.getDistributionById(id));
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // ❌ Xóa endpoint không dùng
     // @GetMapping("/search/category/{categoryId}")
     // public ResponseEntity<List<DistributionRes>> getDistributionsByCategory(@PathVariable int categoryId) {
@@ -123,6 +132,23 @@ public class DistributionController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Step 4a: Dealer Manager phản hồi về giá hãng (chấp nhận hoặc từ chối)
+    @PutMapping("/{id}/respond-price")
+    public ResponseEntity<?> respondToPrice(
+            @PathVariable int id,
+            @RequestBody java.util.Map<String, String> payload) {
+        try {
+            String decision = payload.get("decision"); // "PRICE_ACCEPTED" or "PRICE_REJECTED"
+            String dealerNotes = payload.getOrDefault("dealerNotes", "");
+            DistributionRes response = distributionService.respondToPrice(id, decision, dealerNotes);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", e.getMessage() != null ? e.getMessage() : "Bad Request"
+            ));
         }
     }
 

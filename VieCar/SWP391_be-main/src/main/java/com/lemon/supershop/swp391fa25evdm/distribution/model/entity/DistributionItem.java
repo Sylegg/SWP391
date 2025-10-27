@@ -1,6 +1,7 @@
 package com.lemon.supershop.swp391fa25evdm.distribution.model.entity;
 
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+import java.math.BigDecimal;
 import jakarta.persistence.*;
 
 @Entity
@@ -24,6 +25,10 @@ public class DistributionItem {
 
     @Column(name = "Quantity", columnDefinition = "INT")
     private Integer quantity;
+
+    // Dealer Price per line (đơn giá hãng bán cho đại lý)
+    @Column(name = "DealerPrice", precision = 18, scale = 2)
+    private BigDecimal dealerPrice;
 
     public DistributionItem() {}
 
@@ -65,5 +70,13 @@ public class DistributionItem {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public BigDecimal getDealerPrice() {
+        return dealerPrice;
+    }
+
+    public void setDealerPrice(BigDecimal dealerPrice) {
+        this.dealerPrice = dealerPrice;
     }
 }

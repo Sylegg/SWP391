@@ -47,6 +47,8 @@ public class DistributionRes {
     // private Integer approvedQuantity;
     // private Integer actualQuantity;
 
+    private Double manufacturerPrice; // Giá hãng gửi cho dealer
+
     public DistributionRes() {}
 
     // Getters and Setters
@@ -206,6 +208,14 @@ public class DistributionRes {
 
     public void setReceivedQuantity(Integer receivedQuantity) {
         this.receivedQuantity = receivedQuantity;
+    }
+
+    public Double getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Double manufacturerPrice) {
+        this.manufacturerPrice = manufacturerPrice;
     }
 }
 

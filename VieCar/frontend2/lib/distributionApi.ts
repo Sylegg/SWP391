@@ -169,6 +169,29 @@ export const confirmDistributionReceived = async (
   return response.data;
 };
 
+/**
+ * Step 4a: Dealer Manager phản hồi về giá hãng (chấp nhận hoặc từ chối)
+ */
+export const respondToManufacturerPrice = async (
+  id: number,
+  accepted: boolean,
+  dealerNotes?: string
+): Promise<DistributionRes> => {
+  try {
+    const response = await api.put<DistributionRes>(
+      `${DISTRIBUTION_BASE}/${id}/respond-price`,
+      {
+        decision: accepted ? 'PRICE_ACCEPTED' : 'PRICE_REJECTED',
+        dealerNotes: dealerNotes || '',
+      }
+    );
+    return response.data;
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Request failed';
+    throw new Error(msg);
+  }
+};
+
 // ============ Common APIs ============
 
 /**

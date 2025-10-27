@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Search, Car, Plus, ArrowLeft, Trash2, Pencil, RefreshCw } from "lucide-react";
+import { Package, Search, Car, Plus, ArrowLeft, Trash2, RefreshCw, Eye, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getProductsByCategory, createProduct, deleteProduct, updateProduct } from "@/lib/productApi";
 import { getCategoryById } from "@/lib/categoryApi";
@@ -40,6 +40,7 @@ export default function CategoryInventoryPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductRes | null>(null);
 
   // Full form like Admin, but category fixed
@@ -53,6 +54,7 @@ export default function CategoryInventoryPage() {
     torque: 0,
     color: "",
     manufacture_date: "",
+    stockInDate: "",
     dealerPrice: 0,
     description: "",
     status: ProductStatus.ACTIVE,
@@ -135,6 +137,7 @@ export default function CategoryInventoryPage() {
       torque: 0,
       color: "",
       manufacture_date: "",
+      stockInDate: "",
       dealerPrice: 0,
       description: "",
       status: ProductStatus.ACTIVE,
@@ -144,6 +147,42 @@ export default function CategoryInventoryPage() {
     });
   };
 
+  // Open detail dialog
+  const openDetailDialog = (product: ProductRes) => {
+    setSelectedProduct(product);
+    setIsDetailDialogOpen(true);
+  };
+
+  // Date formatter helper
+  const fmtDate = (value?: string | Date) => {
+    if (!value) return '-';
+    const d = typeof value === 'string' ? new Date(value) : value;
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('vi-VN');
+  };
+
+  // Normalize date for API: accepts 'yyyy-MM-dd' or Date and returns ISO or appends T00:00:00; returns undefined when blank
+  const normalizeDateForApi = (value?: string | Date | null): string | undefined => {
+    if (!value) return undefined;
+    if (value instanceof Date) {
+      if (isNaN(value.getTime())) return undefined;
+      return value.toISOString();
+    }
+    const v = value.toString().trim();
+    if (!v) return undefined;
+    return v.includes('T') ? v : `${v}T00:00:00`;
+  };
+
+  // Build payload with normalized/omitted dates
+  const buildProductPayload = (data: ProductReq, cid: number): ProductReq => {
+    const payload: any = { ...data, categoryId: cid };
+    const m = normalizeDateForApi(data.manufacture_date as any);
+    const s = normalizeDateForApi(data.stockInDate as any);
+    if (m === undefined) delete payload.manufacture_date; else payload.manufacture_date = m;
+    if (s === undefined) delete payload.stockInDate; else payload.stockInDate = s;
+    return payload as ProductReq;
+  };
+
   // Create product (category fixed)
   const handleCreate = async () => {
     if (!formData.name.trim() || !formData.vinNum.trim() || !formData.engineNum.trim()) {
@@ -151,7 +190,8 @@ export default function CategoryInventoryPage() {
       return;
     }
     try {
-      await createProduct({ ...formData, categoryId });
+      const payload = buildProductPayload(formData, categoryId);
+      await createProduct(payload);
       toast({ title: "Thành công", description: "Đã thêm sản phẩm vào danh mục" });
       setIsCreateDialogOpen(false);
       resetForm();
@@ -179,6 +219,11 @@ export default function CategoryInventoryPage() {
             ? product.manufacture_date.split('T')[0]
             : new Date(product.manufacture_date).toISOString().split('T')[0])
         : "",
+      stockInDate: product.stockInDate
+        ? (typeof product.stockInDate === 'string'
+            ? (product.stockInDate.includes('T') ? product.stockInDate.split('T')[0] : product.stockInDate)
+            : new Date(product.stockInDate).toISOString().split('T')[0])
+        : "",
       dealerPrice: product.price,
       description: product.description || "",
       status: product.status,
@@ -192,12 +237,14 @@ export default function CategoryInventoryPage() {
   const handleUpdate = async () => {
     if (!selectedProduct) return;
     try {
-      await updateProduct(selectedProduct.id, { ...formData, categoryId });
+      const payload = buildProductPayload(formData, categoryId);
+      const updated = await updateProduct(selectedProduct.id, payload);
+      // Optimistically update local list and selected product
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setSelectedProduct((prev) => (prev && prev.id === updated.id ? updated : prev));
       toast({ title: "Thành công", description: "Cập nhật sản phẩm thành công" });
       setIsEditDialogOpen(false);
-      setSelectedProduct(null);
       resetForm();
-      load();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Lỗi", description: error?.message || "Không thể cập nhật" });
     }
@@ -362,8 +409,8 @@ export default function CategoryInventoryPage() {
                         </td>
                         <td className="py-3 px-4 text-right font-medium">{(p.price ?? 0).toLocaleString('vi-VN')}</td>
                         <td className="py-3 px-4 text-right space-x-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(p)}>
-                            <Pencil className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" onClick={() => openDetailDialog(p)}>
+                            <Eye className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDeleteConfirm(p)}>
                             <Trash2 className="w-4 h-4" />
@@ -436,10 +483,14 @@ export default function CategoryInventoryPage() {
                     <Input id="create-torque" type="number" value={formData.torque} onChange={(e) => setFormData({ ...formData, torque: parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="create-date">Ngày sản xuất</Label>
                     <Input id="create-date" type="date" value={typeof formData.manufacture_date === 'string' ? formData.manufacture_date : (formData.manufacture_date instanceof Date ? formData.manufacture_date.toISOString().split('T')[0] : '')} onChange={(e) => setFormData({ ...formData, manufacture_date: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="create-stock-in">Ngày nhập kho</Label>
+                    <Input id="create-stock-in" type="date" value={typeof formData.stockInDate === 'string' ? formData.stockInDate : (formData.stockInDate instanceof Date ? formData.stockInDate.toISOString().split('T')[0] : '')} onChange={(e) => setFormData({ ...formData, stockInDate: e.target.value })} />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="create-price">Giá đại lý (VNĐ) *</Label>
@@ -527,10 +578,14 @@ export default function CategoryInventoryPage() {
                     <Input type="number" value={formData.torque} onChange={(e) => setFormData({ ...formData, torque: parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="grid gap-2">
                     <Label>Ngày sản xuất</Label>
                     <Input type="date" value={typeof formData.manufacture_date === 'string' ? formData.manufacture_date : (formData.manufacture_date instanceof Date ? formData.manufacture_date.toISOString().split('T')[0] : '')} onChange={(e) => setFormData({ ...formData, manufacture_date: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Ngày nhập kho</Label>
+                    <Input type="date" value={typeof formData.stockInDate === 'string' ? formData.stockInDate : (formData.stockInDate instanceof Date ? formData.stockInDate.toISOString().split('T')[0] : '')} onChange={(e) => setFormData({ ...formData, stockInDate: e.target.value })} />
                   </div>
                   <div className="grid gap-2">
                     <Label>Giá đại lý (VNĐ) *</Label>
@@ -579,6 +634,85 @@ export default function CategoryInventoryPage() {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Hủy</Button>
                 <Button variant="destructive" onClick={handleDelete}>Xóa</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Detail Dialog */}
+          <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Thông tin sản phẩm</DialogTitle>
+                <DialogDescription>#{selectedProduct?.id} - {selectedProduct?.name}</DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-2">
+                <div className="col-span-2">
+                  <Label>Tên sản phẩm</Label>
+                  <div className="mt-1 text-sm font-medium">{selectedProduct?.name || '-'}</div>
+                </div>
+                <div>
+                  <Label>VIN</Label>
+                  <div className="mt-1 text-sm">{selectedProduct?.vinNum}</div>
+                </div>
+                <div>
+                  <Label>Engine</Label>
+                  <div className="mt-1 text-sm">{selectedProduct?.engineNum}</div>
+                </div>
+                <div>
+                  <Label>Màu</Label>
+                  <div className="mt-1 text-sm">{selectedProduct?.color || '-'}</div>
+                </div>
+                <div>
+                  <Label>Trạng thái</Label>
+                  <div className="mt-1">
+                    {selectedProduct && (
+                      <Badge className={ProductStatusColors[selectedProduct.status]}> 
+                        {ProductStatusLabels[selectedProduct.status]}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label>Pin (kWh)</Label>
+                  <div className="mt-1 text-sm">{selectedProduct?.battery}</div>
+                </div>
+                <div>
+                  <Label>Quãng đường (km)</Label>
+                  <div className="mt-1 text-sm">{selectedProduct?.range}</div>
+                </div>
+                <div>
+                  <Label>HP</Label>
+                  <div className="mt-1 text-sm">{selectedProduct?.hp}</div>
+                </div>
+                <div>
+                  <Label>Mô-men (Nm)</Label>
+                  <div className="mt-1 text-sm">{selectedProduct?.torque}</div>
+                </div>
+                <div>
+                  <Label>Giá đại lý (VNĐ)</Label>
+                  <div className="mt-1 text-sm">{selectedProduct ? (selectedProduct.price ?? 0).toLocaleString('vi-VN') : '-'}</div>
+                </div>
+                <div>
+                  <Label>Ngày sản xuất</Label>
+                  <div className="mt-1 text-sm">{selectedProduct ? fmtDate(selectedProduct.manufacture_date) : '-'}</div>
+                </div>
+                <div>
+                  <Label>Ngày nhập kho</Label>
+                  <div className="mt-1 text-sm">{selectedProduct ? fmtDate(selectedProduct.stockInDate as any) : '-'}</div>
+                </div>
+                {/* Category fields removed as requested */}
+              </div>
+              <div className="grid gap-2">
+                <Label>Mô tả</Label>
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedProduct?.description || '-'}</div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>Đóng</Button>
+                {selectedProduct && (
+                  <Button onClick={() => { openEditDialog(selectedProduct); setIsDetailDialogOpen(false); }}>
+                    <Pencil className="w-4 h-4 mr-2" /> Sửa
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>

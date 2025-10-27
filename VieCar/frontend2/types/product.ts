@@ -18,6 +18,7 @@ export interface ProductReq {
   torque: number;
   color: string;
   manufacture_date: string | Date; // ISO date string or Date object
+  stockInDate?: string | Date; // Ngày nhập kho (tùy chọn)
   dealerPrice: number;
   description: string;
   status: ProductStatus;
@@ -38,6 +39,7 @@ export interface ProductRes {
   torque: number;
   isSpecial: boolean;
   manufacture_date: string | Date;
+  stockInDate?: string | Date;
   image: string;
   description: string;
   price: number;

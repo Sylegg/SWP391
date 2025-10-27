@@ -18,6 +18,8 @@ public class ProductReq {
     private int torque;
     private String color;
     private Date manufacture_date;
+    // Ngày nhập kho (tùy chọn). Nếu không gửi, backend sẽ tự set khi hoàn tất phân phối
+    private Date stockInDate;
     private long dealerPrice;
     private String description;
     private ProductStatus status;
@@ -58,6 +60,14 @@ public class ProductReq {
 
     public void setManufacture_date(Date manufacture_date) {
         this.manufacture_date = manufacture_date;
+    }
+
+    public Date getStockInDate() {
+        return stockInDate;
+    }
+
+    public void setStockInDate(Date stockInDate) {
+        this.stockInDate = stockInDate;
     }
 
     public long getDealerPrice() {
