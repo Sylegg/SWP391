@@ -1,6 +1,5 @@
 package com.lemon.supershop.swp391fa25evdm.contract.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,7 +10,6 @@ import com.lemon.supershop.swp391fa25evdm.contract.model.dto.ContractReq;
 import com.lemon.supershop.swp391fa25evdm.contract.model.dto.ContractRes;
 import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
 import com.lemon.supershop.swp391fa25evdm.contract.repository.ContractRepo;
-import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
 import com.lemon.supershop.swp391fa25evdm.order.repository.OrderRepo;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import com.lemon.supershop.swp391fa25evdm.user.repository.UserRepo;
@@ -60,11 +58,6 @@ public class ContractService {
         contract.setSignedDate(dto.getSignedDate());
         contract.setFileUrl(dto.getFileUrl());
 
-        Optional<Order> order = orderRepo.findById(dto.getOrderId());
-        if (order.isPresent()) {
-            contract.setOrder(order.get());
-        }
-
         Optional<User> user = userRepo.findById(dto.getUserId());
         if (user.isPresent()) {
             contract.setUser(user.get());
@@ -86,18 +79,11 @@ public class ContractService {
     public ContractRes updateContract(int id, ContractReq dto) throws Exception {
         Optional<Contract> existingContract = contractRepo.findById(id);
         if (existingContract.isPresent()) {
-            if (dto.getSignedDate() != null) {
-                existingContract.get().setSignedDate(dto.getSignedDate());
-            }
             if (dto.getFileUrl() != null) {
                 existingContract.get().setFileUrl(dto.getFileUrl());
             }
             if (dto.getStatus() != null) {
                 existingContract.get().setStatus(dto.getStatus());
-            }
-            Optional<Order> order = orderRepo.findById(dto.getOrderId());
-            if (order.isPresent()) {
-                existingContract.get().setOrder(order.get());
             }
             Optional<User> user = userRepo.findById(dto.getUserId());
             if (user.isPresent()) {
@@ -115,7 +101,6 @@ public class ContractService {
             dto.setId(contract.getId());
             dto.setSignedDate(contract.getSignedDate());
             dto.setFileUrl(contract.getFileUrl());
-            dto.setOrderId(contract.getOrder().getId());
             dto.setUserId(contract.getUser().getId());
             dto.setStatus(contract.getStatus());
             return dto;

@@ -69,38 +69,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);
 
-      const userData: User = {
-        username: data.username,
-        role: {
-          name: data.role as RoleName,
-        },
-        // Thêm thông tin dealer nếu có từ response
-        dealerId: (data as any).dealerId,
-        dealerName: (data as any).dealerName,
-        dealerAddress: (data as any).dealerAddress,
-      };
-
+      // Set token first so subsequent API calls can use it
       setToken(data.token);
-      
-      // Nếu có userId trong response, gọi API để lấy thông tin dealer
-      if ((data as any).userId) {
-        try {
-          const userProfile = await getUserProfile((data as any).userId);
-          if (userProfile.dealerId) {
-            userData.dealerId = userProfile.dealerId;
-            userData.dealerName = userProfile.dealerName;
-            userData.dealerAddress = userProfile.dealerAddress;
-          }
-        } catch (profileError) {
-          console.warn('Could not load user profile:', profileError);
-        }
-      }
-      
-      setUser(userData);
-
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Get user profile by username to get userId
+      try {
+        const userProfileRes = await api.get<any[]>(`/api/user/${data.username}`);
+        // API trả về array, lấy phần tử đầu tiên
+        const userProfile = userProfileRes.data[0];
+        
+        if (userProfile) {
+          const userData: User = {
+            id: userProfile.id?.toString(),
+            username: data.username,
+            email: userProfile.email,
+            phone: userProfile.phone,
+            address: userProfile.address,
+            role: {
+              name: data.role as RoleName,
+            },
+            dealerId: userProfile.dealerId,
+            dealerName: userProfile.dealerName,
+            dealerAddress: userProfile.dealerAddress,
+          };
+
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+        } else {
+          throw new Error('User profile not found');
+        }
+      } catch (profileError) {
+        console.error('Could not load user profile:', profileError);
+        // Fallback to basic user data without id
+        const userData: User = {
+          username: data.username,
+          role: {
+            name: data.role as RoleName,
+          },
+        };
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
     } catch (error) {
       console.error('Login error:', error);
       // Throw a more specific error message

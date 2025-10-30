@@ -2,7 +2,6 @@ package com.lemon.supershop.swp391fa25evdm.order.controller;
 
 import com.lemon.supershop.swp391fa25evdm.order.model.dto.request.DeliveryReq;
 import com.lemon.supershop.swp391fa25evdm.order.model.dto.request.OrderReq;
-import com.lemon.supershop.swp391fa25evdm.order.model.dto.request.UpdateOrderReq;
 import com.lemon.supershop.swp391fa25evdm.order.model.dto.response.OrderRes;
 import com.lemon.supershop.swp391fa25evdm.order.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +47,7 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}")
-    public ResponseEntity<String> updateOrder(@PathVariable int orderId, @RequestBody UpdateOrderReq dto) {
+    public ResponseEntity<String> updateOrder(@PathVariable int orderId, @RequestBody OrderReq dto) {
         orderService.updateOrder(orderId, dto);
         return ResponseEntity.ok("Order updated successfully!");
     }

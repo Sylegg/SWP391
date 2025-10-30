@@ -2,29 +2,41 @@ package com.lemon.supershop.swp391fa25evdm.distribution.model.entity;
 
 // ❌ Xóa JsonIgnore - không dùng nữa
 // import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
-import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
-import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "distribution")
 public class Distribution {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "Id", columnDefinition = "BIGINT")
     private int id;
 
     @Column(name = "Status", columnDefinition = "VARCHAR(20)")
-    private String status; // INVITED, ACCEPTED, DECLINED, PENDING, CONFIRMED, CANCELED, PLANNED, COMPLETED
+    private String status; // INVITED, ACCEPTED, DECLINED, PENDING, CONFIRMED, CANCELED, PRICE_SENT, PRICE_ACCEPTED, PRICE_REJECTED, PLANNED, COMPLETED
 
-    // ❌ Xóa Category - không sử dụng, Dealer đã có Category
-    // @ManyToOne(fetch = FetchType.LAZY)
-    // @JoinColumn(name = "CategoryId")
-    // @JsonIgnore
-    // private Category category;
+    @Column(name = "ManufacturerPrice")
+    private Double manufacturerPrice; // Giá hãng gửi cho dealer
 
     @OneToMany(mappedBy = "distribution", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Product> products;
@@ -35,10 +47,6 @@ public class Distribution {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "DealerId")
     private Dealer dealer;
-
-    // ❌ Xóa Contract - không sử dụng
-    // @OneToOne(mappedBy = "distribution")
-    // private Contract contract;
 
     // Messages & Notes
     @Column(name = "InvitationMessage", columnDefinition = "NVARCHAR(500)")
@@ -60,18 +68,6 @@ public class Distribution {
     @Column(name = "InvitedAt", columnDefinition = "DATETIME2")
     private LocalDateTime invitedAt;
 
-    // ❌ Xóa các timeline không dùng
-    // @Column(name = "RespondedAt", columnDefinition = "DATETIME2")
-    // private LocalDateTime respondedAt;
-    // @Column(name = "SubmittedAt", columnDefinition = "DATETIME2")
-    // private LocalDateTime submittedAt;
-    // @Column(name = "ApprovedAt", columnDefinition = "DATETIME2")
-    // private LocalDateTime approvedAt;
-    // @Column(name = "PlannedAt", columnDefinition = "DATETIME2")
-    // private LocalDateTime plannedAt;
-    // @Column(name = "CompletedAt", columnDefinition = "DATETIME2")
-    // private LocalDateTime completedAt;
-
     // Dates
     @Column(name = "Deadline", columnDefinition = "DATETIME2")
     private LocalDateTime deadline;
@@ -92,11 +88,8 @@ public class Distribution {
     @Column(name = "ReceivedQuantity")
     private Integer receivedQuantity;
 
-    // ❌ Xóa quantities không dùng
-    // @Column(name = "ApprovedQuantity")
-    // private Integer approvedQuantity;
-    // @Column(name = "ActualQuantity")
-    // private Integer actualQuantity;
+    @OneToOne(mappedBy = "distribution")
+    private Contract contract;
 
     @PrePersist
     protected void onCreate() {
@@ -106,7 +99,8 @@ public class Distribution {
         }
     }
 
-    public Distribution() {}
+    public Distribution() {
+    }
 
     // Getters and Setters
     public int getId() {
@@ -125,10 +119,6 @@ public class Distribution {
         this.status = status;
     }
 
-    // ❌ Xóa Category getter/setter - không dùng
-    // public Category getCategory() { return category; }
-    // public void setCategory(Category category) { this.category = category; }
-
     public Dealer getDealer() {
         return dealer;
     }
@@ -137,9 +127,13 @@ public class Distribution {
         this.dealer = dealer;
     }
 
-    // ❌ Xóa Contract getter/setter
-    // public Contract getContract() { return contract; }
-    // public void setContract(Contract contract) { this.contract = contract; }
+    public Contract getContract() {
+        return contract;
+    }
+
+    public void setContract(Contract contract) {
+        this.contract = contract;
+    }
 
     public List<Product> getProducts() {
         return products;
@@ -205,18 +199,6 @@ public class Distribution {
         this.invitedAt = invitedAt;
     }
 
-    // ❌ Xóa 5 timeline getters/setters không dùng
-    // public LocalDateTime getRespondedAt() { return respondedAt; }
-    // public void setRespondedAt(LocalDateTime respondedAt) { this.respondedAt = respondedAt; }
-    // public LocalDateTime getSubmittedAt() { return submittedAt; }
-    // public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
-    // public LocalDateTime getApprovedAt() { return approvedAt; }
-    // public void setApprovedAt(LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
-    // public LocalDateTime getPlannedAt() { return plannedAt; }
-    // public void setPlannedAt(LocalDateTime plannedAt) { this.plannedAt = plannedAt; }
-    // public LocalDateTime getCompletedAt() { return completedAt; }
-    // public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
-
     public LocalDateTime getDeadline() {
         return deadline;
     }
@@ -257,17 +239,19 @@ public class Distribution {
         this.requestedQuantity = requestedQuantity;
     }
 
-    // ❌ Xóa 2 quantity getters/setters không dùng
-    // public Integer getApprovedQuantity() { return approvedQuantity; }
-    // public void setApprovedQuantity(Integer approvedQuantity) { this.approvedQuantity = approvedQuantity; }
-    // public Integer getActualQuantity() { return actualQuantity; }
-    // public void setActualQuantity(Integer actualQuantity) { this.actualQuantity = actualQuantity; }
-
     public Integer getReceivedQuantity() {
         return receivedQuantity;
     }
 
     public void setReceivedQuantity(Integer receivedQuantity) {
         this.receivedQuantity = receivedQuantity;
+    }
+
+    public Double getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Double manufacturerPrice) {
+        this.manufacturerPrice = manufacturerPrice;
     }
 }

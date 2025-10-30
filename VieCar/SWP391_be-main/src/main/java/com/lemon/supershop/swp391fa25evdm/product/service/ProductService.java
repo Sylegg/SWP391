@@ -2,7 +2,9 @@ package com.lemon.supershop.swp391fa25evdm.product.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.DealerCategory;
 import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,39 +99,34 @@ public class ProductService {
             if (product.getEngineNum() != null) {
                 productRes.setEngineNum(product.getEngineNum());
             }
-            if (product.getColor() != null) {
-                productRes.setColor(product.getColor());
-            }
-            if (product.getHp() > 0){
-                productRes.setHp(product.getHp());
+            if (product.getBattery() > 0) {
+                productRes.setBattery(product.getBattery());
             }
             if (product.getRange() > 0){
                 productRes.setRange(product.getRange());
             }
+            if (product.getHp() > 0){
+                productRes.setHp(product.getHp());
+            }
             if (product.getTorque() > 0) {
                 productRes.setTorque(product.getTorque());
             }
-            if (product.getBattery() > 0) {
-                productRes.setBattery(product.getBattery());
+            if (product.getManufacture_date() != null){
+                productRes.setManufacture_date(product.getManufacture_date());
             }
-
+            if (product.getImage() != null) {
+                productRes.setImage(product.getImage());
+            }
             if (product.getDescription() != null) {
                 productRes.setDescription(product.getDescription());
+            }
+            if (product.getDealerPrice() > 0) {
+                productRes.setPrice(product.getDealerPrice());
             }
             if (product.getStatus() != null) {
                 productRes.setStatus(product.getStatus());
             } else {
                 productRes.setStatus(ProductStatus.INACTIVE);
-            }
-            if (product.getImage() != null) {
-                productRes.setImage(product.getImage());
-            }
-            if (product.getManufacture_date() != null){
-                productRes.setManufacture_date(product.getManufacture_date());
-            }
-            // Map dealer price to response.price for UI
-            if (product.getDealerPrice() > 0) {
-                productRes.setPrice(product.getDealerPrice());
             }
             if (product.getCategory() != null) {
                 Optional<Category> category = categoryRepository.findById(product.getCategory().getId());

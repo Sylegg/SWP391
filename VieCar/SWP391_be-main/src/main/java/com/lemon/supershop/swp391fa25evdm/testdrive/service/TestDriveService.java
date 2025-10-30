@@ -7,12 +7,14 @@ import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.service.DealerService;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
 import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
 import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserRes;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import com.lemon.supershop.swp391fa25evdm.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.TestDriveReq;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.TestDriveRes;
@@ -86,42 +88,36 @@ public class TestDriveService {
     //tham chiếu đến một phương thức của object và sử dụng nó như một biểu thức lambda.
     //không cần thêm logic
     private TestDrive convertToEntity(TestDrive testDrive, TestDriveReq req) {
-        if (testDrive != null && req != null) {
+        if (testDrive != null || req != null) {
             if (req.getScheduleDate() != null) {
                 testDrive.setScheduleDate(req.getScheduleDate());
             }
             if (req.getStatus() != null) {
                 testDrive.setStatus(req.getStatus());
-            } else {
-                // Set default status if not provided
-                testDrive.setStatus("PENDING");
             }
-            if (req.getNotes() != null && !req.getNotes().isEmpty()) {
+            if (req.getNotes() != null) {
                 testDrive.setNotes(req.getNotes());
             }
             if (req.getUserId() > 0){
                 Optional<User> user = userRepo.findById(req.getUserId());
                 if (user.isPresent()) {
-                    testDrive.setUser(user.get());
-                    if (user.get().getTestDrives() != null) {
-                        user.get().getTestDrives().add(testDrive);
-                    }
+                    testDrive.setUser(user.orElse(null));
+                    user.get().getTestDrives().add(testDrive);
                 }
             }
             if (req.getDealerId() > 0){
                 Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
                 if (dealer.isPresent()) {
                     testDrive.setDealer(dealer.get());
-                    if (dealer.get().getTestDrives() != null) {
-                        dealer.get().getTestDrives().add(testDrive);
-                    }
+                    dealer.get().getTestDrives().add(testDrive);
                 }
             }
             if (req.getProductId() > 0){
                 Optional<Product> product = productRepo.findById(req.getProductId());
                 if (product.isPresent()) {
-                    // Remove status constraint - allow any product to be test driven
-                    testDrive.setProduct(product.get());
+                    if (product.get().getStatus().equals(ProductStatus.TEST_DRIVE)){
+                        testDrive.setProduct(product.get());
+                    }
                 }
             }
             return testDrive;
@@ -147,15 +143,16 @@ public class TestDriveService {
             if (testDrive.getUser() != null) {
                 Optional<User> user = userRepo.findById(testDrive.getUser().getId());
                 if (user.isPresent()){
-                    UserRes userRes = userService.convertUsertoUserRes(user.get());
+                    UserRes userRes = userService.converttoRes(user.get());
                     res.setUser(userRes);
                 }
             }
             if (testDrive.getDealer() != null) {
                 Optional<Dealer> dealer = dealerRepo.findById(testDrive.getDealer().getId());
                 if (dealer.isPresent()){
-                    DealerRes dealerRes = dealerService.convertDealertoDealerRes(dealer.get());
+                    DealerRes dealerRes = dealerService.converttoRes(dealer.get());
                     res.setDealer(dealerRes);
+                    res.setLocation(dealerRes.getAddress());
                 }
             }
             if (testDrive.getProduct() != null) {

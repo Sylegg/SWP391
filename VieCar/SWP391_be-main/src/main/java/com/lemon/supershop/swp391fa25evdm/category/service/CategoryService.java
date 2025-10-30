@@ -64,13 +64,14 @@ public class CategoryService {
 
         category.setName(dto.getName());
         category.setBrand(dto.getBrand());
-    // Removed: version/type
-        category.setBasePrice(dto.getBasePrice() != null ? dto.getBasePrice() : category.getBasePrice());
-        category.setWarranty(dto.getWarranty() != null ? dto.getWarranty() : category.getWarranty());
+        category.setVersion(dto.getVersion());
+        category.setType(dto.getType());
+        category.setBasePrice(dto.getBasePrice());
+        category.setWarranty(dto.getWarranty());
         category.setDescription(dto.getDescription());
-        category.setStatus(dto.getStatus() != null ? dto.getStatus() : category.getStatus());
-        // Handle null Boolean - keep existing value if null
-        category.setSpecial(dto.isSpecial() != null ? dto.isSpecial() : category.isSpecial());
+        category.setStatus(dto.getStatus());
+        
+        category.setSpecial(dto.isSpecial());
         Category updatedCategory = categoryRepository.save(category);
         return convertToRes(updatedCategory);
     }
@@ -116,13 +117,14 @@ public class CategoryService {
 
         category.setName(dto.getName());
         category.setBrand(dto.getBrand());
-    // Removed: version/type
-        // Handle null Boolean - default to false if null
-        category.setSpecial(dto.isSpecial() != null ? dto.isSpecial() : false);
-        category.setBasePrice(dto.getBasePrice() != null ? dto.getBasePrice() : 0L);
-        category.setWarranty(dto.getWarranty() != null ? dto.getWarranty() : 0);
+        category.setVersion(dto.getVersion());
+        category.setType(dto.getType());
+        category.setSpecial(dto.isSpecial());
+        category.setBasePrice(dto.getBasePrice());
+        category.setWarranty(dto.getWarranty());
         category.setDescription(dto.getDescription());
-        category.setStatus(dto.getStatus() != null ? dto.getStatus() : "ACTIVE");
+        category.setStatus(dto.getStatus());
+        category.setSpecial(dto.isSpecial());
         return category;
     }
 
@@ -154,7 +156,12 @@ public class CategoryService {
             if (category.getBrand() != null) {
                 categoryRes.setBrand(category.getBrand());
             }
-            // Removed: version/type mapping
+            if (category.getVersion() != null) {
+                categoryRes.setVersion(category.getVersion());
+            }
+            if (category.getType() != null) {
+                categoryRes.setType(category.getType());
+            }
             if (category.getBasePrice() > 0){
                 categoryRes.setBasePrice(category.getBasePrice());
             }

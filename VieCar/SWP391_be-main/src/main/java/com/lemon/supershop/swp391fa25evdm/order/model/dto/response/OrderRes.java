@@ -10,64 +10,73 @@ public class OrderRes {
     private String customerName;
     private String productName;
     private List<Contract> contracts;
-    private double totalPrice;
+    private long totalPrice;
+    private String description;
     private String status;
 
     public OrderRes(){}
 
-    public void setOrderId(int orderId) {
-        this.orderId = orderId;
-    }
-
-    public void setCustomerName(String customerName) {
-        this.customerName = customerName;
-    }
-
-    public void setTotalPrice(double totalPrice) {
-        this.totalPrice = totalPrice;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public void setProductName(String productName) {
-        this.productName = productName;
-    }
-
-    public void setContracts(List<Contract> contractId) {
-        this.contracts = contracts;
-    }
-
-    public void setDealerId(int dealerId) {
-        this.dealerId = dealerId;
-    }
-
     public int getOrderId() {
         return orderId;
+    }
+
+    public void setOrderId(int orderId) {
+        this.orderId = orderId;
     }
 
     public int getDealerId() {
         return dealerId;
     }
 
+    public void setDealerId(int dealerId) {
+        this.dealerId = dealerId;
+    }
+
     public String getCustomerName() {
         return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
 
     public String getProductName() {
         return productName;
     }
 
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+
     public List<Contract> getContracts() {
         return contracts;
     }
 
-    public double getTotalPrice() {
+    public void setContracts(List<Contract> contracts) {
+        this.contracts = contracts;
+    }
+
+    public long getTotalPrice() {
         return totalPrice;
+    }
+
+    public void setTotalPrice(long totalPrice) {
+        this.totalPrice = totalPrice;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getStatus() {
         return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

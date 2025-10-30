@@ -1,10 +1,12 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request;
 
 public class DistributionResponseReq {
+
     private String response; // "ACCEPTED" or "DECLINED"
     private String dealerNotes;
 
-    public DistributionResponseReq() {}
+    public DistributionResponseReq() {
+    }
 
     public String getResponse() {
         return response;

@@ -1,7 +1,9 @@
 package com.lemon.supershop.swp391fa25evdm.preorder.model.dto;
 
 import java.util.Date;
+import java.util.List;
 
+import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,16 +15,9 @@ public class PreOrderRes {
     private Date orderDate;
     private String status;
     private double deposit;
+    private List<Contract> contracts;
 
     public PreOrderRes() {
-    }
-
-    public PreOrderRes(int userId, int productId, Date orderDate, String status, double deposit) {
-        this.userId = userId;
-        this.productId = productId;
-        this.orderDate = orderDate;
-        this.status = status;
-        this.deposit = deposit;
     }
 
     public int getUserId() {
@@ -63,5 +58,13 @@ public class PreOrderRes {
 
     public void setDeposit(double deposit) {
         this.deposit = deposit;
+    }
+
+    public List<Contract> getContracts() {
+        return contracts;
+    }
+
+    public void setContracts(List<Contract> contracts) {
+        this.contracts = contracts;
     }
 }

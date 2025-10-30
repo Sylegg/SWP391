@@ -1,11 +1,13 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request;
 
 public class DistributionOrderItemReq {
+
     private Integer productId;
     private String color;
     private Integer quantity;
 
-    public DistributionOrderItemReq() {}
+    public DistributionOrderItemReq() {
+    }
 
     public Integer getProductId() {
         return productId;

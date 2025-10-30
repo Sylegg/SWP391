@@ -1,10 +1,4 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
-
-import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductReq;
-import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request;
 
 import java.util.List;
 

@@ -1,13 +1,15 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request;
 
 import java.time.LocalDateTime;
 
 public class DistributionInvitationReq {
+
     private Integer dealerId;
     private String invitationMessage;
     private LocalDateTime deadline;
 
-    public DistributionInvitationReq() {}
+    public DistributionInvitationReq() {
+    }
 
     public Integer getDealerId() {
         return dealerId;

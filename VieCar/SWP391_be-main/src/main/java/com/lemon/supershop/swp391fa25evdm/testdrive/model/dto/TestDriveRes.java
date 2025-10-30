@@ -14,6 +14,7 @@ public class TestDriveRes {
     private LocalDateTime scheduleDate;
     private String status; // PENDING, CONFIRMED, COMPLETED, CANCELED
     private String notes;
+    private String location;
     private UserRes user;
     private DealerRes dealer;
     private String productName;
@@ -75,5 +76,13 @@ public class TestDriveRes {
 
     public void setProductName(String productName) {
         this.productName = productName;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 }

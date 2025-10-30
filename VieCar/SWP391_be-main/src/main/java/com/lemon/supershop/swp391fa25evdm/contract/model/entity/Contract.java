@@ -10,16 +10,7 @@ import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
 import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 
 @Entity

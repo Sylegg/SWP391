@@ -14,7 +14,6 @@ import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.order.model.dto.request.DeliveryReq;
 import com.lemon.supershop.swp391fa25evdm.order.model.dto.request.OrderReq;
-import com.lemon.supershop.swp391fa25evdm.order.model.dto.request.UpdateOrderReq;
 import com.lemon.supershop.swp391fa25evdm.order.model.dto.response.OrderRes;
 import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
 import com.lemon.supershop.swp391fa25evdm.order.repository.OrderRepo;
@@ -50,7 +49,7 @@ public class OrderService {
         User user = userRepo.findById(userId).get();
         if (user != null){
             return orderRepo.findByUserId(user.getId()).stream().map(order -> {
-                return convertOrderToOrderRes(order);
+                return convertoRes(order);
             }).collect(Collectors.toList());
         }else {
             return null;
@@ -59,7 +58,7 @@ public class OrderService {
 
     public List<OrderRes> ListAllOrders() {
             return orderRepo.findAll().stream().map(order -> {
-                return convertOrderToOrderRes(order);
+                return convertoRes(order);
             }).collect(Collectors.toList());
     }
 
@@ -68,33 +67,9 @@ public class OrderService {
         if (user.isPresent()){
             Order order = new Order();
             order.setUser(user.get());
-            if (dto.getProductId() > 0 ){
-                Optional<Product> product  = productRepo.findById(dto.getProductId());
-                if (product.isPresent()){
-                    order.setProduct(product.orElse(null));
-                    order.setTotal(product.get().getDealerPrice());
-                }
-            }
-            if (dto.getContractId() > 0){
-                Optional<Contract> contract  = contractRepo.findById(dto.getContractId());
-                if (contract.isPresent()){
-                    List<Contract> contracts = new ArrayList<>();
-                    contracts.add(contract.get());
-                    order.setContract(contracts);
-                }
-            }
-            if (dto.getDealerId() > 0){
-                Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
-                if (dealer.isPresent()){
-                    order.setDealer(dealer.orElse(null));
-                    List<Promotion> promotions = promotionRepo.findByDealer_Id(dealer.get().getId());
-                    if (promotions != null){
-                        order.setPromotions(promotions);
-                    }
-                }
-            }
-            orderRepo.save(order);
-            return convertOrderToOrderRes(order);
+            Order newOrder = converttoEntity(order, dto);
+            orderRepo.save(newOrder);
+            return convertoRes(newOrder);
         }
         return null;
     }
@@ -109,43 +84,19 @@ public class OrderService {
             }
             if (dto.getShip_status() != null){
                 order.get().setShipStatus(dto.getShip_status());
-            } else {
-                order.get().setShipStatus("Wait for delivery");
             }
             orderRepo.save(order.get());
-            return convertOrderToOrderRes(order.get());
+            return convertoRes(order.get());
         }
         return null;
     }
 
-    public OrderRes updateOrder(int orderId, UpdateOrderReq dto) {
+    public OrderRes updateOrder(int orderId, OrderReq dto) {
         Optional<Order> order = orderRepo.findById(orderId);
         if (order.isPresent()){
-            if (dto.getProductId() > 0 ){
-                Optional<Product> product  = productRepo.findById(dto.getProductId());
-                if (product.isPresent()){
-                    order.get().setProduct(product.orElse(null));
-                    order.get().setTotal(product.get().getDealerPrice());
-                }
-            }
-            if (dto.getContractId() > 0 ){
-                Optional<Contract> contract = contractRepo.findById(dto.getContractId());
-                if (contract.isPresent()){
-                    order.get().getContract().add(contract.get());
-                }
-            }
-            if (dto.getDealerId() > 0){
-                Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
-                if (dealer.isPresent()){
-                    order.get().setDealer(dealer.orElse(null));
-                    List<Promotion> promotions = promotionRepo.findByDealer_Id(dealer.get().getId());
-                    if (promotions != null){
-                        order.get().setPromotions(promotions);
-                    }
-                }
-            }
-            orderRepo.save(order.get());
-            return convertOrderToOrderRes(order.get());
+            Order updateOrder = converttoEntity(order.get(), dto);
+            orderRepo.save(updateOrder);
+            return convertoRes(order.get());
         }
         return null;
     }
@@ -163,7 +114,7 @@ public class OrderService {
                 order.get().setShipStatus(dto.getShip_status());
             }
             orderRepo.save(order.get());
-            return convertOrderToOrderRes(order.get());
+            return convertoRes(order.get());
         }
         return null;
     }
@@ -194,7 +145,7 @@ public class OrderService {
         return false;
     }
 
-    public OrderRes convertOrderToOrderRes(Order order) {
+    public OrderRes convertoRes(Order order) {
         OrderRes orderRes = new OrderRes();
         if (order != null){
             orderRes.setOrderId(order.getId());
@@ -213,6 +164,9 @@ public class OrderService {
             if (order.getTotal() >= 0){
                 orderRes.setTotalPrice(order.getTotal());
             }
+            if (order.getDescription() != null){
+                orderRes.setDescription(order.getDescription());
+            }
             if (order.getStatus() != null){
                 orderRes.setStatus(order.getStatus());
             } else {
@@ -220,5 +174,44 @@ public class OrderService {
             }
         }
         return orderRes;
+    }
+    public Order converttoEntity(Order order, OrderReq dto){
+        if (order != null){
+            if (dto.getProductId() > 0 ){
+                Optional<Product> product  = productRepo.findById(dto.getProductId());
+                if (product.isPresent()){
+                    order.setProduct(product.orElse(null));
+                    order.setTotal(product.get().getDealerPrice());
+                }
+            }
+            if (dto.getContractId() > 0 ){
+                Optional<Contract> contract = contractRepo.findById(dto.getContractId());
+                if (contract.isPresent()){
+                    contract.get().setOrder(order);
+                    if (order.getContract() != null){
+                        order.getContract().add(contract.get());
+                        contractRepo.save(contract.get());
+                    } else {
+                        List<Contract> contracts = new ArrayList<Contract>();
+                        order.setContract(contracts);
+                    }
+                }
+            }
+            if (dto.getDealerId() > 0){
+                Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
+                if (dealer.isPresent()){
+                    order.setDealer(dealer.orElse(null));
+                    List<Promotion> promotions = promotionRepo.findByDealer_Id(dealer.get().getId());
+                    if (promotions != null){
+                        order.setPromotions(promotions);
+                    }
+                }
+            }
+            if (dto.getDescription() != null){
+                order.setDescription(dto.getDescription());
+            }
+            return order;
+        }
+        return null;
     }
 }

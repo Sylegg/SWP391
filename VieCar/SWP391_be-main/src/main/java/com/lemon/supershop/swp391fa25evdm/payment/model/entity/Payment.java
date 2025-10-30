@@ -1,12 +1,24 @@
 package com.lemon.supershop.swp391fa25evdm.payment.model.entity;
 
+import java.util.Date;
+
 import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
 import com.lemon.supershop.swp391fa25evdm.payment.model.enums.PaymentStatus;
 import com.lemon.supershop.swp391fa25evdm.preorder.model.entity.PreOrder;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
-import jakarta.persistence.*;
 
-import java.util.Date;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "payment")
@@ -24,12 +36,30 @@ public class Payment {
     @Column(name = "Method", columnDefinition = "NVARCHAR(50)")
     private String method;
 
+    @Column(name = "Trans_Code", unique = true)
+    private String transactionCode; // VNPay transaction number
+
+    @Column(name = "OrderVnp_Id", nullable = false, unique = true)
+    private String vnpOrderId; // Order reference ID
+
+    @Column(name = "Bank_Code", columnDefinition = "VARCHAR(20)")
+    private String bankCode; // NCB, VIETCOMBANK, etc.
+
+    @Column(name = "Response_Code", columnDefinition = "VARCHAR(5)")
+    private String responseCode; // 00 = success, 24 = cancel, etc.
+
     @Column(name = "PaidStatus", columnDefinition = "VARCHAR(20)")
     @Enumerated(EnumType.STRING)
     private PaymentStatus paidStatus;
 
     @Column(name = "PaidAt", columnDefinition = "DATETIME2")
     private Date paidAt;
+
+    @Column(name = "UpdateAt", columnDefinition = "DATETIME2")
+    private Date UpdateAt;
+
+    @Column(name = "Provider_Response", columnDefinition = "TEXT")
+    private String providerResponse; // Raw JSON response from provider
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrderId")
@@ -107,5 +137,53 @@ public class Payment {
 
     public void setPreOrder(PreOrder preOrder) {
         this.preOrder = preOrder;
+    }
+
+    public String getTransactionCode() {
+        return transactionCode;
+    }
+
+    public void setTransactionCode(String transactionCode) {
+        this.transactionCode = transactionCode;
+    }
+
+    public String getVnpOrderId() {
+        return vnpOrderId;
+    }
+
+    public void setVnpOrderId(String vnpOrderId) {
+        this.vnpOrderId = vnpOrderId;
+    }
+
+    public String getBankCode() {
+        return bankCode;
+    }
+
+    public void setBankCode(String bankCode) {
+        this.bankCode = bankCode;
+    }
+
+    public String getResponseCode() {
+        return responseCode;
+    }
+
+    public void setResponseCode(String responseCode) {
+        this.responseCode = responseCode;
+    }
+
+    public String getProviderResponse() {
+        return providerResponse;
+    }
+
+    public void setProviderResponse(String providerResponse) {
+        this.providerResponse = providerResponse;
+    }
+
+    public Date getUpdateAt() {
+        return UpdateAt;
+    }
+
+    public void setUpdateAt(Date updateAt) {
+        UpdateAt = updateAt;
     }
 }

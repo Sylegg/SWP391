@@ -5,7 +5,8 @@ public class CategoryRes {
     private Integer id;
     private String name;
     private String brand;
-    // Removed fields: version, type
+    private String version;
+    private String type;
     private Long basePrice;
     private Integer warranty;
     private Boolean isSpecial;
@@ -38,7 +39,21 @@ public class CategoryRes {
         this.brand = brand;
     }
 
-    // Removed getters/setters for version and type
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
 
     public Long getBasePrice() {
         return basePrice;

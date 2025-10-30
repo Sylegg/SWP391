@@ -1,53 +1,42 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
-
-// ❌ Xóa CategoryRes import - không dùng
-// import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
-import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
-import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
+import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
 
 public class DistributionRes {
 
     private Integer id;
     private String status;
-    // ❌ Xóa category - không dùng
-    // private CategoryRes category;
     private DealerRes dealer;
     private List<ProductRes> products;
     private List<DistributionItemRes> items;
-    
+
     // Messages/Notes
     private String invitationMessage;
     private String dealerNotes;
     private String evmNotes;
     private String feedback;
-    
+
     // Timeline - CHỈ 2 FIELD ĐANG DÙNG
     private LocalDateTime createdAt;
     private LocalDateTime invitedAt;
-    // ❌ Xóa 5 timeline fields không dùng
-    // private LocalDateTime respondedAt;
-    // private LocalDateTime submittedAt;
-    // private LocalDateTime approvedAt;
-    // private LocalDateTime plannedAt;
-    // private LocalDateTime completedAt;
-    
+
     // Dates
     private LocalDateTime deadline;
     private LocalDateTime requestedDeliveryDate;
     private LocalDateTime estimatedDeliveryDate;
     private LocalDateTime actualDeliveryDate;
-    
+
     // Quantities - CHỈ 2 FIELD ĐANG DÙNG
     private Integer requestedQuantity;
     private Integer receivedQuantity;
-    // ❌ Xóa 2 quantity fields không dùng
-    // private Integer approvedQuantity;
-    // private Integer actualQuantity;
+    private Double manufacturerPrice; // Giá hãng gửi cho dealer
 
-    public DistributionRes() {}
+    public DistributionRes() {
+    }
 
     // Getters and Setters
     public Integer getId() {
@@ -65,10 +54,6 @@ public class DistributionRes {
     public void setStatus(String status) {
         this.status = status;
     }
-
-    // ❌ Xóa category getter/setter - không dùng
-    // public CategoryRes getCategory() { return category; }
-    // public void setCategory(CategoryRes category) { this.category = category; }
 
     public DealerRes getDealer() {
         return dealer;
@@ -142,18 +127,6 @@ public class DistributionRes {
         this.invitedAt = invitedAt;
     }
 
-    // ❌ Xóa 5 timeline getters/setters không dùng
-    // public LocalDateTime getRespondedAt() { return respondedAt; }
-    // public void setRespondedAt(LocalDateTime respondedAt) { this.respondedAt = respondedAt; }
-    // public LocalDateTime getSubmittedAt() { return submittedAt; }
-    // public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
-    // public LocalDateTime getApprovedAt() { return approvedAt; }
-    // public void setApprovedAt(LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
-    // public LocalDateTime getPlannedAt() { return plannedAt; }
-    // public void setPlannedAt(LocalDateTime plannedAt) { this.plannedAt = plannedAt; }
-    // public LocalDateTime getCompletedAt() { return completedAt; }
-    // public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
-
     public LocalDateTime getDeadline() {
         return deadline;
     }
@@ -194,12 +167,6 @@ public class DistributionRes {
         this.requestedQuantity = requestedQuantity;
     }
 
-    // ❌ Xóa 2 quantity getters/setters không dùng
-    // public Integer getApprovedQuantity() { return approvedQuantity; }
-    // public void setApprovedQuantity(Integer approvedQuantity) { this.approvedQuantity = approvedQuantity; }
-    // public Integer getActualQuantity() { return actualQuantity; }
-    // public void setActualQuantity(Integer actualQuantity) { this.actualQuantity = actualQuantity; }
-
     public Integer getReceivedQuantity() {
         return receivedQuantity;
     }
@@ -207,5 +174,12 @@ public class DistributionRes {
     public void setReceivedQuantity(Integer receivedQuantity) {
         this.receivedQuantity = receivedQuantity;
     }
-}
 
+    public Double getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Double manufacturerPrice) {
+        this.manufacturerPrice = manufacturerPrice;
+    }
+}

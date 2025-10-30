@@ -6,7 +6,7 @@ public class   DealerReq {
     private String phone;
     private String email;
     private String taxcode;
-    private Integer userId; // ID của user có role dealer manager
+    private int userId;
 
     public DealerReq() {}
 
@@ -30,11 +30,31 @@ public class   DealerReq {
         return taxcode;
     }
 
-    public Integer getUserId() {
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setTaxcode(String taxcode) {
+        this.taxcode = taxcode;
+    }
+
+    public int getUserId() {
         return userId;
     }
 
-    public void setUserId(Integer userId) {
+    public void setUserId(int userId) {
         this.userId = userId;
     }
 }

@@ -2,7 +2,6 @@
 
 import { ProtectedRoute } from "@/components/auth-guards";
 import { useAuth } from "@/contexts/AuthContext";
-import { RoleBadge } from "@/components/role-display";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Car, ShoppingCart, Calendar, Clock, History, Star } from "lucide-react";
@@ -48,8 +47,10 @@ export default function CustomerDashboard() {
                 <CardDescription>Theo dõi trạng thái đơn hàng</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" className="w-full" disabled>
-                  Sắp ra mắt
+                <Button asChild className="w-full">
+                  <Link href="/dashboard/customer/orders">
+                    Xem đơn hàng
+                  </Link>
                 </Button>
               </CardContent>
             </Card>

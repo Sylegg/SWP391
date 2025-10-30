@@ -1,4 +1,6 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.response;
+
+import java.math.BigDecimal;
 
 import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
 
@@ -7,6 +9,7 @@ public class DistributionItemRes {
     private ProductRes product;
     private String color;
     private Integer quantity;
+    private BigDecimal dealerPrice;
 
     public DistributionItemRes() {}
 
@@ -40,5 +43,13 @@ public class DistributionItemRes {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public BigDecimal getDealerPrice() {
+        return dealerPrice;
+    }
+
+    public void setDealerPrice(BigDecimal dealerPrice) {
+        this.dealerPrice = dealerPrice;
     }
 }

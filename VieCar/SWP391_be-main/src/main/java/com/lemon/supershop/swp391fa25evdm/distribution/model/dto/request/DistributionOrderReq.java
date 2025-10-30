@@ -1,14 +1,16 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class DistributionOrderReq {
+
     private List<DistributionOrderItemReq> items;
     private LocalDateTime requestedDeliveryDate;
     private String dealerNotes;
 
-    public DistributionOrderReq() {}
+    public DistributionOrderReq() {
+    }
 
     public List<DistributionOrderItemReq> getItems() {
         return items;

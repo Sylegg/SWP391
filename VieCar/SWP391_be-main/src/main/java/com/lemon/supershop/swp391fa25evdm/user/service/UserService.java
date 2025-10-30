@@ -37,26 +37,26 @@ public class UserService {
 
     public List<UserRes> getAllUsers() {
         return userRepo.findByIsBlackFalse().stream().map(user -> {
-            return convertUsertoUserRes(user);
+            return converttoRes(user);
         }).collect(Collectors.toList());
     }
 
     public List<UserRes> getAllActiveUsers() {
         return userRepo.findByStatus(UserStatus.ACTIVE).stream().map(user -> {
-            return convertUsertoUserRes(user);
+            return converttoRes(user);
         }).collect(Collectors.toList());
     }
 
     public List<UserRes> getBlackList() {
         return userRepo.findByIsBlackTrue().stream().map(user -> {
-            return convertUsertoUserRes(user);
+            return converttoRes(user);
         }).collect(Collectors.toList());
     }
 
     public UserRes findByUserId(int id) {
         Optional<User> user = userRepo.findById(id);
         if (user.isPresent()) {
-            return convertUsertoUserRes(user.get());
+            return converttoRes(user.get());
         } else {
             return null;
         }
@@ -64,19 +64,19 @@ public class UserService {
 
     public List<UserRes> findByUsername(String name) {
         return userRepo.findByUsernameContainingIgnoreCase(name).stream().map(user -> {
-            return convertUsertoUserRes(user);
+            return converttoRes(user);
         }).collect(Collectors.toList());
     }
 
     public List<UserRes> findByDealer(int dealerid) {
         return userRepo.findUsersByDealer_Id(dealerid).stream().map(user -> {
-            return convertUsertoUserRes(user);
+            return converttoRes(user);
         }).collect(Collectors.toList());
     }
 
     public List<UserRes> findDealerManagersWithoutDealer() {
         return userRepo.findByRole_NameAndDealerIsNull("dealer manager").stream().map(user -> {
-            return convertUsertoUserRes(user);
+            return converttoRes(user);
         }).collect(Collectors.toList());
     }
 
@@ -109,7 +109,7 @@ public class UserService {
                 }
             }
             userRepo.save(user.get());
-            return convertUsertoUserRes(user.get());
+            return converttoRes(user.get());
         } else {
             return null;
         }
@@ -133,7 +133,7 @@ public class UserService {
         return false;
     }
 
-    public UserRes convertUsertoUserRes(User user){
+    public UserRes converttoRes(User user){
         UserRes dto = new UserRes();
         if(user != null){
             dto.setId(user.getId());
@@ -155,9 +155,7 @@ public class UserService {
             if (user.getStatus() != null){
                 dto.setStatus(user.getStatus());
             }
-            // Thêm thông tin dealer nếu user thuộc về dealer
             if(user.getDealer() != null){
-                dto.setDealerId(user.getDealer().getId());
                 dto.setDealerName(user.getDealer().getName());
                 dto.setDealerAddress(user.getDealer().getAddress());
             }

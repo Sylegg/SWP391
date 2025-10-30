@@ -9,7 +9,6 @@ public class ProductRes {
     private String name;
     private String vinNum;
     private String engineNum;
-    private String color;
     private double battery;
     private int range;
     private int hp;
@@ -39,14 +38,6 @@ public class ProductRes {
 
     public void setEngineNum(String engineNum) {
         this.engineNum = engineNum;
-    }
-
-    public String getColor() {
-        return color;
-    }
-
-    public void setColor(String color) {
-        this.color = color;
     }
 
     public void setManufacture_date(Date manufacture_date) {
@@ -101,7 +92,7 @@ public class ProductRes {
         return description;
     }
 
-    public long getPrice() {
+    public double getPrice() {
         return price;
     }
 

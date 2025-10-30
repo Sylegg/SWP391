@@ -1,9 +1,5 @@
 package com.lemon.supershop.swp391fa25evdm.category.model.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 public class DealerCategoryReq {
     private String name;
     private int quantity;

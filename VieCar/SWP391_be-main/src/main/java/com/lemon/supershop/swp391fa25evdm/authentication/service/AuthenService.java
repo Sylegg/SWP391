@@ -34,37 +34,26 @@ public class AuthenService {
 
 
     public LoginRes login(LoginReq dto) {
-        Optional<User> userOpt = Optional.empty();
+        Optional<User> user = Optional.empty();
         if (dto.getIdentifier() != null){
             if (EMAIL_PATTERN.matcher(dto.getIdentifier()).matches()){
-                userOpt = userRepo.findByEmail(dto.getIdentifier());
+                user = userRepo.findByEmail(dto.getIdentifier());
             } else {
-                userOpt = userRepo.findByUsername(dto.getIdentifier());
+                user = userRepo.findByUsername(dto.getIdentifier());
             }
         }
 
-        if (!userOpt.isPresent()) {
+        if (!user.isPresent()) {
             throw new RuntimeException("User not found");
         }
-        
-        User user = userOpt.get();
-        
-        if (!user.getPassword().equals(dto.getPassword())) {
+        if (!user.get().getPassword().equals(dto.getPassword())) {
             throw new RuntimeException("Invalid password");
         }
 
-        String token = jwtUtil.generateToken(user.getUsername());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
+        String token = jwtUtil.generateToken(user.get().getUsername());
+        String refreshToken = jwtUtil.generateRefreshToken(user.get().getUsername());
 
-        LoginRes response = new LoginRes(token, refreshToken, user.getUsername(), user.getRole().getName());
-        
-        // Thêm thông tin user và dealer nếu có
-        response.setUserId(user.getId());
-        if (user.getDealer() != null) {
-            response.setDealerId(user.getDealer().getId());
-            response.setDealerName(user.getDealer().getName());
-            response.setDealerAddress(user.getDealer().getAddress());
-        }
+        LoginRes response = new LoginRes(token, refreshToken, user.get().getUsername(), user.get().getRole().getName());
 
         return response;
     }
@@ -78,34 +67,17 @@ public class AuthenService {
     }
 
     public void changePassword(int id, ChangePassReq dto){
-        Optional<User> userOpt = userRepo.findById(id);
-        if (!userOpt.isPresent()) {
-            throw new RuntimeException("User not found");
+        Optional<User> user = userRepo.findById(id);
+        if (user.isPresent()) {
+            if (dto.getOldPass().equals(user.get().getPassword())){
+                if (!dto.getNewPass().equals(user.get().getPassword())){
+                    if (dto.getNewPass().equals(dto.getConfirmPass())){
+                        user.get().setPassword(dto.getNewPass());
+                        userRepo.save(user.get());
+                    }
+                }
+            }
         }
-
-        User user = userOpt.get();
-        String oldPass = dto.getOldPass();
-        String newPass = dto.getNewPass();
-        String confirmPass = dto.getConfirmPass();
-
-        if (oldPass == null || newPass == null || confirmPass == null) {
-            throw new RuntimeException("Password fields must not be null");
-        }
-
-        if (!oldPass.equals(user.getPassword())) {
-            throw new RuntimeException("Old password does not match");
-        }
-
-        if (newPass.equals(user.getPassword())) {
-            throw new RuntimeException("New password must be different from old password");
-        }
-
-        if (!newPass.equals(confirmPass)) {
-            throw new RuntimeException("Confirm password does not match new password");
-        }
-
-        user.setPassword(newPass);
-        userRepo.save(user);
     }
 
     public User converttoEntity(User user, RegisterReq dto){

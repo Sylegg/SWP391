@@ -49,7 +49,7 @@ public class TestDrive {
     @JoinColumn(name = "DealerId")
     private Dealer dealer; // đại lý tổ chức test drive
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ProductId")
     private Product product;
 

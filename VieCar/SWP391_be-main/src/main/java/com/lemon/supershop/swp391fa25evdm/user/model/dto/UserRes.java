@@ -1,5 +1,7 @@
 package com.lemon.supershop.swp391fa25evdm.user.model.dto;
 
+import com.lemon.supershop.swp391fa25evdm.role.model.dto.RoleDto;
+import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
 
 public class UserRes {
@@ -10,7 +12,6 @@ public class UserRes {
     private String address;
     private String role;
     private UserStatus status;
-    private Integer dealerId;
     private String dealerName;
     private String dealerAddress;
 
@@ -42,18 +43,6 @@ public class UserRes {
 
     public UserStatus getStatus() {return status;}
 
-    public Integer getDealerId() {
-        return dealerId;
-    }
-
-    public String getDealerName() {
-        return dealerName;
-    }
-
-    public String getDealerAddress() {
-        return dealerAddress;
-    }
-
     public void setId(int id) {
         this.id = id;
     }
@@ -82,12 +71,16 @@ public class UserRes {
         this.role = role;
     }
 
-    public void setDealerId(Integer dealerId) {
-        this.dealerId = dealerId;
+    public String getDealerName() {
+        return dealerName;
     }
 
     public void setDealerName(String dealerName) {
         this.dealerName = dealerName;
+    }
+
+    public String getDealerAddress() {
+        return dealerAddress;
     }
 
     public void setDealerAddress(String dealerAddress) {

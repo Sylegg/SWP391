@@ -26,8 +26,11 @@ public class Order {
     @Column(name = "Status", columnDefinition = "VARCHAR(20)")
     private String status;
 
-    @Column(name = "Total", columnDefinition = "DECIMAL(18,2)")
-    private double total;
+    @Column(name = "Total", columnDefinition = "BIGINT")
+    private long total;
+
+    @Column(name = "description", columnDefinition = "NVARCHAR(255)")
+    private String description;
 
     @Column(name = "ShipAddress", columnDefinition = "NVARCHAR(255)")
     private String shipAddress;
@@ -103,11 +106,11 @@ public class Order {
         this.status = status;
     }
 
-    public double getTotal() {
+    public long getTotal() {
         return total;
     }
 
-    public void setTotal(double total) {
+    public void setTotal(long total) {
         this.total = total;
     }
 
@@ -177,5 +180,13 @@ public class Order {
 
     public void setDealer(Dealer dealer) {
         this.dealer = dealer;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

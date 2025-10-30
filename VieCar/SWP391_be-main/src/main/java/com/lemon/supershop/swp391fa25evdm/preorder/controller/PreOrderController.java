@@ -2,6 +2,7 @@ package com.lemon.supershop.swp391fa25evdm.preorder.controller;
 
 import java.util.List;
 
+import com.lemon.supershop.swp391fa25evdm.preorder.model.dto.PreOrderReq;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -51,7 +52,7 @@ public class PreOrderController {
     }
 
     @PostMapping ("/createPreOrder")
-    public ResponseEntity<PreOrderRes> createPreOrder (@RequestBody PreOrderRes dto) {
+    public ResponseEntity<PreOrderRes> createPreOrder (@RequestBody PreOrderReq dto) {
         PreOrderRes preOrderRes = preOrderService.createPreOrder(dto);
         if (preOrderRes != null) {
             return ResponseEntity.ok(preOrderRes);
@@ -61,7 +62,7 @@ public class PreOrderController {
     }
 
     @PutMapping ("/updatePreOrder/{id}")
-    public ResponseEntity<PreOrderRes> updatePreOrder (@PathVariable int id, @RequestBody PreOrderRes dto) {
+    public ResponseEntity<PreOrderRes> updatePreOrder (@PathVariable int id, @RequestBody PreOrderReq dto) {
         PreOrderRes preOrder = preOrderService.updatePreOrder(id, dto);
         if (preOrder != null) {
             return ResponseEntity.ok(preOrder);

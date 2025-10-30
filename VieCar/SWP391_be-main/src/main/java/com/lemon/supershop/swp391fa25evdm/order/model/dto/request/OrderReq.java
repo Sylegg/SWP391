@@ -5,27 +5,12 @@ import lombok.NoArgsConstructor;
 
 
 public class OrderReq {
-    private int userId;
     private int productId;
-     private int contractId;
+    private int contractId;
     private int dealerId;
+    private String description;
 
     public OrderReq() {
-    }
-
-    public OrderReq(int userId, int productId, int contractId, int dealerId) {
-        this.userId = userId;
-        this.productId = productId;
-        this.contractId = contractId;
-        this.dealerId = dealerId;
-    }
-
-    public int getUserId() {
-        return userId;
-    }
-
-    public void setUserId(int userId) {
-        this.userId = userId;
     }
 
     public int getProductId() {
@@ -50,5 +35,13 @@ public class OrderReq {
 
     public void setDealerId(int dealerId) {
         this.dealerId = dealerId;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

@@ -1,12 +1,8 @@
 package com.lemon.supershop.swp391fa25evdm.category.model.entity;
 
-// ❌ Xóa Distribution import - relationship đã xóa
-// import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
 import com.lemon.supershop.swp391fa25evdm.policies.model.entity.Policy;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.promotion.model.entity.Promotion;
-// ❌ Xóa unused import
-// import com.lemon.supershop.swp391fa25evdm.testdrive.model.entity.TestDrive;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
@@ -26,7 +22,11 @@ public class Category {
     @Column(name = "Brand", columnDefinition = "VARCHAR(100)")
     private String brand;
 
-    // Removed fields: version, type
+    @Column(name = "Version", columnDefinition = "VARCHAR(50)")
+    private String version;
+
+    @Column(name = "Type", columnDefinition = "NVARCHAR(50)")
+    private String type;
 
     @Column(name = "IsSpecial", columnDefinition = "VARCHAR(20)")
     private boolean isSpecial;
@@ -49,10 +49,6 @@ public class Category {
 
     @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<DealerCategory> dealerCategories = new ArrayList<>();
-
-    // ❌ Xóa distributions - Distribution không còn category field
-    // @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    // private List<Distribution> distributions = new ArrayList<>();
 
     @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Policy> policies = new ArrayList<>();
@@ -103,7 +99,21 @@ public class Category {
         this.brand = brand;
     }
 
-    // Removed getters/setters for version and type
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
 
     public long getBasePrice() {
         return basePrice;
@@ -136,10 +146,6 @@ public class Category {
     public void setDealerCategories(List<DealerCategory> dealerCategories) {
         this.dealerCategories = dealerCategories;
     }
-
-    // ❌ Xóa distributions getter/setter
-    // public List<Distribution> getDistributions() { return distributions; }
-    // public void setDistributions(List<Distribution> distributions) { this.distributions = distributions; }
 
     public List<Policy> getPolicies() {
         return policies;

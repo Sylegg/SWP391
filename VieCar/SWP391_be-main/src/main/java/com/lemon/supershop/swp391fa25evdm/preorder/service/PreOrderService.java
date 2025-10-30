@@ -1,8 +1,13 @@
 package com.lemon.supershop.swp391fa25evdm.preorder.service;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
+import com.lemon.supershop.swp391fa25evdm.contract.repository.ContractRepo;
+import com.lemon.supershop.swp391fa25evdm.preorder.model.dto.PreOrderReq;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +28,8 @@ public class PreOrderService {
     private ProductRepo productRepo;
     @Autowired
     private UserRepo userRepo;
+    @Autowired
+    private ContractRepo contractRepo;
 
     public List<PreOrderRes> getAllPreOrders() {
         List<PreOrder> preOrders = preOrderRepo.findAll();
@@ -44,17 +51,17 @@ public class PreOrderService {
         return preOrders.stream().map(this::convertToRes).toList();
     }
 
-    public PreOrderRes createPreOrder (PreOrderRes preOrderRes) {
+    public PreOrderRes createPreOrder (PreOrderReq preOrderReq) {
         PreOrder preOrder = new PreOrder();
-        PreOrder preorder =  convertToEntity(preOrder, preOrderRes);
+        PreOrder preorder =  convertToEntity(preOrder, preOrderReq);
         preOrderRepo.save(preorder);
         return convertToRes(preorder);
     }
 
-    public PreOrderRes updatePreOrder (int id, PreOrderRes preOrderRes) {
+    public PreOrderRes updatePreOrder (int id, PreOrderReq preOrderReq) {
         Optional<PreOrder> existingPreOrder = preOrderRepo.findById(id);
         if (existingPreOrder.isPresent()) {
-            PreOrder preOrder = convertToEntity(existingPreOrder.get(), preOrderRes);
+            PreOrder preOrder = convertToEntity(existingPreOrder.get(), preOrderReq);
             preOrderRepo.save(preOrder);
             return convertToRes(preOrder);
         }
@@ -70,25 +77,33 @@ public class PreOrderService {
         return false;
     }
 
-    private PreOrder convertToEntity (PreOrder preOrder, PreOrderRes preOrderRes) {
-        if (preOrder != null || preOrderRes != null){
-            if (preOrderRes.getOrderDate() != null){
-                preOrder.setOrderDate(preOrderRes.getOrderDate());
+    private PreOrder convertToEntity (PreOrder preOrder, PreOrderReq preOrderReq) {
+        if (preOrder != null || preOrderReq != null){
+            if (preOrderReq.getOrderDate() != null){
+                preOrder.setOrderDate(preOrderReq.getOrderDate());
             }
-            if (preOrderRes.getStatus() != null){
-                preOrder.setStatus(preOrderRes.getStatus());
+            if (preOrderReq.getStatus() != null){
+                preOrder.setStatus(preOrderReq.getStatus());
             }
-            if (preOrderRes.getDeposit() > 0){
-                preOrder.setDeposit(preOrderRes.getDeposit());
+            if (preOrderReq.getDeposit() > 0){
+                preOrder.setDeposit(preOrderReq.getDeposit());
             }
-            if (preOrderRes.getUserId() != 0) {
-                Optional<User> user = userRepo.findById(preOrderRes.getUserId());
+            if (preOrderReq.getContractId() > 0){
+                Optional<Contract> contract  = contractRepo.findById(preOrderReq.getContractId());
+                if (contract.isPresent()){
+                    List<Contract> contracts = new ArrayList<>();
+                    contracts.add(contract.get());
+                    preOrder.setContract(contracts);
+                }
+            }
+            if (preOrderReq.getUserId() != 0) {
+                Optional<User> user = userRepo.findById(preOrderReq.getUserId());
                 if (user.isPresent()){
                     preOrder.setUser(user.orElse(null));
                 }
             }
-            if (preOrderRes.getProductId() != 0) {
-                Optional<Product> product = productRepo.findById(preOrderRes.getProductId());
+            if (preOrderReq.getProductId() != 0) {
+                Optional<Product> product = productRepo.findById(preOrderReq.getProductId());
                 if (product.isPresent()){
                     preOrder.setProduct(product.orElse(null));
                 }
@@ -101,18 +116,18 @@ public class PreOrderService {
     private PreOrderRes convertToRes (PreOrder preOrder) {
         PreOrderRes preOrderRes = new PreOrderRes();
 
-        preOrderRes.setOrderDate(preOrder.getOrderDate());
-        preOrderRes.setStatus(preOrder.getStatus());
-        preOrderRes.setDeposit(preOrder.getDeposit());
-
-        if (preOrder.getUser() != null) {
+        if (preOrder.getUser() != null){
             preOrderRes.setUserId(preOrder.getUser().getId());
         }
-
         if (preOrder.getProduct() != null) {
             preOrderRes.setProductId(preOrder.getProduct().getId());
         }
-
+        preOrderRes.setOrderDate(preOrder.getOrderDate());
+        preOrderRes.setStatus(preOrder.getStatus());
+        preOrderRes.setDeposit(preOrder.getDeposit());
+        if (preOrder.getContract() != null){
+            preOrderRes.setContracts(preOrder.getContract());
+        }
         return preOrderRes;
     }
 }

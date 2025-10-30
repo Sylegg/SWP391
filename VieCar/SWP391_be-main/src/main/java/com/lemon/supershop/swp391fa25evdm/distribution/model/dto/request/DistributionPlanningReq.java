@@ -1,13 +1,14 @@
-package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
+package com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request;
 
 import java.time.LocalDateTime;
 
 public class DistributionPlanningReq {
+
     private LocalDateTime estimatedDeliveryDate;
-    // ❌ Xóa: private Integer actualQuantity;
     private String evmNotes;
 
-    public DistributionPlanningReq() {}
+    public DistributionPlanningReq() {
+    }
 
     public LocalDateTime getEstimatedDeliveryDate() {
         return estimatedDeliveryDate;
@@ -16,10 +17,6 @@ public class DistributionPlanningReq {
     public void setEstimatedDeliveryDate(LocalDateTime estimatedDeliveryDate) {
         this.estimatedDeliveryDate = estimatedDeliveryDate;
     }
-
-    // ❌ Xóa actualQuantity getter/setter
-    // public Integer getActualQuantity() { return actualQuantity; }
-    // public void setActualQuantity(Integer actualQuantity) { this.actualQuantity = actualQuantity; }
 
     public String getEvmNotes() {
         return evmNotes;

@@ -12,6 +12,9 @@ import java.util.Optional;
 @Repository
 public interface PaymentRepo extends JpaRepository<Payment, Integer> {
     List<Payment> findByUserId(int id);
+
+    Optional<Payment> findByVnpOrderId(String id);
+
     @Modifying
     @Query("UPDATE Payment p SET p.user = null WHERE p.user.id = :userId")
     void clearUserFromPayments(@Param("userId") Integer userId);

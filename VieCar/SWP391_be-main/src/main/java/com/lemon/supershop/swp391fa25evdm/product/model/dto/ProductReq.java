@@ -3,10 +3,6 @@ package com.lemon.supershop.swp391fa25evdm.product.model.dto;
 import java.sql.Date;
 
 import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
-import jakarta.persistence.Column;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 public class ProductReq {
     private String name;
@@ -18,6 +14,7 @@ public class ProductReq {
     private int torque;
     private String color;
     private Date manufacture_date;
+    private Date stockInDate;
     private long dealerPrice;
     private String description;
     private ProductStatus status;
@@ -58,6 +55,14 @@ public class ProductReq {
 
     public void setManufacture_date(Date manufacture_date) {
         this.manufacture_date = manufacture_date;
+    }
+
+    public Date getStockInDate() {
+        return stockInDate;
+    }
+
+    public void setStockInDate(Date stockInDate) {
+        this.stockInDate = stockInDate;
     }
 
     public long getDealerPrice() {
