@@ -388,9 +388,17 @@ export default function TestDrivesPage() {
         || 'Không thể phân công xe';
       
       toast({
-        title: 'Lỗi',
-        description: errorMessage,
+        title: '❌ Không thể xác nhận lịch lái thử',
+        description: (
+          <div className="mt-2 space-y-2">
+            <p className="font-medium text-base">{errorMessage}</p>
+            {error.response?.data?.message && (
+              <p className="text-sm opacity-90">💡 Vui lòng kiểm tra lại xe và thời gian đã chọn.</p>
+            )}
+          </div>
+        ),
         variant: 'destructive',
+        duration: 8000,
       });
     } finally {
       setUpdating(false);
