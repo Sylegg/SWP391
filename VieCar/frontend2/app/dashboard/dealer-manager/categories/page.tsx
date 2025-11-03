@@ -33,8 +33,7 @@ import {
   PlusCircle
 } from "lucide-react";
 import {
-  getAllCategories,
-  searchCategoriesByName,
+  getCategoriesByDealerId,
   createCategory,
   type CategoryRes,
   type CategoryReq,
@@ -63,11 +62,12 @@ export default function DealerManagerCategoriesPage() {
     status: "ACTIVE",
   });
 
-  // Load categories
+  // Load categories for this dealer only
   const loadCategories = async () => {
+    if (!user?.dealerId) return;
     setLoading(true);
     try {
-      const data = await getAllCategories();
+      const data = await getCategoriesByDealerId(user.dealerId);
       setCategories(data);
     } catch (error) {
       toast({
@@ -82,27 +82,19 @@ export default function DealerManagerCategoriesPage() {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [user]);
 
-  // Search handler
-  const handleSearch = async () => {
+  // Search handler - local filtering
+  const handleSearch = () => {
     if (!searchTerm.trim()) {
       loadCategories();
       return;
     }
-    setLoading(true);
-    try {
-      const data = await searchCategoriesByName(searchTerm);
-      setCategories(data);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Lỗi",
-        description: "Không thể tìm kiếm danh mục",
-      });
-    } finally {
-      setLoading(false);
-    }
+    // Filter locally since we already have dealer's categories
+    const filtered = categories.filter(cat => 
+      cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setCategories(filtered);
   };
 
   // View category detail
@@ -128,7 +120,12 @@ export default function DealerManagerCategoriesPage() {
     }
     try {
       setLoading(true);
-      await createCategory(formData);
+      // Set dealerId for Dealer Manager categories
+      const categoryReq = {
+        ...formData,
+        dealerId: user?.dealerId, // Mark this category as belonging to this dealer
+      };
+      await createCategory(categoryReq);
       toast({ title: "Thành công", description: "Tạo danh mục thành công" });
       setIsCreateDialogOpen(false);
       setFormData({

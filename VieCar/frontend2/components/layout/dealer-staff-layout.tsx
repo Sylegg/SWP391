@@ -6,17 +6,13 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Home,
-  Car,
   Users,
-  Calendar,
-  FileText,
   ShoppingCart,
-  MessageSquare,
-  BarChart,
   ArrowLeft,
   LogOut,
-  Tag,
-  Package
+  Car,
+  Calendar,
+  CalendarDays
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,7 +38,37 @@ const navigationItems: NavigationItem[] = [
     icon: Home,
     section: "main"
   },
-  // Module 1: Bán hàng
+  // Module 1: Quản lý Showroom
+  {
+    title: "🚗 Quản lý Showroom",
+    isHeader: true,
+    section: "showroom"
+  },
+  {
+    title: "Danh sách xe",
+    href: "/dashboard/dealer-staff/showroom",
+    icon: Car,
+    section: "showroom"
+  },
+  // Module 2: Lịch lái thử
+  {
+    title: "📅 Lịch lái thử",
+    isHeader: true,
+    section: "testdrive"
+  },
+  {
+    title: "Quản lý lịch hẹn",
+    href: "/dashboard/dealer-staff/test-drives",
+    icon: Calendar,
+    section: "testdrive"
+  },
+  {
+    title: "Xem lịch Calendar",
+    href: "/dashboard/dealer-staff/test-drives/calendar",
+    icon: CalendarDays,
+    section: "testdrive"
+  },
+  // Module 3: Bán hàng
   {
     title: "🛒 Bán hàng",
     isHeader: true,
@@ -54,19 +80,7 @@ const navigationItems: NavigationItem[] = [
     icon: ShoppingCart,
     section: "sales"
   },
-  {
-    title: "Danh mục xe",
-    href: "/dashboard/dealer-staff/dealer-category",
-    icon: Car,
-    section: "sales"
-  },
-  {
-    title: "Danh mục Category",
-    href: "/dashboard/dealer-staff/categories",
-    icon: Tag,
-    section: "sales"
-  },
-  // Module 2: Khách hàng
+  // Module 4: Khách hàng
   {
     title: "👥 Khách hàng",
     isHeader: true,

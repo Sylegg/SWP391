@@ -220,7 +220,7 @@ export default function DealerDistributionsPage() {
       }
     }
 
-    // Validate by category and resolve to backend-required productId
+    // ✅ SIMPLIFIED: Gửi trực tiếp categoryId cho backend, không cần resolve productId
     const categoryItems = orderItems.filter((it) => (it.categoryId || 0) > 0 && (it.quantity || 0) > 0);
 
     if (categoryItems.length === 0) {
@@ -232,63 +232,12 @@ export default function DealerDistributionsPage() {
       return;
     }
 
-    // Try resolve category -> productId using local cache first
-    const resolveLocalProductId = (cid?: number) => {
-      if (!cid) return undefined;
-      const candidate = products.find((p) => p.categoryId === cid);
-      return candidate?.id;
-    };
-
-    // Initial mapping
-    let mapped = categoryItems.map((it) => ({
-      categoryId: it.categoryId!,
-      productId: resolveLocalProductId(it.categoryId),
+    // Build items với categoryId - Backend sẽ tự xử lý
+    const validItems = categoryItems.map((it) => ({
+      categoryId: it.categoryId!, // ✅ Gửi categoryId trực tiếp
       color: it.color || undefined,
       quantity: it.quantity,
     }));
-
-    // Find unresolved categories and fetch lazily
-    const unresolvedCategoryIds = Array.from(new Set(mapped.filter(m => !m.productId).map(m => m.categoryId))).filter(Boolean) as number[];
-    if (unresolvedCategoryIds.length > 0) {
-      try {
-        const fetchedPairs = await Promise.all(
-          unresolvedCategoryIds.map(async (cid) => {
-            const list = await getProductsByCategory(cid);
-            return { cid, pid: list && list.length > 0 ? list[0].id : undefined };
-          })
-        );
-        const pidByCid = new Map<number, number>();
-        for (const { cid, pid } of fetchedPairs) {
-          if (pid) pidByCid.set(cid, pid);
-        }
-        mapped = mapped.map((m) => (!m.productId ? { ...m, productId: pidByCid.get(m.categoryId) } : m));
-      } catch (fetchErr: any) {
-        toast({ title: '❌ Lỗi', description: fetchErr?.message || 'Không thể tải sản phẩm theo danh mục', variant: 'destructive' });
-        return;
-      }
-    }
-
-    // Ensure all resolved to a productId; otherwise backend will 400
-    const missing = mapped.find((vi) => !vi.productId);
-    if (missing) {
-      toast({
-        title: '⚠️ Thiếu dữ liệu',
-        description: 'Danh mục đã chọn chưa có sản phẩm khả dụng. Vui lòng tạo sản phẩm cho danh mục này trước.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const validItems = mapped.map((m) => ({ productId: m.productId as number, color: m.color, quantity: m.quantity }));
-
-    if (validItems.length === 0) {
-      toast({
-        title: '⚠️ Thiếu thông tin',
-  description: 'Vui lòng thêm ít nhất 1 dòng danh mục hợp lệ',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     try {
       setIsSubmittingOrder(true);
@@ -320,7 +269,7 @@ export default function DealerDistributionsPage() {
     }
   };
 
-  // Step 6: Confirm received
+  // Step 6: Confirm received - So sánh số lượng đã đặt vs số lượng giao tới
   const handleConfirmReceived = async () => {
     if (!selectedDistribution) {
       toast({
@@ -330,23 +279,35 @@ export default function DealerDistributionsPage() {
       });
       return;
     }
+    
+    // Lấy số lượng thực tế giao tới (received) - đây là số xe hãng đã giao
     const totalReceived = receivedItems.length > 0
       ? receivedItems.reduce((s, it) => s + (Number(it.received) || 0), 0)
-      : completeForm.receivedQuantity;
-    if (!totalReceived || totalReceived < 0) {
-      toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập số lượng đã nhận', variant: 'destructive' });
+      : selectedDistribution.requestedQuantity || 0;
+    
+    // Số lượng đã đặt để so sánh
+    const totalOrdered = receivedItems.length > 0
+      ? receivedItems.reduce((s, it) => s + (Number(it.ordered) || 0), 0)
+      : selectedDistribution.requestedQuantity || 0;
+    
+    if (!totalReceived || totalReceived <= 0) {
+      toast({ 
+        title: '⚠️ Không có dữ liệu', 
+        description: 'Không tìm thấy thông tin số lượng đã giao', 
+        variant: 'destructive' 
+      });
       return;
     }
-    if (receivedItems.length > 0) {
-      const over = receivedItems.find(it => (Number(it.received) || 0) > (Number(it.ordered) || 0));
-      if (over) {
-        toast({ title: '⚠️ Không hợp lệ', description: 'Số lượng nhận từng dòng không được vượt quá số đã đặt', variant: 'destructive' });
-        return;
-      }
+    
+    // Kiểm tra chênh lệch
+    const difference = totalReceived - totalOrdered;
+    let confirmMessage = `Xác nhận nhận ${totalReceived} xe từ hãng`;
+    if (difference !== 0) {
+      confirmMessage += `\n(${difference > 0 ? 'Thừa' : 'Thiếu'} ${Math.abs(difference)} xe so với đơn đặt)`;
     }
+    
     try {
-      // Sử dụng ngày nhập kho do đại lý chọn (receiptDate). API yêu cầu actualDeliveryDate là string,
-      // nên nếu chưa chọn thì dùng ngày hôm nay.
+      // Sử dụng ngày nhập kho do đại lý chọn (receiptDate)
       const actualDeliveryDate = receiptDate
         ? `${receiptDate}T00:00:00`
         : (() => {
@@ -358,19 +319,22 @@ export default function DealerDistributionsPage() {
           })();
 
       const requestData = {
-        receivedQuantity: totalReceived,
+        receivedQuantity: totalReceived, // Số lượng thực tế nhận được
         actualDeliveryDate,
         items: receivedItems.length > 0
           ? receivedItems
               .filter((it) => (Number(it.received) || 0) > 0)
-              .map((it) => ({ distributionItemId: it.id, receivedQuantity: Number(it.received) || 0 }))
+              .map((it) => ({ 
+                distributionItemId: it.id, 
+                receivedQuantity: Number(it.received) || 0 // Số lượng thực tế giao tới
+              }))
           : undefined,
       };
       
       await confirmDistributionReceived(selectedDistribution.id, requestData);
       toast({
         title: '✅ Xác nhận thành công',
-        description: 'Đã xác nhận nhận hàng',
+        description: confirmMessage,
       });
       setIsCompleteDialogOpen(false);
       resetCompleteForm();
@@ -923,61 +887,112 @@ export default function DealerDistributionsPage() {
 
           {/* Dialog: Confirm Received */}
           <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>✅ Xác nhận đã nhận hàng</DialogTitle>
                 <DialogDescription>
                   Phân phối #{selectedDistribution?.id}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 py-4 overflow-y-auto flex-1">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    ℹ️ Số lượng xe đã giao tới từ hãng sẽ được ghi nhận tự động. Bạn chỉ cần xác nhận đã nhận hàng.
+                  </p>
+                </div>
+
                 {receivedItems.length > 0 && (
                   <div>
-                    <Label className="text-muted-foreground">Các xe trong đơn (đã gửi trước đó)</Label>
+                    <Label className="text-muted-foreground font-semibold">Các xe đã giao tới</Label>
                     <div className="mt-2 space-y-2">
-                      {receivedItems.map((row, idx) => (
-                        <div key={row.id ?? idx} className="p-3 border rounded-md">
-                          <div className="font-medium">{row.name || 'Sản phẩm'}</div>
-                          <div className="text-sm text-muted-foreground mb-2">
-                            {row.color ? `Màu: ${row.color} • ` : ''}Số lượng đã đặt: {row.ordered}
+                      {receivedItems.map((row, idx) => {
+                        const isMatch = row.ordered === row.received;
+                        return (
+                          <div key={row.id ?? idx} className={`p-3 border rounded-md ${isMatch ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                            <div className="font-medium text-lg">{row.name || 'Sản phẩm'}</div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {row.color && <span>Màu sắc: <strong>{row.color}</strong></span>}
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground">Số lượng đã đặt</div>
+                                <div className="text-2xl font-bold text-blue-600">{row.ordered} xe</div>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground">Số lượng giao tới</div>
+                                <div className="text-2xl font-bold text-green-600">{row.received} xe</div>
+                              </div>
+                            </div>
+                            {!isMatch && (
+                              <div className="mt-2 p-2 bg-yellow-100 rounded text-sm text-yellow-800 flex items-center gap-2">
+                                <span>⚠️</span>
+                                <span>Chênh lệch: {row.received - row.ordered > 0 ? '+' : ''}{row.received - row.ordered} xe</span>
+                              </div>
+                            )}
+                            {isMatch && (
+                              <div className="mt-2 p-2 bg-green-100 rounded text-sm text-green-800 flex items-center gap-2">
+                                <span>✅</span>
+                                <span>Khớp đúng số lượng đã đặt</span>
+                              </div>
+                            )}
                           </div>
-                          <div className="grid grid-cols-2 gap-3 items-center">
-                            <Label className="text-sm">Số lượng nhận</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={row.ordered}
-                              value={row.received}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value || '0');
-                                setReceivedItems((prev) => {
-                                  const next = [...prev];
-                                  next[idx] = { ...next[idx], received: isNaN(val) ? 0 : val };
-                                  return next;
-                                });
-                              }}
-                            />
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-gray-200 rounded-md">
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">Tổng đã đặt</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {receivedItems.reduce((sum, item) => sum + item.ordered, 0)} xe
                           </div>
                         </div>
-                      ))}
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">Tổng giao tới</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            {receivedItems.reduce((sum, item) => sum + item.received, 0)} xe
+                          </div>
+                        </div>
+                      </div>
+                      {receivedItems.reduce((sum, item) => sum + item.ordered, 0) === receivedItems.reduce((sum, item) => sum + item.received, 0) ? (
+                        <div className="mt-3 text-center text-sm font-semibold text-green-700">
+                          ✅ Số lượng khớp chính xác
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-center text-sm font-semibold text-yellow-700">
+                          ⚠️ Chênh lệch: {receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0) > 0 ? '+' : ''}{receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0)} xe
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
 
                 {receivedItems.length === 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Số lượng đã nhận *</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      value={completeForm.receivedQuantity}
-                      onChange={(e) => setCompleteForm({ ...completeForm, receivedQuantity: parseInt(e.target.value) })}
-                    />
+                  <div className="p-4 border rounded-md bg-gradient-to-r from-blue-50 to-green-50">
+                    <div className="grid grid-cols-2 gap-6 text-center">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Số lượng đã đặt</Label>
+                        <div className="mt-2 text-3xl font-bold text-blue-600">
+                          {selectedDistribution?.requestedQuantity || 0}
+                        </div>
+                        <div className="text-sm text-muted-foreground">xe</div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Số lượng giao tới</Label>
+                        <div className="mt-2 text-3xl font-bold text-green-600">
+                          {selectedDistribution?.requestedQuantity || 0}
+                        </div>
+                        <div className="text-sm text-muted-foreground">xe</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-center p-2 bg-green-100 rounded text-sm font-semibold text-green-700">
+                      ✅ Số lượng khớp chính xác
+                    </div>
                   </div>
                 )}
               </div>
-              {/* Receipt date selector */}
-              <div className="space-y-2">
+              {/* Receipt date selector - Fixed at bottom */}
+              <div className="space-y-2 border-t pt-4">
                 <Label htmlFor="receiptDate">Ngày nhập kho của đại lý</Label>
                 <Input
                   id="receiptDate"
@@ -987,7 +1002,7 @@ export default function DealerDistributionsPage() {
                 />
                 <p className="text-xs text-muted-foreground">Dùng để ghi nhận ngày nhập kho. Mặc định là hôm nay.</p>
               </div>
-              <DialogFooter>
+              <DialogFooter className="border-t pt-4">
                 <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
                   Hủy
                 </Button>
@@ -1143,25 +1158,102 @@ export default function DealerDistributionsPage() {
                         EVM Staff đã duyệt đơn với số lượng khác với yêu cầu
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mt-3">
-                      <div>
-                        <Label className="text-sm text-muted-foreground">Số lượng yêu cầu</Label>
-                        <p className="text-lg font-bold">{selectedDistribution.requestedQuantity || 0} xe</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm text-muted-foreground">Giá hãng (mỗi xe)</Label>
-                        <p className="text-lg font-bold text-green-600">
-                          {selectedDistribution.manufacturerPrice?.toLocaleString('vi-VN')}đ
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3 p-3 bg-white rounded border">
-                      <Label className="text-sm font-medium">Tổng giá trị đơn hàng</Label>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {((selectedDistribution.manufacturerPrice || 0) * (selectedDistribution.requestedQuantity || 0)).toLocaleString('vi-VN')}đ
-                      </p>
+                    <div className="mt-3">
+                      <Label className="text-sm text-muted-foreground">Số lượng yêu cầu</Label>
+                      <p className="text-lg font-bold">{selectedDistribution.requestedQuantity || 0} xe</p>
                     </div>
                   </div>
+
+                  {/* Chi tiết từng dòng xe mà EVM đã duyệt */}
+                  {selectedDistribution.items && selectedDistribution.items.length > 0 && (() => {
+                    // Parse evmNotes để lấy thông tin approved/requested cho mỗi item
+                    const itemInfoMap = new Map<string, { approved: number; requested: number; price?: number }>();
+                    
+                    if (selectedDistribution.evmNotes) {
+                      // Format: "Duyệt theo dòng: egg (Trắng): 3/3 xe @ 50.000.000.000 VND; vf3 (Xám): 3/4 xe"
+                      const match = selectedDistribution.evmNotes.match(/Duyệt theo dòng:\s*(.+?)(\s*\|\s*Ghi chú:|$)/);
+                      if (match) {
+                        const itemsText = match[1];
+                        const itemParts = itemsText.split(';').map(s => s.trim());
+                        
+                        for (const part of itemParts) {
+                          // Parse: "egg (Trắng): 3/3 xe @ 50.000.000.000 VND"
+                          const itemMatch = part.match(/^(.+?):\s*(\d+)\/(\d+)\s*xe(?:\s*@\s*([\d.,]+)\s*VND)?/);
+                          if (itemMatch) {
+                            const key = itemMatch[1].trim(); // "egg (Trắng)"
+                            const approved = parseInt(itemMatch[2]);
+                            const requested = parseInt(itemMatch[3]);
+                            const priceStr = itemMatch[4];
+                            const price = priceStr ? parseFloat(priceStr.replace(/,/g, '')) : undefined;
+                            itemInfoMap.set(key, { approved, requested, price });
+                          }
+                        }
+                      }
+                    }
+                    
+                    return (
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Chi tiết xe hãng nhập:</Label>
+                        <div className="space-y-2">
+                          {selectedDistribution.items.map((item) => {
+                            const itemKey = `${item.product.name}${item.color ? ' ('+item.color+')' : ''}`;
+                            const itemInfo = itemInfoMap.get(itemKey);
+                            const isMissing = itemInfo && itemInfo.approved < itemInfo.requested;
+                            
+                            return (
+                              <div 
+                                key={item.id} 
+                                className={`p-3 rounded-md border ${
+                                  isMissing 
+                                    ? 'bg-red-50 border-red-300' 
+                                    : 'bg-green-50 border-green-200'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium">
+                                        {item.product.name} 
+                                        {item.color && <span className="text-muted-foreground"> ({item.color})</span>}
+                                      </p>
+                                      {isMissing && (
+                                        <Badge variant="destructive" className="text-xs">
+                                          ⚠️ Thiếu hàng
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {itemInfo ? (
+                                      <p className="text-sm mt-1">
+                                        <span className={isMissing ? 'text-red-700 font-semibold' : 'text-green-700 font-semibold'}>
+                                          {itemInfo.approved} xe
+                                        </span>
+                                        <span className="text-muted-foreground"> / {itemInfo.requested} xe yêu cầu</span>
+                                        {isMissing && (
+                                          <span className="text-red-600 font-semibold ml-2">
+                                            (Thiếu {itemInfo.requested - itemInfo.approved} xe)
+                                          </span>
+                                        )}
+                                      </p>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">
+                                        Số lượng: <span className="font-semibold text-green-700">{item.quantity} xe</span>
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm text-muted-foreground">Giá hãng</p>
+                                    <p className={`text-lg font-bold ${isMissing ? 'text-red-600' : 'text-green-600'}`}>
+                                      {item.dealerPrice ? `${item.dealerPrice.toLocaleString('vi-VN')} VND` : 'Chưa có giá'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   
                   {selectedDistribution.evmNotes && (
                     <div>

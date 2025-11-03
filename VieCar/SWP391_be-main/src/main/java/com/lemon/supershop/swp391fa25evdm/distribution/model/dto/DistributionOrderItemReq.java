@@ -1,7 +1,9 @@
 package com.lemon.supershop.swp391fa25evdm.distribution.model.dto;
 
 public class DistributionOrderItemReq {
-    private Integer productId;
+    // ✅ Hỗ trợ CẢ 2: productId (cho sản phẩm cụ thể) HOẶC categoryId (cho đơn theo danh mục)
+    private Integer productId;    // Optional: ID sản phẩm cụ thể (nếu có)
+    private Integer categoryId;   // Optional: ID danh mục (nếu đặt theo danh mục)
     private String color;
     private Integer quantity;
 
@@ -13,6 +15,14 @@ public class DistributionOrderItemReq {
 
     public void setProductId(Integer productId) {
         this.productId = productId;
+    }
+
+    public Integer getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Integer categoryId) {
+        this.categoryId = categoryId;
     }
 
     public String getColor() {

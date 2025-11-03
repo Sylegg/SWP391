@@ -99,6 +99,7 @@ export interface DistributionRes {
     product: ProductRes;
     color?: string;
     quantity: number;
+    dealerPrice?: number; // Giá hãng (manufacturerPrice) mà EVM đã set
   }[];
   
   // Timeline

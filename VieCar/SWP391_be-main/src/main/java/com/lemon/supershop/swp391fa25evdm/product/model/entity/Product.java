@@ -26,10 +26,10 @@ public class Product {
     @Column(name = "Name", columnDefinition = "VARCHAR(150)")
     private String name;
 
-    @Column(name = "Vin", columnDefinition = "VARCHAR(100) UNIQUE")
+    @Column(name = "Vin", columnDefinition = "VARCHAR(100)", unique = true)
     private String vinNum;
 
-    @Column(name = "Engine", columnDefinition = "VARCHAR(100) UNIQUE")
+    @Column(name = "Engine", columnDefinition = "VARCHAR(100)", unique = true)
     private String engineNum;
 
     @Column(name = "Manufacture", columnDefinition = "DATETIME2")
@@ -91,8 +91,8 @@ public class Product {
     @OneToOne(mappedBy = "product")
     private InstallmentPlan installmentPlan;
 
-    @OneToOne(mappedBy = "product")
-    private TestDrive testDrive;
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    private List<TestDrive> testDrives = new ArrayList<>();
 
     public Product() {}
 
@@ -264,11 +264,11 @@ public class Product {
         this.status = status;
     }
 
-    public TestDrive getTestDrive() {
-        return testDrive;
+    public List<TestDrive> getTestDrives() {
+        return testDrives;
     }
 
-    public void setTestDrive(TestDrive testDrive) {
-        this.testDrive = testDrive;
+    public void setTestDrives(List<TestDrive> testDrives) {
+        this.testDrives = testDrives;
     }
 }

@@ -83,6 +83,11 @@ public class ProductService {
         List<Product> productOpt = productRepo.findByEngineNumContainingIgnoreCase(engineNum);
         return productOpt.isEmpty() ? null : productOpt.stream().map(this::convertToRes).toList();
     }
+    
+    public List<ProductRes> getProductByDealerCategoryId(int dealerCategoryId){
+        List<Product> products = productRepo.findByDealerCategoryId(dealerCategoryId);
+        return products.stream().map(this::convertToRes).toList();
+    }
 
     public ProductRes convertToRes(Product product) {
         if (product != null) {
@@ -130,9 +135,21 @@ public class ProductService {
             if (product.getStockInDate() != null) {
                 productRes.setStockInDate(product.getStockInDate());
             }
-            // Map dealer price to response.price for UI
+            // ✅ Map dealer price to response.price for UI - MỖI XE CÓ GIÁ RIÊNG
             if (product.getDealerPrice() > 0) {
                 productRes.setPrice(product.getDealerPrice());
+                // Debug log để kiểm tra giá
+                System.out.println("🔍 Product ID " + product.getId() + " (" + product.getName() + 
+                                   ", Color: " + product.getColor() + "): DealerPrice = " + product.getDealerPrice());
+            } else {
+                // Fallback: nếu product chưa có giá riêng, lấy từ category basePrice
+                if (product.getCategory() != null) {
+                    long basePrice = product.getCategory().getBasePrice();
+                    if (basePrice > 0) {
+                        productRes.setPrice(basePrice);
+                        System.out.println("⚠️ Product ID " + product.getId() + " không có dealerPrice, dùng basePrice: " + basePrice);
+                    }
+                }
             }
             if (product.getCategory() != null) {
                 Optional<Category> category = categoryRepository.findById(product.getCategory().getId());

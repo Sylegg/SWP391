@@ -98,4 +98,10 @@ public class CategoryController {
         List<CategoryRes> categories = categoryService.getCategoriesByBrand(brand);
         return ResponseEntity.ok(categories);
     }
+    
+    @GetMapping("/search/dealer/{dealerId}")
+    public ResponseEntity<List<CategoryRes>> getCategoriesByDealerId(@PathVariable Integer dealerId) {
+        List<CategoryRes> categories = categoryService.getCategoriesByDealerId(dealerId);
+        return ResponseEntity.ok(categories);
+    }
 }

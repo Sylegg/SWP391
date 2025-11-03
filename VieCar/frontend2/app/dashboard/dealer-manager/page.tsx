@@ -44,37 +44,29 @@ export default function DealerManagerDashboard() {
   return (
     <ProtectedRoute allowedRoles={['Dealer Manager', 'Admin']}>
       <DealerManagerLayout>
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="text-center space-y-4">
+        <div className="p-6 space-y-8">
+          {/* Welcome Header */}
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-8 shadow-lg">
             {loading ? (
               <p className="text-xl">Đang tải...</p>
-            ) : dealerInfo.dealerName ? (
-              <>
-                <h1 className="text-4xl font-bold">
-                  Chào mừng Quản lý đại lý {dealerInfo.dealerName}
-                </h1>
-                {dealerInfo.dealerAddress && (
-                  <p className="text-xl text-muted-foreground">
-                    Địa chỉ: {dealerInfo.dealerAddress}
-                  </p>
-                )}
-                <p className="text-lg text-muted-foreground mt-4">
-                  Xin chào, {user?.username}
-                </p>
-              </>
             ) : (
               <>
-                <h1 className="text-4xl font-bold">
-                  Chào mừng, {user?.username}
+                <h1 className="text-3xl font-bold mb-2">
+                  Chào mừng quản lý đại lý {user?.dealerName || 'VieCar'}
                 </h1>
-                <p className="text-xl text-muted-foreground">
-                  Bạn chưa được gán đại lý. Vui lòng liên hệ Admin.
+                <p className="text-purple-100 text-lg mb-4">
+                  Địa chỉ: {user?.dealerAddress || 'Đang cập nhật'}
                 </p>
+                <div className="border-t border-purple-400 pt-4 mt-4">
+                  <p className="text-xl">
+                    Xin chào, <span className="font-semibold">{user?.username}</span> - Quản lý đại lý
+                  </p>
+                  <p className="text-purple-100 mt-2">
+                    Vui lòng chọn chức năng từ menu bên trái để bắt đầu làm việc và tiếp tục công việc
+                  </p>
+                </div>
               </>
             )}
-            <p className="text-lg text-muted-foreground mt-6">
-              Vui lòng chọn chức năng từ menu bên trái để bắt đầu làm việc
-            </p>
           </div>
         </div>
       </DealerManagerLayout>

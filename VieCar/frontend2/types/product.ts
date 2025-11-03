@@ -32,7 +32,7 @@ export interface ProductRes {
   name: string;
   vinNum: string;
   engineNum: string;
-  color?: string;
+  color?: string;  // ✅ Màu sắc của xe (từ backend)
   battery: number;
   range: number;
   hp: number;
@@ -42,7 +42,7 @@ export interface ProductRes {
   stockInDate?: string | Date;
   image: string;
   description: string;
-  price: number;
+  price: number;  // ✅ Giá từ backend (mapped từ Product.dealerPrice)
   status: ProductStatus;
   categoryId: number;
   dealerCategoryId: number;
@@ -92,16 +92,16 @@ export interface ProductStats {
 export const ProductStatusLabels: Record<ProductStatus, string> = {
   [ProductStatus.ACTIVE]: "Đang hoạt động",
   [ProductStatus.INACTIVE]: "Không hoạt động",
-  [ProductStatus.SOLDOUT]: "Đã bán hết",
+  [ProductStatus.SOLDOUT]: "Đã bán",
   [ProductStatus.TEST_DRIVE]: "Xe lái thử",
-  [ProductStatus.RESERVED]: "Đã đặt cọc"
+  [ProductStatus.RESERVED]: "Có sẵn"
 };
 
 // Color variants for status badges
 export const ProductStatusColors: Record<ProductStatus, string> = {
-  [ProductStatus.ACTIVE]: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  [ProductStatus.INACTIVE]: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-  [ProductStatus.SOLDOUT]: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  [ProductStatus.TEST_DRIVE]: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  [ProductStatus.RESERVED]: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+  [ProductStatus.ACTIVE]: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+  [ProductStatus.INACTIVE]: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+  [ProductStatus.SOLDOUT]: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+  [ProductStatus.TEST_DRIVE]: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+  [ProductStatus.RESERVED]: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
 };

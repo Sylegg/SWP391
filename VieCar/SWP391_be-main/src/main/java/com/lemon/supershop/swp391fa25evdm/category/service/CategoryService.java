@@ -12,6 +12,7 @@ import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryReq;
 import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepository;
+import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 
 @Service
 @Transactional
@@ -19,6 +20,9 @@ public class CategoryService {
 
     @Autowired
     private CategoryRepository categoryRepository;
+    
+    @Autowired
+    private DealerRepo dealerRepo;
 
     public List<CategoryRes> getAllCategories() {
         List<Category> categories = categoryRepository.findAll();
@@ -110,6 +114,14 @@ public class CategoryService {
         return categories.stream().map(this::convertToRes).toList();
     }
 
+    public List<CategoryRes> getCategoriesByDealerId(Integer dealerId) {
+        if (dealerId == null || dealerId <= 0) {
+            throw new IllegalArgumentException("Dealer ID must be a positive number");
+        }
+        List<Category> categories = categoryRepository.findByDealerId(dealerId);
+        return categories.stream().map(this::convertToRes).toList();
+    }
+
     // Helper methods for conversion
     private Category convertToEntity(CategoryReq dto) {
         Category category = new Category();
@@ -123,6 +135,12 @@ public class CategoryService {
         category.setWarranty(dto.getWarranty() != null ? dto.getWarranty() : 0);
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus() != null ? dto.getStatus() : "ACTIVE");
+        
+        // Set dealer if dealerId is provided
+        if (dto.getDealerId() != null && dto.getDealerId() > 0) {
+            dealerRepo.findById(dto.getDealerId()).ifPresent(category::setDealer);
+        }
+        
         return category;
     }
 
@@ -166,6 +184,10 @@ public class CategoryService {
             }
             if (category.getStatus() != null){
                 categoryRes.setStatus(category.getStatus());
+            }
+            // Set dealerId if dealer exists
+            if (category.getDealer() != null) {
+                categoryRes.setDealerId(category.getDealer().getId());
             }
             return categoryRes;
         } else {

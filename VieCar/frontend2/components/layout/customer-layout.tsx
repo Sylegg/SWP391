@@ -8,11 +8,6 @@ import {
   Home,
   Car,
   Calendar,
-  FileText,
-  ShoppingCart,
-  CreditCard,
-  MessageSquare,
-  User,
   ArrowLeft,
   LogOut
 } from "lucide-react";
@@ -31,34 +26,14 @@ const navigationItems = [
     icon: Home
   },
   {
-    title: "Xe điện",
-    href: "/dashboard/customer/vehicles",
+    title: "Danh mục xe",
+    href: "/dashboard/customer/catalog",
     icon: Car
   },
   {
-    title: "Yêu cầu báo giá",
-    href: "/dashboard/customer/quotes",
-    icon: FileText
-  },
-  {
-    title: "Đơn hàng của tôi",
-    href: "/dashboard/customer/orders",
-    icon: ShoppingCart
-  },
-  {
-    title: "Thanh toán",
-    href: "/dashboard/customer/payments",
-    icon: CreditCard
-  },
-  {
-    title: "Hỗ trợ",
-    href: "/dashboard/customer/support",
-    icon: MessageSquare
-  },
-  {
-    title: "Thông tin cá nhân",
-    href: "/dashboard/customer/profile",
-    icon: User
+    title: "Đặt lịch lái thử",
+    href: "/dashboard/customer/test-drive",
+    icon: Calendar
   }
 ];
 

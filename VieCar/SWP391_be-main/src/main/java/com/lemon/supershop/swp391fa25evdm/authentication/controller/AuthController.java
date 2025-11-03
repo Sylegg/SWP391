@@ -33,11 +33,12 @@ public class AuthController {
         try {
             authenService.register(dto);
             return ResponseEntity.ok("User registered successfully");
-        } catch (IllegalArgumentException ex) {
+        } catch (RuntimeException ex) {
             if ("EMAIL_DUPLICATE".equals(ex.getMessage())) {
                 return ResponseEntity.status(409).body("Email đã tồn tại");
             }
-            throw ex;
+            // Return 400 for other validation errors
+            return ResponseEntity.status(400).body(ex.getMessage());
         }
     }
 

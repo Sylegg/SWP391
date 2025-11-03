@@ -6,25 +6,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Home,
-  Car,
   Users,
-  Calendar,
-  FileText,
-  ShoppingCart,
-  CreditCard,
-  MessageSquare,
-  BarChart,
-  Settings,
-  UserCog,
   ArrowLeft,
   LogOut,
   Tag,
   Truck,
-  Package,
-  DollarSign,
-  ClipboardList,
-  Briefcase,
-  UserPlus
+  BarChart3
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -68,65 +55,29 @@ const navigationItems: NavigationItem[] = [
     icon: Truck,
     section: "category"
   },
-  // Module 2: Thanh toán (Payment)
+  // Module 2: Quản lý nhân viên
   {
-    title: "💰 Thanh toán",
+    title: "👥 Quản lý nhân viên",
     isHeader: true,
-    section: "payment"
+    section: "staff"
   },
   {
-    title: "Giao dịch",
-    href: "/dashboard/dealer-manager/payments",
-    icon: DollarSign,
-    section: "payment"
-  },
-  {
-    title: "Hóa đơn & Chứng từ",
-    href: "/dashboard/dealer-manager/payments/documents",
-    icon: FileText,
-    section: "payment"
-  },
-  {
-    title: "Yêu cầu hỗ trợ",
-    href: "/dashboard/dealer-manager/payments/support",
-    icon: MessageSquare,
-    section: "payment"
-  },
-  // Module 3: Thông tin & Cấu hình
-  {
-    title: "⚙️ Thông tin & Cấu hình",
-    isHeader: true,
-    section: "settings"
-  },
-  {
-    title: "Thông tin đại lý",
-    href: "/dashboard/dealer-manager/dealer-info",
-    icon: Briefcase,
-    section: "settings"
-  },
-  {
-    title: "Quản lý nhân viên",
+    title: "Danh sách nhân viên",
     href: "/dashboard/dealer-manager/staff",
     icon: Users,
-    section: "settings"
+    section: "staff"
+  },
+  // Module 3: Báo cáo
+  {
+    title: "📊 Báo cáo & Thống kê",
+    isHeader: true,
+    section: "reports"
   },
   {
-    title: "Thêm nhân viên",
-    href: "/dashboard/dealer-manager/staff/create",
-    icon: UserPlus,
-    section: "settings"
-  },
-  {
-    title: "Báo cáo & Thống kê",
+    title: "Dashboard báo cáo",
     href: "/dashboard/dealer-manager/reports",
-    icon: BarChart,
-    section: "settings"
-  },
-  {
-    title: "Doanh số bán hàng",
-    href: "/dashboard/dealer-manager/sales",
-    icon: ShoppingCart,
-    section: "settings"
+    icon: BarChart3,
+    section: "reports"
   }
 ];
 

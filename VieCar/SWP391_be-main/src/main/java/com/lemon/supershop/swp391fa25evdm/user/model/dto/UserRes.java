@@ -5,6 +5,7 @@ import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
 public class UserRes {
     private int id;
     private String name;
+    private String username;  // Added for frontend compatibility
     private String email;
     private String phone;
     private String address;
@@ -22,6 +23,10 @@ public class UserRes {
 
     public String getName() {
         return name;
+    }
+
+    public String getUsername() {
+        return username;
     }
 
     public String getEmail() {
@@ -60,6 +65,10 @@ public class UserRes {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public void setEmail(String email) {

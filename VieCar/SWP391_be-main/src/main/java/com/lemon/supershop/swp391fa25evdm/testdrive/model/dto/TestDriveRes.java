@@ -14,9 +14,13 @@ public class TestDriveRes {
     private LocalDateTime scheduleDate;
     private String status; // PENDING, CONFIRMED, COMPLETED, CANCELED
     private String notes;
+    private String specificVIN;
     private UserRes user;
     private DealerRes dealer;
     private String productName;
+    private String productModelName; // Customer's requested model name
+    private String categoryName; // Customer's requested category
+    private UserRes escortStaff; // Staff member assigned to accompany
 
     public TestDriveRes() {
     }
@@ -75,5 +79,37 @@ public class TestDriveRes {
 
     public void setProductName(String productName) {
         this.productName = productName;
+    }
+
+    public String getSpecificVIN() {
+        return specificVIN;
+    }
+
+    public void setSpecificVIN(String specificVIN) {
+        this.specificVIN = specificVIN;
+    }
+
+    public String getProductModelName() {
+        return productModelName;
+    }
+
+    public void setProductModelName(String productModelName) {
+        this.productModelName = productModelName;
+    }
+
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+
+    public UserRes getEscortStaff() {
+        return escortStaff;
+    }
+
+    public void setEscortStaff(UserRes escortStaff) {
+        this.escortStaff = escortStaff;
     }
 }

@@ -2,6 +2,7 @@
 
 import { ProtectedRoute } from "@/components/auth-guards";
 import DealerStaffLayout from "@/components/layout/dealer-staff-layout";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,29 +28,50 @@ import {
   RefreshCw,
   Tag,
   Eye,
-  Info
+  Info,
+  AlertCircle
 } from "lucide-react";
 import {
   getAllCategories,
+  getCategoriesByDealerId,
   searchCategoriesByName,
   type CategoryRes,
 } from "@/lib/categoryApi";
 import { Badge } from "@/components/ui/badge";
 
-export default function DealerManagerCategoriesPage() {
+export default function DealerStaffCategoriesPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [categories, setCategories] = useState<CategoryRes[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryRes | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
-  // Load categories
+  // Load categories - CHỈ CỦA DEALER NÀY
   const loadCategories = async () => {
+    if (!user?.dealerId) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không tìm thấy thông tin đại lý",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const data = await getAllCategories();
-      setCategories(data);
+      // Lấy categories của dealer này + các categories chung (dealerId = null)
+      const dealerCats = await getCategoriesByDealerId(user.dealerId);
+      const allCats = await getAllCategories();
+      const sharedCats = allCats.filter(c => !c.dealerId); // Categories chung
+      
+      // Merge và loại bỏ duplicates
+      const merged = [...dealerCats, ...sharedCats];
+      const unique = Array.from(new Map(merged.map(c => [c.id, c])).values());
+      
+      setCategories(unique);
+      console.log('🔍 Loaded categories for dealer:', user.dealerId, '- Total:', unique.length);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -62,19 +84,28 @@ export default function DealerManagerCategoriesPage() {
   };
 
   useEffect(() => {
-    loadCategories();
-  }, []);
+    if (user?.dealerId) {
+      loadCategories();
+    }
+  }, [user?.dealerId]);
 
-  // Search handler
+  // Search handler - CHỈ TRONG CATEGORIES CỦA DEALER NÀY
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
       loadCategories();
       return;
     }
+
+    if (!user?.dealerId) return;
+
     setLoading(true);
     try {
-      const data = await searchCategoriesByName(searchTerm);
-      setCategories(data);
+      // Search trong tất cả categories, sau đó filter theo dealerId
+      const allResults = await searchCategoriesByName(searchTerm);
+      const filteredResults = allResults.filter(c => 
+        !c.dealerId || c.dealerId === user.dealerId
+      );
+      setCategories(filteredResults);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -143,7 +174,6 @@ export default function DealerManagerCategoriesPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Tên danh mục</TableHead>
                   <TableHead>Thương hiệu</TableHead>
-                  <TableHead>Phiên bản</TableHead>
                   <TableHead>Loại xe</TableHead>
                   <TableHead>Giá cơ bản</TableHead>
                   <TableHead>Bảo hành</TableHead>
@@ -173,9 +203,8 @@ export default function DealerManagerCategoriesPage() {
                         {category.isSpecial && <span className="ml-2">⭐</span>}
                       </TableCell>
                       <TableCell>{category.brand}</TableCell>
-                      <TableCell>{category.version}</TableCell>
-                      <TableCell>{category.type}</TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell>-</TableCell>
+                      <TableCell>
                         {category.basePrice ? category.basePrice.toLocaleString('vi-VN') : '0'} ₫
                       </TableCell>
                       <TableCell>{category.warranty || 0} năm</TableCell>
@@ -247,17 +276,6 @@ export default function DealerManagerCategoriesPage() {
                   <div className="grid grid-cols-4 items-center gap-4">
                     <div className="font-medium text-right">Thương hiệu:</div>
                     <div className="col-span-3">{selectedCategory.brand}</div>
-                  </div>
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <div className="font-medium text-right">Phiên bản:</div>
-                    <div className="col-span-3">{selectedCategory.version}</div>
-                  </div>
-
-                  {/* Type */}
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <div className="font-medium text-right">Loại xe:</div>
-                    <div className="col-span-3">{selectedCategory.type}</div>
                   </div>
 
                   {/* Price and Warranty */}

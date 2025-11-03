@@ -125,6 +125,14 @@ export const getCategoriesByBrand = async (brand: string): Promise<CategoryRes[]
   return response.data;
 };
 
+/**
+ * Get categories by dealer ID (categories created by Dealer Manager)
+ */
+export const getCategoriesByDealerId = async (dealerId: number): Promise<CategoryRes[]> => {
+  const response = await api.get<CategoryRes[]>(`${CATEGORY_BASE}/search/dealer/${dealerId}`);
+  return response.data;
+};
+
 // ============ Dealer Category APIs ============
 
 /**
@@ -164,5 +172,21 @@ export const updateDealerCategory = async (id: number, data: DealerCategoryReq):
  */
 export const deleteDealerCategory = async (id: number): Promise<string> => {
   const response = await api.delete<string>(`${DEALER_CATEGORY_BASE}/delete/${id}`);
+  return response.data;
+};
+
+/**
+ * Get dealer categories by dealer ID
+ */
+export const getDealerCategoriesByDealerId = async (dealerId: number): Promise<DealerCategoryRes[]> => {
+  const response = await api.get<DealerCategoryRes[]>(`${DEALER_CATEGORY_BASE}/search/dealer/${dealerId}`);
+  return response.data;
+};
+
+/**
+ * Get dealer categories by category ID
+ */
+export const getDealerCategoriesByCategoryId = async (categoryId: number): Promise<DealerCategoryRes[]> => {
+  const response = await api.get<DealerCategoryRes[]>(`${DEALER_CATEGORY_BASE}/search/category/${categoryId}`);
   return response.data;
 };

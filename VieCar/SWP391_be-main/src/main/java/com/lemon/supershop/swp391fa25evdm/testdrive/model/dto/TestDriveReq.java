@@ -11,9 +11,13 @@ public class TestDriveReq {
     private LocalDateTime scheduleDate;
     private String notes;
     private String status;
+    private String specificVIN;
     private int userId;
     private int dealerId;
-    private int productId;
+    private int productId; // Will be assigned by dealer staff later
+    private int categoryId;
+    private String productModelName;
+    private int escortStaffId;
 
     public TestDriveReq() {
     }
@@ -64,5 +68,37 @@ public class TestDriveReq {
 
     public void setProductId(int productId) {
         this.productId = productId;
+    }
+
+    public String getSpecificVIN() {
+        return specificVIN;
+    }
+
+    public void setSpecificVIN(String specificVIN) {
+        this.specificVIN = specificVIN;
+    }
+
+    public int getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(int categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public String getProductModelName() {
+        return productModelName;
+    }
+
+    public void setProductModelName(String productModelName) {
+        this.productModelName = productModelName;
+    }
+
+    public int getEscortStaffId() {
+        return escortStaffId;
+    }
+
+    public void setEscortStaffId(int escortStaffId) {
+        this.escortStaffId = escortStaffId;
     }
 }

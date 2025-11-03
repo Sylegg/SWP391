@@ -2,6 +2,8 @@ package com.lemon.supershop.swp391fa25evdm.category.model.entity;
 
 // ❌ Xóa Distribution import - relationship đã xóa
 // import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.policies.model.entity.Policy;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.promotion.model.entity.Promotion;
@@ -44,6 +46,11 @@ public class Category {
     private String status;
 
     //relation
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "DealerId")
+    @JsonIgnore
+    private Dealer dealer;
+
     @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Product> products = new ArrayList<>();
 
@@ -127,6 +134,14 @@ public class Category {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Dealer getDealer() {
+        return dealer;
+    }
+
+    public void setDealer(Dealer dealer) {
+        this.dealer = dealer;
     }
 
     public List<DealerCategory> getDealerCategories() {

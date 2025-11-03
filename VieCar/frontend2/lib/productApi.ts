@@ -83,6 +83,14 @@ export const deleteProduct = async (id: number): Promise<string> => {
   return response.data;
 };
 
+/**
+ * Get products by dealer category ID
+ */
+export const getProductsByDealerCategory = async (dealerCategoryId: number): Promise<ProductRes[]> => {
+  const response = await api.get<ProductRes[]>(`${PRODUCT_BASE}/search/dealerCategory/${dealerCategoryId}`);
+  return response.data;
+};
+
 // ============ Helper Functions ============
 
 /**

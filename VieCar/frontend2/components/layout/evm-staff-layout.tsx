@@ -48,71 +48,11 @@ const navigationItems: NavigationItem[] = [
     icon: Home,
     section: "main"
   },
-  // Module 1: Danh mục & Sản phẩm
-  {
-    title: "📦 Danh mục & Sản phẩm",
-    isHeader: true,
-    section: "catalog"
-  },
-  {
-    title: "Quản lý danh mục",
-    href: "/dashboard/evm-staff/categories",
-    icon: Tag,
-    section: "catalog"
-  },
-  {
-    title: "Quản lý mẫu xe",
-    href: "/dashboard/evm-staff/products",
-    icon: Car,
-    section: "catalog"
-  },
   {
     title: "Phân phối sản phẩm",
     href: "/dashboard/evm-staff/distributions",
     icon: Truck,
-    section: "catalog"
-  },
-  // Module 2: Thanh toán
-  {
-    title: "💰 Thanh toán & Công nợ",
-    isHeader: true,
-    section: "payment"
-  },
-  {
-    title: "Thanh toán đại lý",
-    href: "/dashboard/evm-staff/payments",
-    icon: CreditCard,
-    section: "payment"
-  },
-  {
-    title: "Xuất hóa đơn",
-    href: "/dashboard/evm-staff/payments/invoices",
-    icon: FileText,
-    section: "payment"
-  },
-  {
-    title: "Quản lý công nợ",
-    href: "/dashboard/evm-staff/debt-management",
-    icon: DollarSign,
-    section: "payment"
-  },
-  // Module 5: Đại lý
-  {
-    title: "🏢 Quản lý đại lý",
-    isHeader: true,
-    section: "dealers"
-  },
-  {
-    title: "Danh sách đại lý",
-    href: "/dashboard/evm-staff/dealers",
-    icon: Building2,
-    section: "dealers"
-  },
-  {
-    title: "Tạo đại lý mới",
-    href: "/dashboard/evm-staff/dealers/create",
-    icon: Users,
-    section: "dealers"
+    section: "main"
   }
 ];
 

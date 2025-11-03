@@ -8,6 +8,7 @@ export interface CategoryReq {
   isSpecial: boolean;
   description: string;
   status: string;
+  dealerId?: number; // Optional: For Dealer Manager categories
 }
 
 export interface CategoryRes {
@@ -19,6 +20,7 @@ export interface CategoryRes {
   isSpecial: boolean;
   description: string;
   status: string;
+  dealerId?: number; // null if created by EVM/Admin, set if created by Dealer Manager
 }
 
 export interface DealerCategoryReq {

@@ -420,8 +420,16 @@ export default function EvmDistributionsPage() {
         evmNotes: `Duyệt theo dòng: ${reviewItems.map(it => 
           `${it.name}${it.color ? ' ('+it.color+')' : ''}: ${it.approved ? `${it.approvedQuantity}/${it.requested} xe @ ${it.manufacturerPrice.toLocaleString()} VND` : '0/'+it.requested}`
         ).join('; ')}${reviewNote ? ` | Ghi chú: ${reviewNote}` : ''}`,
+        // 🔥 GỬI ITEMS VỚI GIÁ RIÊNG CHO TỪNG DÒNG
+        items: reviewItems
+          .filter(it => it.approved)
+          .map(it => ({
+            distributionItemId: it.id,
+            dealerPrice: it.manufacturerPrice,
+          })),
       };
 
+      console.log('🔥 Sending approval with items:', requestData);
       await approveDistributionOrder(selectedDistribution.id, requestData);
       
       // Always send price to dealer for confirmation
@@ -594,10 +602,10 @@ export default function EvmDistributionsPage() {
                               variant="default"
                               size="sm"
                               onClick={() => openReviewDialog(dist)}
-                              className="bg-green-600 hover:bg-green-700"
+                              className="bg-blue-600 hover:bg-blue-700"
                             >
                               <Eye className="h-4 w-4 mr-1" />
-                              Xem đơn
+                              Xem đơn & Duyệt theo dòng
                             </Button>
                             <Button
                               variant="destructive"
@@ -605,12 +613,36 @@ export default function EvmDistributionsPage() {
                               onClick={() => openApproveDialog(dist, false)}
                             >
                               <XCircle className="h-4 w-4 mr-1" />
-                              Từ chối
+                              Từ chối toàn bộ đơn
                             </Button>
                           </>
                         )}
                         
-                        {/* Step 5: Plan button for CONFIRMED status */}
+                        {/* Step 4a: If dealer rejected price, allow EVM to revise */}
+                        {dist.status === DistributionStatus.PRICE_REJECTED && (
+                          <>
+                            <Badge variant="destructive" className="mr-2">
+                              Dealer từ chối giá
+                            </Badge>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openReviewDialog(dist)}
+                              className="bg-amber-600 hover:bg-amber-700"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Sửa giá & Gửi lại
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => openApproveDialog(dist, false)}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Hủy đơn
+                            </Button>
+                          </>
+                        )}                        {/* Step 5: Plan button for CONFIRMED status */}
                         {dist.status === DistributionStatus.CONFIRMED && (
                           <Button
                             variant="default"
