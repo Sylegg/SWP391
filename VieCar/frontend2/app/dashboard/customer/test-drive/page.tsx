@@ -480,6 +480,8 @@ function TestDrivePage() {
                         <div className="mt-4">
                           <Button
                             onClick={() => {
+                              console.log('🔍 Test Drive Detail Data:', testDrive);
+                              console.log('👤 Escort Staff:', testDrive.escortStaff);
                               setSelectedTestDriveForDetail(testDrive);
                               setDetailDialogOpen(true);
                             }}

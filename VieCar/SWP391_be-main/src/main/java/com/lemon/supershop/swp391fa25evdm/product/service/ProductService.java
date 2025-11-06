@@ -162,6 +162,10 @@ public class ProductService {
                 Optional<DealerCategory> category = dealerCategoryRepository.findById(product.getDealerCategory().getId());
                 if (category.isPresent()) {
                     productRes.setDealerCategoryId(category.get().getId());
+                    // Set dealerId from DealerCategory
+                    if (category.get().getDealer() != null) {
+                        productRes.setDealerId(category.get().getDealer().getId());
+                    }
                 }
             }
             return productRes;

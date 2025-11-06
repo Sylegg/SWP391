@@ -183,9 +183,9 @@ public class TestDriveController {
     // ============ Staff Assignment API ============
     
     /**
-     * Dealer staff assigns vehicle to a pending test drive request
+     * Dealer staff assigns vehicle and escort staff to a pending test drive request
      * POST /api/testdrives/{id}/assign
-     * Body: { "productId": 123 }
+     * Body: { "productId": 123, "escortStaffId": 456 }
      */
     @PostMapping("/{id}/assign")
     public ResponseEntity<TestDriveRes> assignVehicleAndStaff(
@@ -195,7 +195,10 @@ public class TestDriveController {
             return ResponseEntity.badRequest().build();
         }
         
-        TestDriveRes result = testDriveService.assignVehicleAndStaff(id, req.getProductId());
+        // escortStaffId is optional, default to 0 if not provided
+        int escortStaffId = req.getEscortStaffId() > 0 ? req.getEscortStaffId() : 0;
+        
+        TestDriveRes result = testDriveService.assignVehicleAndStaff(id, req.getProductId(), escortStaffId);
         if (result != null) {
             return ResponseEntity.ok(result);
         } else {

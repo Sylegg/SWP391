@@ -8,6 +8,7 @@ import {
   Home,
   Car,
   Calendar,
+  ShoppingCart,
   ArrowLeft,
   LogOut
 } from "lucide-react";
@@ -34,6 +35,11 @@ const navigationItems = [
     title: "Đặt lịch lái thử",
     href: "/dashboard/customer/test-drive",
     icon: Calendar
+  },
+  {
+    title: "Đơn hàng & Thanh toán",
+    href: "/dashboard/customer/orders",
+    icon: ShoppingCart
   }
 ];
 

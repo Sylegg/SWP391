@@ -46,6 +46,7 @@ export interface ProductRes {
   status: ProductStatus;
   categoryId: number;
   dealerCategoryId: number;
+  dealerId?: number; // ✅ ID của đại lý sở hữu xe này (từ DealerCategory)
 }
 
 // Form data types (for creating/updating products)

@@ -1,30 +1,39 @@
 // Order API Types
 
-// Order Status enum - theo workflow mới
+// Order Status enum - Luồng đặt xe mới với Dealer Staff
 export enum OrderStatus {
-  DRAFT = 'DRAFT',               // Đang soạn, chưa gửi
-  PENDING = 'PENDING',           // Đã gửi, chờ EVM duyệt
-  APPROVED = 'APPROVED',         // EVM đã duyệt
-  REJECTED = 'REJECTED',         // EVM từ chối
-  DELIVERED = 'DELIVERED',       // Đã giao hàng (optional)
+  DRAFT = 'DRAFT',                       // Đang soạn, chưa gửi
+  PENDING_APPROVAL = 'PENDING_APPROVAL', // Đã gửi, chờ Dealer Staff duyệt
+  AWAITING_DEPOSIT = 'AWAITING_DEPOSIT', // Dealer đã duyệt, chờ customer đặt cọc 30%
+  DEPOSIT_PAID = 'DEPOSIT_PAID',         // Đã đặt cọc 30%, chờ thanh toán phần còn lại
+  APPROVED = 'APPROVED',                 // Đã duyệt (EVM/hoàn tất)
+  REJECTED = 'REJECTED',                 // Dealer/EVM từ chối
+  DELIVERED = 'DELIVERED',               // Đã giao hàng
+  CANCELLED = 'CANCELLED',               // Đã hủy
 }
 
 // Status labels
 export const OrderStatusLabels: Record<OrderStatus, string> = {
   [OrderStatus.DRAFT]: 'Bản nháp',
-  [OrderStatus.PENDING]: 'Chờ duyệt',
+  [OrderStatus.PENDING_APPROVAL]: 'Chờ đại lý duyệt',
+  [OrderStatus.AWAITING_DEPOSIT]: 'Chưa đặt cọc 30%',
+  [OrderStatus.DEPOSIT_PAID]: 'Đã đặt cọc',
   [OrderStatus.APPROVED]: 'Đã duyệt',
   [OrderStatus.REJECTED]: 'Đã từ chối',
   [OrderStatus.DELIVERED]: 'Đã giao hàng',
+  [OrderStatus.CANCELLED]: 'Đã hủy',
 };
 
 // Status colors
 export const OrderStatusColors: Record<OrderStatus, string> = {
   [OrderStatus.DRAFT]: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-  [OrderStatus.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  [OrderStatus.PENDING_APPROVAL]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  [OrderStatus.AWAITING_DEPOSIT]: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  [OrderStatus.DEPOSIT_PAID]: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   [OrderStatus.APPROVED]: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   [OrderStatus.REJECTED]: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  [OrderStatus.DELIVERED]: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  [OrderStatus.DELIVERED]: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  [OrderStatus.CANCELLED]: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
 };
 
 // Order Item (1 sản phẩm trong order)

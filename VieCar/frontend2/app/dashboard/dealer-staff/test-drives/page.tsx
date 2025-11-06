@@ -344,9 +344,10 @@ export default function TestDrivesPage() {
   const handleConfirmAssignment = async () => {
     if (!selectedTestDrive || !selectedProductId) return;
 
-    // Only send productId - no escort staff
+    // Send productId and escortStaffId (current user)
     const assignData = {
       productId: selectedProductId,
+      escortStaffId: user?.id ? parseInt(user.id) : 0,
     };
 
     const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -628,55 +629,6 @@ export default function TestDrivesPage() {
               Xem và quản lý các yêu cầu lái thử xe từ khách hàng
             </p>
           </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng số lịch</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chờ phân công</CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Đã phân công</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Đang lái thử</CardTitle>
-            <Car className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hoàn thành</CardTitle>
-            <CheckCircle className="h-4 w-4 text-gray-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{stats.done}</div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Filter Section */}
       <Card>
@@ -1003,6 +955,15 @@ export default function TestDrivesPage() {
                 <p className="text-sm text-muted-foreground">
                   {formatDateTime(selectedTestDrive.scheduleDate).date} - {formatDateTime(selectedTestDrive.scheduleDate).time}
                 </p>
+                {selectedTestDrive.escortStaff && (
+                  <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Nhân viên hộ tống:</p>
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                      {selectedTestDrive.escortStaff.fullName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{selectedTestDrive.escortStaff.phone}</p>
+                  </div>
+                )}
               </div>
 
               {/* Status */}

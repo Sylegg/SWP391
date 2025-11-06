@@ -31,6 +31,24 @@ public class Payment {
     @Column(name = "PaidAt", columnDefinition = "DATETIME2")
     private Date paidAt;
 
+    @Column(name = "UpdateAt", columnDefinition = "DATETIME2")
+    private Date updateAt;
+
+    @Column(name = "Trans_Code", unique = true)
+    private String transactionCode; // VNPay transaction number
+
+    @Column(name = "OrderVnp_Id", unique = true)
+    private String vnpOrderId; // Order reference ID
+
+    @Column(name = "Bank_Code", columnDefinition = "VARCHAR(20)")
+    private String bankCode; // NCB, VIETCOMBANK, etc.
+
+    @Column(name = "Response_Code", columnDefinition = "VARCHAR(5)")
+    private String responseCode; // 00 = success, 24 = cancel, etc.
+
+    @Column(name = "Provider_Response", columnDefinition = "TEXT")
+    private String providerResponse; // Raw JSON response from provider
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrderId")
     private Order order;
@@ -107,5 +125,53 @@ public class Payment {
 
     public void setPreOrder(PreOrder preOrder) {
         this.preOrder = preOrder;
+    }
+
+    public Date getUpdateAt() {
+        return updateAt;
+    }
+
+    public void setUpdateAt(Date updateAt) {
+        this.updateAt = updateAt;
+    }
+
+    public String getTransactionCode() {
+        return transactionCode;
+    }
+
+    public void setTransactionCode(String transactionCode) {
+        this.transactionCode = transactionCode;
+    }
+
+    public String getVnpOrderId() {
+        return vnpOrderId;
+    }
+
+    public void setVnpOrderId(String vnpOrderId) {
+        this.vnpOrderId = vnpOrderId;
+    }
+
+    public String getBankCode() {
+        return bankCode;
+    }
+
+    public void setBankCode(String bankCode) {
+        this.bankCode = bankCode;
+    }
+
+    public String getResponseCode() {
+        return responseCode;
+    }
+
+    public void setResponseCode(String responseCode) {
+        this.responseCode = responseCode;
+    }
+
+    public String getProviderResponse() {
+        return providerResponse;
+    }
+
+    public void setProviderResponse(String providerResponse) {
+        this.providerResponse = providerResponse;
     }
 }

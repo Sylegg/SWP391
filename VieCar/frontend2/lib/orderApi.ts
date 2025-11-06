@@ -84,3 +84,51 @@ export async function deleteOrder(id: number): Promise<void> {
   });
   if (!response.ok) throw new Error('Failed to delete order');
 }
+
+// Approve order (Dealer Staff duyệt đơn và yêu cầu đặt cọc)
+export async function approveOrder(id: number, notes?: string): Promise<OrderRes> {
+  const response = await fetch(`${API_BASE_URL}/api/orders/updateOrder/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      status: 'Chưa đặt cọc',
+      notes: notes || 'Đơn hàng đã được duyệt. Vui lòng đặt cọc 30% để tiếp tục.'
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to approve order');
+  return response.json();
+}
+
+// Reject order (Dealer Staff từ chối đơn)
+export async function rejectOrder(id: number, reason: string): Promise<OrderRes> {
+  const response = await fetch(`${API_BASE_URL}/api/orders/updateOrder/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      status: 'Đã từ chối',
+      notes: reason
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to reject order');
+  return response.json();
+}
+
+// Confirm deposit and request vehicle from dealer (Xác nhận đặt cọc và gửi yêu cầu đến đại lý)
+export async function confirmDepositAndRequestVehicle(id: number, notes?: string): Promise<OrderRes> {
+  const response = await fetch(`${API_BASE_URL}/api/orders/updateOrder/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      status: 'Đã yêu cầu đại lý',
+      notes: notes || 'Đã xác nhận đặt cọc. Yêu cầu đã được gửi đến đại lý để chuẩn bị xe.'
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to confirm deposit and request vehicle');
+  return response.json();
+}

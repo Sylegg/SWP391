@@ -43,7 +43,7 @@ public class Order {
     @JsonIgnore
     private User user;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "ProductId")
     private Product product;
 

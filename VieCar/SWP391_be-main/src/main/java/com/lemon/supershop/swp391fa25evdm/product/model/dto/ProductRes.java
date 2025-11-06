@@ -23,6 +23,7 @@ public class ProductRes {
     private ProductStatus status;
     private int categoryId;
     private int dealerCategoryId;
+    private Integer dealerId; // ID của đại lý sở hữu xe này
 
     public ProductRes() {}
 
@@ -168,5 +169,13 @@ public class ProductRes {
 
     public void setStockInDate(Date stockInDate) {
         this.stockInDate = stockInDate;
+    }
+
+    public Integer getDealerId() {
+        return dealerId;
+    }
+
+    public void setDealerId(Integer dealerId) {
+        this.dealerId = dealerId;
     }
 }

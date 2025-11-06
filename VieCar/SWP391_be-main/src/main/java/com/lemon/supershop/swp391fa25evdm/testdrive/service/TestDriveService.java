@@ -266,7 +266,7 @@ public class TestDriveService {
     /**
      * Step 2: Dealer staff assigns vehicle to a pending test drive request
      */
-    public TestDriveRes assignVehicleAndStaff(int testDriveId, int productId) {
+    public TestDriveRes assignVehicleAndStaff(int testDriveId, int productId, int escortStaffId) {
         // 1️⃣ Validate test drive exists and is PENDING or ASSIGNING
         TestDrive testDrive = testDriveRepository.findById(testDriveId)
             .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu lái thử với ID: " + testDriveId));
@@ -309,9 +309,20 @@ public class TestDriveService {
             );
         }
         
-        // All validations passed, assign vehicle only (no escort staff)
+        // All validations passed, assign vehicle and escort staff
         testDrive.setProduct(product);
         testDrive.setSpecificVIN(product.getVinNum());
+        
+        // Assign escort staff if provided
+        if (escortStaffId > 0) {
+            Optional<User> escortStaff = userRepo.findById(escortStaffId);
+            if (escortStaff.isPresent()) {
+                testDrive.setEscortStaff(escortStaff.get());
+            } else {
+                throw new IllegalArgumentException("Không tìm thấy nhân viên hộ tống với ID: " + escortStaffId);
+            }
+        }
+        
         testDrive.setStatus("APPROVED"); // Auto-approve when assigned
         
         TestDrive savedTestDrive = testDriveRepository.save(testDrive);

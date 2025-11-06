@@ -335,20 +335,28 @@ export default function CatalogPage() {
                 </CardContent>
 
                 <CardFooter className="gap-2">
-                  {product.status === 'TEST_DRIVE' && (
+                  {product.status === 'TEST_DRIVE' ? (
+                    // Nếu xe chỉ dành cho lái thử, chỉ hiện nút Lái thử
                     <Link href="/dashboard/customer/test-drive" className="flex-1">
-                      <Button variant="outline" className="w-full" size="sm">
+                      <Button className="w-full" size="sm">
                         <Calendar className="h-4 w-4 mr-1" />
-                        Lái thử
+                        Đặt lịch lái thử
                       </Button>
                     </Link>
-                  )}
-                  <Link href={`/dashboard/customer/order?productId=${product.id}`} className="flex-1">
-                    <Button className="w-full" size="sm">
-                      <ShoppingCart className="h-4 w-4 mr-1" />
-                      Đặt xe
+                  ) : product.status === 'ACTIVE' ? (
+                    // Nếu xe đang bán, hiển thị nút Đặt xe
+                    <Link href={`/dashboard/customer/order?productId=${product.id}`} className="flex-1">
+                      <Button className="w-full" size="sm">
+                        <ShoppingCart className="h-4 w-4 mr-1" />
+                        Đặt xe
+                      </Button>
+                    </Link>
+                  ) : (
+                    // Các trạng thái khác (SOLD, INACTIVE, etc.)
+                    <Button className="w-full" size="sm" disabled>
+                      Không khả dụng
                     </Button>
-                  </Link>
+                  )}
                 </CardFooter>
               </Card>
             );

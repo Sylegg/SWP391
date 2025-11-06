@@ -57,6 +57,25 @@ public class OrderService {
         }
     }
 
+    public List<OrderRes> ListOrderbyDealerId(int dealerId) {
+        Optional<Dealer> dealer = dealerRepo.findById(dealerId);
+        if (dealer.isPresent()){
+            return orderRepo.findByDealerId(dealerId).stream().map(order -> {
+                return convertOrderToOrderRes(order);
+            }).collect(Collectors.toList());
+        }else {
+            return new ArrayList<>();
+        }
+    }
+
+    public OrderRes getOrderById(int orderId) {
+        Optional<Order> order = orderRepo.findById(orderId);
+        if (order.isPresent()){
+            return convertOrderToOrderRes(order.get());
+        }
+        return null;
+    }
+
     public List<OrderRes> ListAllOrders() {
             return orderRepo.findAll().stream().map(order -> {
                 return convertOrderToOrderRes(order);
@@ -110,7 +129,7 @@ public class OrderService {
             if (dto.getShip_status() != null){
                 order.get().setShipStatus(dto.getShip_status());
             } else {
-                order.get().setShipStatus("Wait for delivery");
+                order.get().setShipStatus("Chờ giao hàng");
             }
             orderRepo.save(order.get());
             return convertOrderToOrderRes(order.get());
@@ -121,6 +140,16 @@ public class OrderService {
     public OrderRes updateOrder(int orderId, UpdateOrderReq dto) {
         Optional<Order> order = orderRepo.findById(orderId);
         if (order.isPresent()){
+            // Update status if provided
+            if (dto.getStatus() != null && !dto.getStatus().isEmpty()) {
+                order.get().setStatus(dto.getStatus());
+            }
+            
+            // Update notes if provided (you may need to add notes field to Order entity)
+            // if (dto.getNotes() != null && !dto.getNotes().isEmpty()) {
+            //     order.get().setNotes(dto.getNotes());
+            // }
+            
             if (dto.getProductId() > 0 ){
                 Optional<Product> product  = productRepo.findById(dto.getProductId());
                 if (product.isPresent()){
@@ -216,7 +245,7 @@ public class OrderService {
             if (order.getStatus() != null){
                 orderRes.setStatus(order.getStatus());
             } else {
-                orderRes.setStatus("Processing");
+                orderRes.setStatus("Chờ xử lý");
             }
         }
         return orderRes;

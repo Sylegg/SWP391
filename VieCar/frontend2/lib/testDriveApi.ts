@@ -96,9 +96,23 @@ export async function getTestDrivesByDealerId(dealerId: number): Promise<TestDri
 
 // Get test drives by user ID
 export async function getTestDrivesByUserId(userId: number): Promise<TestDriveRes[]> {
-  const response = await fetch(`${API_BASE_URL}/api/testdrives/search/user/${userId}`);
-  if (!response.ok) throw new Error('Failed to fetch test drives by user');
-  return response.json();
+  console.log('🔄 [API] getTestDrivesByUserId called with userId:', userId);
+  const url = `${API_BASE_URL}/api/testdrives/search/user/${userId}`;
+  console.log('📡 [API] Fetching from URL:', url);
+  
+  const response = await fetch(url);
+  console.log('📥 [API] Response status:', response.status);
+  
+  if (!response.ok) {
+    console.error('❌ [API] Failed to fetch, status:', response.status);
+    throw new Error('Failed to fetch test drives by user');
+  }
+  
+  const data = await response.json();
+  console.log('📦 [API] User Test Drives Data:', data);
+  console.log('👤 [API] First test drive escortStaff:', data[0]?.escortStaff);
+  
+  return data;
 }
 
 // Get test drive by ID
