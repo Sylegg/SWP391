@@ -305,10 +305,29 @@ export default function CustomerDashboard() {
     return (
       <ProtectedRoute allowedRoles={['Customer']}>
         <CustomerLayout>
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Đang tải...</p>
+          <div className="flex items-center justify-center min-h-[70vh]">
+            <div className="text-center relative">
+              {/* Liquid Glass Background */}
+              <div className="absolute inset-0 -z-10">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 via-teal-300/20 to-cyan-400/20 rounded-3xl blur-3xl animate-pulse"></div>
+              </div>
+              
+              {/* Animated Spinner with Liquid Effect */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur-xl opacity-50 animate-ping"></div>
+                <div className="relative animate-spin rounded-full h-16 w-16 border-4 border-transparent bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 p-1 mx-auto">
+                  <div className="h-full w-full bg-white rounded-full"></div>
+                </div>
+              </div>
+              
+              <p className="mt-6 text-lg font-medium bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent animate-pulse">
+                Đang tải dữ liệu...
+              </p>
+              
+              {/* Progress Bar */}
+              <div className="mt-4 w-48 mx-auto h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 animate-[gradient-shift_2s_ease-in-out_infinite]"></div>
+              </div>
             </div>
           </div>
         </CustomerLayout>
@@ -320,359 +339,494 @@ export default function CustomerDashboard() {
     <ProtectedRoute allowedRoles={['Customer']}> 
       <CustomerLayout>
         <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Tổng quan</h1>
-              <p className="text-muted-foreground mt-2">
-                Chào mừng, {user?.username}! 
-                {confirmedDealer ? (
-                  <span className="text-primary font-semibold ml-1">
-                    🏢 Đang xem: {dealers.find(d => d.id === parseInt(confirmedDealer))?.name}
-                  </span>
-                ) : (
-                  ' Chọn đại lý gần bạn để xem xe và lịch hẹn.'
-                )}
-              </p>
+          {/* 🎨 Liquid Glass Hero Header */}
+          <div className="relative overflow-hidden rounded-2xl">
+            {/* Animated Background Gradients */}
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 animate-[gradient-shift_8s_ease-in-out_infinite]"></div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-emerald-400/20 via-transparent to-cyan-400/20 animate-[liquid-shimmer_3s_ease-in-out_infinite]"></div>
+            
+            {/* Glass Card */}
+            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl">
+              <div className="p-8">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm shadow-lg">
+                        <Car className="h-8 w-8 text-white" />
+                      </div>
+                      <div>
+                        <h1 className="text-4xl font-bold text-white">
+                          Chào mừng khách hàng
+                        </h1>
+                        <p className="text-white/90 text-base mt-1">
+                          Electric Vehicle Management System
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 space-y-2">
+                      <p className="text-white/95 text-lg">
+                        Xin chào, <span className="font-bold">{user?.username}</span>
+                      </p>
+                      {confirmedDealer ? (
+                        <p className="text-white/80 text-sm flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          Đang xem tại: <span className="font-semibold">{dealers.find(d => d.id === parseInt(confirmedDealer))?.name}</span>
+                        </p>
+                      ) : (
+                        <p className="text-amber-200 text-sm flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Vui lòng chọn đại lý để bắt đầu mua sắm
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Role Badge - Right Side */}
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/30">
+                    <div className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></div>
+                    <span className="text-white font-semibold text-sm">Khách hàng</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Step 1: Chọn đại lý - NEW UX */}
+          {/* 📍 Step 1: Chọn đại lý - Liquid Glass Design */}
           {!confirmedDealer && (
-            <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPinned className="h-5 w-5" />
-                Chọn đại lý
-              </CardTitle>
-              <CardDescription>
-                Vui lòng chọn đại lý để xem xe và lịch hẹn của bạn
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Location Info */}
-              <div className="flex items-center justify-between">
-                <div>
-                  {userLocation && (
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3" />
-                      Đã sắp xếp đại lý theo khoảng cách từ vị trí của bạn
-                    </p>
-                  )}
-                  {!userLocation && (
-                    <p className="text-xs text-muted-foreground">
-                      Cho phép truy cập vị trí để sắp xếp đại lý gần bạn
-                    </p>
-                  )}
+            <div className="relative">
+              {/* Gradient Background Effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-100/50 via-teal-50/30 to-cyan-100/50 rounded-2xl blur-2xl -z-10"></div>
+              
+              <Card className="border-emerald-200/60 shadow-xl backdrop-blur-sm bg-white/80 overflow-hidden">
+                {/* Header with Gradient */}
+                <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border-b border-emerald-200/50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2.5 text-xl">
+                      <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md">
+                        <MapPinned className="h-5 w-5 text-white" />
+                      </div>
+                      <span className="bg-gradient-to-r from-emerald-700 to-teal-700 bg-clip-text text-transparent font-bold">
+                        Chọn đại lý
+                      </span>
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      Vui lòng chọn đại lý để xem xe và đặt lịch hẹn
+                    </CardDescription>
+                  </CardHeader>
                 </div>
-                {!userLocation && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={requestUserLocation}
-                    disabled={locationRequested}
-                  >
-                    <Navigation className="h-3 w-3 mr-1" />
-                    {locationRequested ? 'Đang lấy vị trí...' : 'Lấy vị trí của tôi'}
-                  </Button>
-                )}
-              </div>
-
-              {/* Dealer List - Clickable Cards */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium">
-                  Danh sách đại lý ({dealersWithDistance.length})
-                </label>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2">
-                  {dealersWithDistance.map((dealer) => (
-                    <div
-                      key={dealer.id}
-                      onClick={() => setSelectedDealer(dealer.id.toString())}
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                        selectedDealer === dealer.id.toString()
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <MapPin className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
-                          selectedDealer === dealer.id.toString() ? 'text-green-600' : 'text-gray-400'
-                        }`} />
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`font-semibold text-sm mb-1 ${
-                            selectedDealer === dealer.id.toString() ? 'text-green-700' : 'text-gray-900'
-                          }`}>
-                            {dealer.name}
-                          </h3>
-                          <p className="text-xs text-gray-600 mb-1">{dealer.address}</p>
-                          <div className="flex items-center gap-2 text-xs">
-                            {dealer.phone && (
-                              <span className="text-gray-500">📞 {dealer.phone}</span>
+                <CardContent className="space-y-4 pt-6">
+                  {/* Location Info */}
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50/50 to-teal-50/50">
+                    <div className="flex-1">
+                      {userLocation && (
+                        <p className="text-sm text-emerald-700 flex items-center gap-2 font-medium">
+                          <CheckCircle className="h-4 w-4 fill-emerald-500 text-white" />
+                          Đã sắp xếp đại lý theo khoảng cách từ vị trí của bạn
+                        </p>
+                      )}
+                      {!userLocation && (
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Navigation className="h-4 w-4 text-gray-400" />
+                          Cho phép truy cập vị trí để sắp xếp đại lý gần bạn
+                        </p>
+                      )}
+                    </div>
+                    {!userLocation && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={requestUserLocation}
+                        disabled={locationRequested}
+                        className="ml-4 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 transition-all"
+                      >
+                        <Navigation className="h-3.5 w-3.5 mr-1.5" />
+                        {locationRequested ? 'Đang lấy...' : 'Lấy vị trí'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Dealer List - Clickable Cards */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <div className="w-1 h-5 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full"></div>
+                      Danh sách đại lý ({dealersWithDistance.length})
+                    </label>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
+                      {dealersWithDistance.map((dealer) => (
+                        <div
+                          key={dealer.id}
+                          onClick={() => setSelectedDealer(dealer.id.toString())}
+                          className={`group relative p-5 border-2 rounded-xl cursor-pointer transition-all duration-300 ${
+                            selectedDealer === dealer.id.toString()
+                              ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-lg scale-[1.02]'
+                              : 'border-gray-200 hover:border-emerald-300 hover:shadow-md hover:scale-[1.01] bg-white'
+                          }`}
+                        >
+                          {/* Selected Indicator Ring */}
+                          {selectedDealer === dealer.id.toString() && (
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl opacity-20 blur-sm"></div>
+                          )}
+                          
+                          <div className="relative flex items-start gap-3.5">
+                            <MapPin className={`h-5 w-5 mt-0.5 flex-shrink-0 transition-all ${
+                              selectedDealer === dealer.id.toString() ? 'text-emerald-600 scale-110' : 'text-gray-400 group-hover:text-emerald-500'
+                            }`} />
+                            
+                            <div className="flex-1 min-w-0">
+                              <h3 className={`font-semibold text-base mb-1.5 transition-colors ${
+                                selectedDealer === dealer.id.toString() ? 'text-emerald-700' : 'text-gray-900'
+                              }`}>
+                                {dealer.name}
+                              </h3>
+                              <p className="text-xs text-gray-600 mb-2 line-clamp-2">{dealer.address}</p>
+                              <div className="flex items-center gap-2 text-xs">
+                                {dealer.phone && (
+                                  <span className="text-gray-500 flex items-center gap-1">
+                                    <span className="text-emerald-600">📞</span> {dealer.phone}
+                                  </span>
+                                )}
+                              </div>
+                              {dealer.distance && (
+                                <div className="mt-3">
+                                  <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50">
+                                    <Navigation className="h-3 w-3 mr-1" />
+                                    {dealer.distance.toFixed(1)} km
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {selectedDealer === dealer.id.toString() && (
+                              <CheckCircle className="h-6 w-6 text-emerald-600 fill-emerald-100 flex-shrink-0 animate-[scale-in_0.2s_ease-out]" />
                             )}
                           </div>
-                          {dealer.distance && (
-                            <div className="mt-2">
-                              <Badge variant="outline" className="text-xs">
-                                <Navigation className="h-3 w-3 mr-1" />
-                                {dealer.distance.toFixed(1)} km
-                              </Badge>
-                            </div>
-                          )}
                         </div>
-                        {selectedDealer === dealer.id.toString() && (
-                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      ))}
+                    </div>
+
+                    {/* Confirm Button */}
+                    {selectedDealer && (
+                      <div className="pt-4 border-t border-emerald-100 animate-[scale-in_0.2s_ease-out]">
+                        <Button
+                          onClick={() => {
+                            const dealer = dealers.find(d => d.id === parseInt(selectedDealer));
+                            if (dealer) {
+                              setPendingDealer(dealer);
+                              setShowConfirmDialog(true);
+                            }
+                          }}
+                          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                          size="lg"
+                        >
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          Xác nhận đại lý
+                        </Button>
+                      </div>
+                    )}
+
+                    {!selectedDealer && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1.5 justify-center pt-2 bg-amber-50 py-3 rounded-lg border border-amber-200">
+                        <AlertCircle className="h-4 w-4" />
+                        Vui lòng chọn một đại lý từ danh sách
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Toggle Map Button */}
+                  <div className="pt-4 border-t border-emerald-100">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowMap(!showMap)}
+                      className="w-full border-emerald-300 hover:bg-emerald-50 transition-all"
+                    >
+                      <MapPinned className="mr-2 h-4 w-4 text-emerald-600" />
+                      {showMap ? 'Ẩn bản đồ' : 'Hiện bản đồ'}
+                    </Button>
+                  </div>
+
+                  {/* Google Maps - Collapsible with Liquid Glass */}
+                  {showMap && (
+                    <div className="space-y-3 pt-4 animate-[scale-in_0.3s_ease-out]">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <div className="w-1 h-5 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full"></div>
+                        Bản đồ
+                      </label>
+                      <div className="border-2 border-emerald-200 rounded-xl overflow-hidden relative shadow-lg" style={{ height: '400px' }}>
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          loading="lazy"
+                          allowFullScreen
+                          referrerPolicy="no-referrer-when-downgrade"
+                          src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${
+                            selectedDealer && dealers.find(d => d.id === parseInt(selectedDealer))?.latitude
+                              ? `${dealers.find(d => d.id === parseInt(selectedDealer))?.latitude},${dealers.find(d => d.id === parseInt(selectedDealer))?.longitude}`
+                              : userLocation 
+                                ? `${userLocation.lat},${userLocation.lng}`
+                                : 'Ho+Chi+Minh+City,Vietnam'
+                          }&zoom=${selectedDealer ? 15 : 12}`}
+                        />
+                        {selectedDealer && dealers.find(d => d.id === parseInt(selectedDealer)) && (
+                          <div className="absolute top-3 left-3 backdrop-blur-xl bg-white/90 px-4 py-3 rounded-xl shadow-xl border border-emerald-200">
+                            <div className="flex items-center gap-2.5">
+                              <MapPin className="h-4 w-4 text-red-500" />
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {dealers.find(d => d.id === parseInt(selectedDealer))?.name}
+                                </div>
+                                {dealers.find(d => d.id === parseInt(selectedDealer))?.distance && (
+                                  <div className="text-xs text-emerald-600 font-medium">
+                                    {dealers.find(d => d.id === parseInt(selectedDealer))?.distance?.toFixed(1)} km từ bạn
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-                {/* Confirm Button */}
-                {selectedDealer && (
-                  <div className="pt-4 border-t">
+          {/* ✅ Welcome Message - After Confirmation */}
+          {confirmedDealer && confirmedDealer.trim() !== '' && (
+            <div className="relative">
+              {/* Glow Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-teal-400/20 rounded-2xl blur-xl"></div>
+              
+              <Card className="relative border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-lg overflow-hidden">
+                {/* Animated Background Pattern */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 animate-[gradient-shift_8s_ease-in-out_infinite]"></div>
+                </div>
+                
+                <CardHeader className="relative">
+                  <CardTitle className="flex items-center gap-3 text-emerald-800">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md">
+                      <CheckCircle className="h-6 w-6 text-white" />
+                    </div>
+                    <span className="text-lg font-bold">
+                      Xin chào khách hàng của {dealers.find(d => d.id === parseInt(confirmedDealer))?.name}
+                    </span>
+                  </CardTitle>
+                  <CardDescription className="text-emerald-700 font-medium">
+                    Bạn đang xem thông tin xe và lịch hẹn tại đại lý này
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="relative">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-emerald-200">
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <MapPin className="h-4 w-4 text-emerald-600" />
+                      <span className="font-medium text-gray-900">
+                        {dealers.find(d => d.id === parseInt(confirmedDealer))?.address}
+                      </span>
+                    </div>
                     <Button
-                      onClick={() => {
-                        const dealer = dealers.find(d => d.id === parseInt(selectedDealer));
-                        if (dealer) {
-                          setPendingDealer(dealer);
-                          setShowConfirmDialog(true);
-                        }
-                      }}
-                      className="w-full bg-green-600 hover:bg-green-700"
-                      size="lg"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleChangeDealer}
+                      className="border-emerald-400 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-500 transition-all"
                     >
-                      <CheckCircle className="mr-2 h-5 w-5" />
-                      Xác nhận đại lý
+                      <MapPinned className="mr-2 h-4 w-4" />
+                      Chọn lại đại lý
                     </Button>
                   </div>
-                )}
-
-                {!selectedDealer && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1 justify-center pt-2">
-                    <AlertCircle className="h-3 w-3" />
-                    Vui lòng chọn một đại lý từ danh sách
-                  </p>
-                )}
-              </div>
-
-              {/* Toggle Map Button */}
-              <div className="pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowMap(!showMap)}
-                  className="w-full"
-                >
-                  <MapPinned className="mr-2 h-4 w-4" />
-                  {showMap ? 'Ẩn bản đồ' : 'Hiện bản đồ'}
-                </Button>
-              </div>
-
-              {/* Google Maps - Collapsible */}
-              {showMap && (
-                <div className="space-y-2 pt-4">
-                  <label className="text-sm font-medium">Bản đồ</label>
-                  <div className="border rounded-lg overflow-hidden relative" style={{ height: '400px' }}>
-                    <iframe
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      allowFullScreen
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${
-                        selectedDealer && dealers.find(d => d.id === parseInt(selectedDealer))?.latitude
-                          ? `${dealers.find(d => d.id === parseInt(selectedDealer))?.latitude},${dealers.find(d => d.id === parseInt(selectedDealer))?.longitude}`
-                          : userLocation 
-                            ? `${userLocation.lat},${userLocation.lng}`
-                            : 'Ho+Chi+Minh+City,Vietnam'
-                      }&zoom=${selectedDealer ? 15 : 12}`}
-                    />
-                    {selectedDealer && dealers.find(d => d.id === parseInt(selectedDealer)) && (
-                      <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg border">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-red-500" />
-                          <div>
-                            <div className="text-sm font-semibold">
-                              {dealers.find(d => d.id === parseInt(selectedDealer))?.name}
-                            </div>
-                            {dealers.find(d => d.id === parseInt(selectedDealer))?.distance && (
-                              <div className="text-xs text-muted-foreground">
-                                {dealers.find(d => d.id === parseInt(selectedDealer))?.distance?.toFixed(1)} km từ bạn
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+                
+                {/* Bottom Accent Line */}
+                <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+              </Card>
+            </div>
           )}
 
-          {/* Welcome Message - After Confirmation */}
+          {/* 🚗 Danh sách xe điện có sẵn - After Dealer Confirmation */}
           {confirmedDealer && confirmedDealer.trim() !== '' && (
-            <Card className="border-green-200 bg-green-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-700">
-                  <CheckCircle className="h-6 w-6" />
-                  Xin chào khách hàng của {dealers.find(d => d.id === parseInt(confirmedDealer))?.name}
-                </CardTitle>
-                <CardDescription className="text-green-600">
-                  Bạn đang xem thông tin xe và lịch hẹn tại đại lý này
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-green-600" />
-                    <span className="font-medium">
-                      {dealers.find(d => d.id === parseInt(confirmedDealer))?.address}
+            <Card className="border-gray-200 shadow-lg overflow-hidden">
+              {/* Header with Car Icon */}
+              <div className="bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-teal-500/10 border-b border-gray-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2.5 text-xl">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 shadow-md">
+                      <Car className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="bg-gradient-to-r from-blue-700 to-cyan-700 bg-clip-text text-transparent font-bold">
+                      Danh mục xe điện có sẵn
                     </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleChangeDealer}
-                    className="border-green-600 text-green-700 hover:bg-green-100"
-                  >
-                    <MapPinned className="mr-2 h-4 w-4" />
-                    Chọn lại đại lý
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Danh sách xe điện có sẵn - After Dealer Confirmation */}
-          {confirmedDealer && confirmedDealer.trim() !== '' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Car className="h-5 w-5 text-blue-600" />
-                  Danh mục xe điện có sẵn
-                </CardTitle>
-                <CardDescription>
-                  Các mẫu xe có sẵn tại {dealers.find(d => d.id === parseInt(confirmedDealer))?.name}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+                  </CardTitle>
+                  <CardDescription>
+                    Các mẫu xe có sẵn tại {dealers.find(d => d.id === parseInt(confirmedDealer))?.name}
+                  </CardDescription>
+                </CardHeader>
+              </div>
+              
+              <CardContent className="pt-6">
                 {dealerProducts.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Car className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                    <p>Hiện chưa có xe nào tại đại lý này</p>
-                    <p className="text-xs mt-2">
+                  <div className="text-center py-12">
+                    <div className="relative inline-block">
+                      <div className="absolute inset-0 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full blur-2xl opacity-30"></div>
+                      <Car className="relative h-16 w-16 mx-auto mb-4 text-gray-300" />
+                    </div>
+                    <p className="text-lg font-medium text-gray-500 mb-2">Hiện chưa có xe nào tại đại lý này</p>
+                    <p className="text-sm text-gray-400">
                       Vui lòng liên hệ đại lý để biết thêm thông tin
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Debug Info */}
-                    {dealerProducts.length > 0 && (
-                      <div className="col-span-full bg-gray-100 p-2 rounded text-xs">
-                        <strong>Debug:</strong> confirmedDealer = "{confirmedDealer}", selectedDealer = "{selectedDealer}", user.dealerId = {user?.dealerId}
+                  <div className="space-y-4">
+                    {/* Stats Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                      <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-200">
+                        <div className="text-2xl font-bold text-blue-700">{dealerProducts.length}</div>
+                        <div className="text-xs text-blue-600 font-medium">Tổng số xe</div>
                       </div>
-                    )}
+                      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl border border-emerald-200">
+                        <div className="text-2xl font-bold text-emerald-700">
+                          {dealerProducts.filter(p => p.status === 'TEST_DRIVE').length}
+                        </div>
+                        <div className="text-xs text-emerald-600 font-medium">Sẵn sàng lái thử</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
+                        <div className="text-2xl font-bold text-purple-700">
+                          {dealerProducts.filter(p => p.status === 'ACTIVE').length}
+                        </div>
+                        <div className="text-xs text-purple-600 font-medium">Sẵn sàng bán</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
+                        <div className="text-2xl font-bold text-amber-700">
+                          {new Set(dealerProducts.map(p => p.color)).size}
+                        </div>
+                        <div className="text-xs text-amber-600 font-medium">Màu sắc khác nhau</div>
+                      </div>
+                    </div>
                     
-                    {dealerProducts.map((product) => {
-                      const dealerIdForLink = confirmedDealer || selectedDealer || user?.dealerId?.toString() || '';
-                      return (
-                      <Card key={product.id} className="overflow-hidden">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center justify-between">
-                            <span className="truncate">{product.name}</span>
-                            <Badge variant={product.status === 'TEST_DRIVE' ? 'default' : 'secondary'}>
-                              {product.status === 'TEST_DRIVE' ? 'Lái thử' : product.status}
-                            </Badge>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">Màu sắc:</span>
-                            <span className="ml-2 font-medium">{product.color || 'N/A'}</span>
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">Pin:</span>
-                            <span className="ml-2 font-medium">{product.battery} kWh</span>
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">Quãng đường:</span>
-                            <span className="ml-2 font-medium">{product.range} km</span>
-                          </div>
+                    {/* Product Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {dealerProducts.map((product) => {
+                        const dealerIdForLink = confirmedDealer || selectedDealer || user?.dealerId?.toString() || '';
+                        return (
+                        <div key={product.id} className="group relative">
+                          {/* Hover Glow Effect */}
+                          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-all duration-300"></div>
                           
-                          {/* Buttons */}
-                          <div className="pt-2 flex gap-2">
-                            {product.status === 'TEST_DRIVE' && (
-                              <Link 
-                                href={`/dashboard/customer/test-drive?productId=${product.id}&dealerId=${dealerIdForLink}`} 
-                                className="flex-1"
-                                onClick={(e) => {
-                                  if (!dealerIdForLink) {
-                                    e.preventDefault();
-                                    toast({
-                                      title: 'Chưa chọn đại lý',
-                                      description: 'Vui lòng chọn đại lý trước',
-                                      variant: 'destructive',
-                                    });
-                                  }
-                                  console.log('🔗 Test Drive Link:', {
-                                    productId: product.id,
-                                    confirmedDealer,
-                                    selectedDealer,
-                                    userDealerId: user?.dealerId,
-                                    dealerIdForLink
-                                  });
-                                }}
+                          <Card className="relative overflow-hidden border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300">
+                            {/* Status Badge - Top Right */}
+                            <div className="absolute top-3 right-3 z-10">
+                              <Badge 
+                                variant={product.status === 'TEST_DRIVE' ? 'default' : 'secondary'}
+                                className={`${
+                                  product.status === 'TEST_DRIVE' 
+                                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0' 
+                                    : 'bg-blue-100 text-blue-700 border-blue-300'
+                                } shadow-md`}
                               >
-                                <Button variant="outline" size="sm" className="w-full">
-                                  <Calendar className="mr-2 h-3 w-3" />
-                                  Đặt lịch lái thử
-                                </Button>
-                              </Link>
-                            )}
-                            {product.status === 'ACTIVE' && (
-                              <>
-                                <Link 
-                                  href={`/dashboard/customer/test-drive?productId=${product.id}&dealerId=${dealerIdForLink}`} 
-                                  className="flex-1"
-                                  onClick={(e) => {
-                                    if (!dealerIdForLink) {
-                                      e.preventDefault();
-                                      toast({
-                                        title: 'Chưa chọn đại lý',
-                                        description: 'Vui lòng chọn đại lý trước',
-                                        variant: 'destructive',
-                                      });
-                                    }
-                                    console.log('🔗 Test Drive Link:', {
-                                      productId: product.id,
-                                      confirmedDealer,
-                                      selectedDealer,
-                                      userDealerId: user?.dealerId,
-                                      dealerIdForLink
-                                    });
-                                  }}
-                                >
-                                  <Button variant="outline" size="sm" className="w-full">
-                                    <Calendar className="mr-2 h-3 w-3" />
-                                    Lái thử
-                                  </Button>
-                                </Link>
-                                <Link href={`/dashboard/customer/order?productId=${product.id}`} className="flex-1">
-                                  <Button size="sm" className="w-full bg-green-600 hover:bg-green-700">
-                                    <CheckCircle className="mr-2 h-3 w-3" />
-                                    Đặt mua
-                                  </Button>
-                                </Link>
-                              </>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                    })}
+                                {product.status === 'TEST_DRIVE' ? '🚗 Lái thử' : '✅ Sẵn có'}
+                              </Badge>
+                            </div>
+                            
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-base font-bold flex items-start justify-between pr-20">
+                                <span className="line-clamp-2 text-gray-900">{product.name}</span>
+                              </CardTitle>
+                            </CardHeader>
+                            
+                            <CardContent className="space-y-3">
+                              {/* Product Details */}
+                              <div className="space-y-2.5">
+                                <div className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-lg">
+                                  <span className="text-gray-600 flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full border-2 border-gray-400" style={{backgroundColor: product.color || '#666'}}></div>
+                                    Màu sắc:
+                                  </span>
+                                  <span className="font-semibold text-gray-900">{product.color || 'N/A'}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm p-2 bg-blue-50 rounded-lg">
+                                  <span className="text-blue-600">⚡ Pin:</span>
+                                  <span className="font-semibold text-blue-900">{product.battery} kWh</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm p-2 bg-emerald-50 rounded-lg">
+                                  <span className="text-emerald-600">🔋 Quãng đường:</span>
+                                  <span className="font-semibold text-emerald-900">{product.range} km</span>
+                                </div>
+                              </div>
+                              
+                              {/* Action Buttons */}
+                              <div className="pt-3 flex gap-2 border-t border-gray-100">
+                                {product.status === 'TEST_DRIVE' && (
+                                  <Link 
+                                    href={`/dashboard/customer/test-drive?productId=${product.id}&dealerId=${dealerIdForLink}`} 
+                                    className="flex-1"
+                                    onClick={(e) => {
+                                      if (!dealerIdForLink) {
+                                        e.preventDefault();
+                                        toast({
+                                          title: 'Chưa chọn đại lý',
+                                          description: 'Vui lòng chọn đại lý trước',
+                                          variant: 'destructive',
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 transition-all"
+                                    >
+                                      <Calendar className="mr-2 h-3.5 w-3.5" />
+                                      Đặt lịch lái thử
+                                    </Button>
+                                  </Link>
+                                )}
+                                {product.status === 'ACTIVE' && (
+                                  <>
+                                    <Link 
+                                      href={`/dashboard/customer/test-drive?productId=${product.id}&dealerId=${dealerIdForLink}`} 
+                                      className="flex-1"
+                                      onClick={(e) => {
+                                        if (!dealerIdForLink) {
+                                          e.preventDefault();
+                                          toast({
+                                            title: 'Chưa chọn đại lý',
+                                            description: 'Vui lòng chọn đại lý trước',
+                                            variant: 'destructive',
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 transition-all"
+                                      >
+                                        <Calendar className="mr-2 h-3.5 w-3.5" />
+                                        Lái thử
+                                      </Button>
+                                    </Link>
+                                    <Link href={`/dashboard/customer/order?productId=${product.id}`} className="flex-1">
+                                      <Button 
+                                        size="sm" 
+                                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md hover:shadow-lg transition-all"
+                                      >
+                                        <CheckCircle className="mr-2 h-3.5 w-3.5" />
+                                        Đặt mua
+                                      </Button>
+                                    </Link>
+                                  </>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                      })}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -680,45 +834,65 @@ export default function CustomerDashboard() {
           )}
         </div>
 
-        {/* Dialog xác nhận chọn đại lý */}
+        {/* 💬 Dialog xác nhận chọn đại lý - Enhanced */}
         <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md">
             <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                Xác nhận chọn đại lý
+              <AlertDialogTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md">
+                  <MapPin className="h-5 w-5 text-white" />
+                </div>
+                <span className="bg-gradient-to-r from-emerald-700 to-teal-700 bg-clip-text text-transparent font-bold">
+                  Xác nhận chọn đại lý
+                </span>
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
-                <div className="space-y-3 pt-2">
-                  <div>
+                <div className="space-y-4 pt-3">
+                  <div className="text-gray-700">
                     Bạn có chắc chắn muốn chọn đại lý:
                   </div>
                   {pendingDealer && (
-                    <div className="bg-primary/5 p-4 rounded-lg border-l-4 border-primary">
-                      <div className="font-semibold text-lg text-foreground">
-                        {pendingDealer.name}
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        📍 {pendingDealer.address}
-                      </div>
-                      {pendingDealer.distance && (
-                        <div className="text-sm text-blue-600 mt-1">
-                          📏 Cách bạn: {pendingDealer.distance.toFixed(1)} km
+                    <div className="relative overflow-hidden rounded-xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-5">
+                      {/* Background Pattern */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 to-teal-400/10"></div>
+                      
+                      <div className="relative space-y-2.5">
+                        <div className="font-bold text-xl text-emerald-900">
+                          {pendingDealer.name}
                         </div>
-                      )}
+                        <div className="text-sm text-gray-700 flex items-start gap-2">
+                          <MapPin className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                          <span>{pendingDealer.address}</span>
+                        </div>
+                        {pendingDealer.distance && (
+                          <div className="pt-2">
+                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300">
+                              <Navigation className="h-3 w-3 mr-1.5" />
+                              Cách bạn: {pendingDealer.distance.toFixed(1)} km
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
-                  <div className="text-sm">
-                    Sau khi xác nhận, bạn sẽ thấy danh sách xe và lịch hẹn tại đại lý này.
+                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    💡 Sau khi xác nhận, bạn sẽ thấy danh sách xe và lịch hẹn tại đại lý này.
                   </div>
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancelConfirm}>
+            <AlertDialogFooter className="gap-2 sm:gap-2">
+              <AlertDialogCancel 
+                onClick={handleCancelConfirm}
+                className="border-gray-300 hover:bg-gray-100"
+              >
                 Hủy
               </AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDealer}>
+              <AlertDialogAction 
+                onClick={handleConfirmDealer}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
                 Xác nhận
               </AlertDialogAction>
             </AlertDialogFooter>

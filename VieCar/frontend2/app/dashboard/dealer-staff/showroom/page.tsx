@@ -182,7 +182,8 @@ export default function DealerStaffShowroomPage() {
     setImagePreview(product.image || "");
     setImageFile(null);
     setFormData({
-      dealerPrice: product.price,
+      // ✅ Ưu tiên retailPrice (field mới), fallback về price (field cũ)
+      dealerPrice: product.retailPrice || product.price,
       image: product.image || "",
       description: product.description || "",
       status: product.status,
@@ -358,11 +359,27 @@ export default function DealerStaffShowroomPage() {
                           <p>VIN: {product.vinNum}</p>
                           <p>Màu: {product.color || "Chưa cập nhật"}</p>
                         </div>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-1 text-lg font-bold text-primary">
-                            <DollarSign className="h-5 w-5" />
-                            {formatPrice(product.price)}
+                        <div className="space-y-2 mb-3">
+                          {product.manufacturerPrice && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">💰 Giá hãng:</span>
+                              <span className="font-semibold text-blue-600">
+                                {formatPrice(product.manufacturerPrice)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">🏷️ Giá bán:</span>
+                            <div className="text-lg font-bold text-green-600">
+                              {formatPrice(product.retailPrice || product.price)}
+                            </div>
                           </div>
+                          {product.manufacturerPrice && product.retailPrice && (
+                            <div className="text-xs text-orange-600 font-medium">
+                              Lãi: {formatPrice(product.retailPrice - product.manufacturerPrice)} 
+                              ({(((product.retailPrice - product.manufacturerPrice) / product.manufacturerPrice) * 100).toFixed(1)}%)
+                            </div>
+                          )}
                         </div>
                         <Button
                           className="w-full"
@@ -390,16 +407,38 @@ export default function DealerStaffShowroomPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
+                {selectedProduct?.manufacturerPrice && (
+                  <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg space-y-1">
+                    <Label className="text-blue-700 dark:text-blue-300">💰 Giá hãng nhập vào (cố định)</Label>
+                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                      {formatPrice(selectedProduct.manufacturerPrice)} VNĐ
+                    </div>
+                    <p className="text-xs text-muted-foreground">Giá EVM bán cho dealer - không thể thay đổi</p>
+                  </div>
+                )}
+                
                 <div className="space-y-2">
-                  <Label>Giá bán cho khách (VND) *</Label>
+                  <Label>🏷️ Giá bán cho khách hàng (VND) *</Label>
                   <Input
                     type="number"
                     value={formData.dealerPrice}
                     onChange={(e) =>
                       setFormData({ ...formData, dealerPrice: parseInt(e.target.value) || 0 })
                     }
-                    placeholder="Nhập giá bán"
+                    placeholder="Nhập giá bán cho khách"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Đây là giá bán ra cho khách hàng - bạn có thể điều chỉnh để tạo lợi nhuận
+                  </p>
+                  {selectedProduct?.manufacturerPrice && formData.dealerPrice > 0 && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Lợi nhuận dự kiến: </span>
+                      <span className="font-semibold text-orange-600">
+                        {formatPrice(formData.dealerPrice - selectedProduct.manufacturerPrice)} VNĐ
+                        {' '}({(((formData.dealerPrice - selectedProduct.manufacturerPrice) / selectedProduct.manufacturerPrice) * 100).toFixed(2)}%)
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
