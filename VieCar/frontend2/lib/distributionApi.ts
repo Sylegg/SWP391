@@ -17,7 +17,7 @@ const DISTRIBUTION_BASE = '/api/distributions';
 // ============ EVM Staff APIs ============
 
 /**
- * Step 1: EVM Staff gửi lời mời nhập hàng
+ * LUỒNG 1: EVM Staff gửi lời mời nhập hàng (Push Model)
  */
 export const sendDistributionInvitation = async (
   data: DistributionInvitationReq
@@ -33,10 +33,25 @@ export const sendDistributionInvitation = async (
  * Get all distributions (EVM Staff view)
  */
 export const getAllDistributions = async (): Promise<DistributionRes[]> => {
-  const response = await api.get<DistributionRes[]>(
+  const response = await api.get<any[]>(
     `${DISTRIBUTION_BASE}/listDistributions`
   );
-  return response.data;
+  
+  // Map backend response to frontend types
+  // Backend might use different field names
+  const mappedData = response.data.map((dist: any) => ({
+    ...dist,
+    // Ensure dealerId is properly mapped from possible backend field names
+    dealerId: dist.dealerId || dist.dealer_id || dist.dealer?.id || dist.dealerDTO?.id,
+    dealerName: dist.dealerName || dist.dealer_name || dist.dealer?.name || dist.dealerDTO?.name,
+  }));
+  
+  console.log('🔄 API Response Mapping:', {
+    original: response.data[0],
+    mapped: mappedData[0]
+  });
+  
+  return mappedData as DistributionRes[];
 };
 
 /**
@@ -104,6 +119,25 @@ export const deleteDistribution = async (id: number): Promise<string> => {
 };
 
 // ============ Dealer Manager APIs ============
+
+/**
+ * LUỒNG 2: Dealer Manager tạo yêu cầu xe trực tiếp (Pull Model)
+ * Bỏ qua bước invitation, trực tiếp tạo distribution với status PENDING
+ */
+export const createDealerRequest = async (
+  data: DistributionOrderReq
+): Promise<DistributionRes> => {
+  try {
+    const response = await api.post<DistributionRes>(
+      `${DISTRIBUTION_BASE}/dealer-request`,
+      data
+    );
+    return response.data;
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Request failed';
+    throw new Error(msg);
+  }
+};
 
 /**
  * Get distributions for specific dealer

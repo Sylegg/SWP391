@@ -32,8 +32,10 @@ export interface DistributionInvitationReq {
 
 /**
  * Distribution Order Request (Bước 3: Dealer tạo đơn chi tiết)
+ * Cũng dùng cho Luồng 2: Dealer tạo yêu cầu xe trực tiếp
  */
 export interface DistributionOrderReq {
+  dealerId?: number;          // Required cho luồng dealer request, optional cho luồng invite
   items: {
     // Cho phép tạo theo sản phẩm cụ thể HOẶC theo danh mục (không cần product)
     productId?: number;
@@ -51,7 +53,12 @@ export interface DistributionOrderReq {
 export interface DistributionApprovalReq {
   decision: string;           // "CONFIRMED" or "CANCELED"
   approvedQuantity?: number;  // Số lượng được duyệt
+  manufacturerPrice?: number; // Giá hãng (tham khảo cao nhất)
   evmNotes?: string;          // Ghi chú của EVM
+  items?: {                   // Giá riêng cho từng item
+    distributionItemId: number;
+    dealerPrice: number;
+  }[];
 }
 
 /**
@@ -88,18 +95,23 @@ export interface DistributionRes {
   dealerId: number;
   dealerName?: string;
   
-  // ❌ Xóa categoryId - không dùng, Dealer đã có Category
-  // categoryId: number;
-  
-  // Products
+  // Products (legacy)
   products: ProductRes[];
+  
   // Items (mới): chi tiết theo dòng xe / màu / số lượng
   items?: {
     id: number;
-    product: ProductRes;
+    product?: ProductRes;    // Optional - có thể null nếu chỉ chọn category
+    productId?: number;      // Product ID
+    category?: {             // Category reference
+      id: number;
+      name: string;
+      brand?: string;
+    };
+    categoryId?: number;     // Category ID
     color?: string;
     quantity: number;
-    dealerPrice?: number; // Giá hãng (manufacturerPrice) mà EVM đã set
+    dealerPrice?: number;    // Giá hãng cho item này (EVM set)
   }[];
   
   // Timeline
@@ -112,17 +124,18 @@ export interface DistributionRes {
   evmNotes?: string;          // Ghi chú của EVM
   feedback?: string;          // Phản hồi sau khi nhận hàng
   
-  // Dates
+  // Dates (ISO date strings)
   deadline?: string;                  // Hạn phản hồi lời mời
   requestedDeliveryDate?: string;     // Ngày dealer mong muốn
   estimatedDeliveryDate?: string;     // Ngày EVM dự kiến giao
   actualDeliveryDate?: string;        // Ngày thực tế giao
   
   // Quantities
-  requestedQuantity?: number;
-  receivedQuantity?: number;
+  requestedQuantity?: number;         // Số lượng dealer yêu cầu
+  approvedQuantity?: number;          // Số lượng EVM duyệt
+  receivedQuantity?: number;          // Số lượng dealer nhận được
   
-  // Manufacturer price (giá hãng)
+  // Manufacturer price (giá hãng - tham khảo cao nhất)
   manufacturerPrice?: number;
 }
 

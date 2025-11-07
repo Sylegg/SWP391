@@ -42,7 +42,9 @@ export interface ProductRes {
   stockInDate?: string | Date;
   image: string;
   description: string;
-  price: number;  // ✅ Giá từ backend (mapped từ Product.dealerPrice)
+  price: number;  // ❌ DEPRECATED: Giữ để backward compatibility
+  manufacturerPrice?: number; // Giá hãng nhập vào (cố định)
+  retailPrice?: number; // Giá đại lý bán ra (dealer staff có thể chỉnh sửa)
   status: ProductStatus;
   categoryId: number;
   dealerCategoryId: number;
