@@ -3,11 +3,11 @@ import api from './api';
 import { ProductReq, ProductRes, ProductStatus } from '@/types/product';
 
 // Re-export types for convenience
-export type { ProductReq, ProductRes };
+export type { ProductReq, ProductRes, ProductStatus };
 export type Product = ProductRes;
 export type ProductRequest = ProductReq;
 
-const PRODUCT_BASE = '/api/products';
+const PRODUCT_BASE = '/products';
 
 // ============ Product APIs ============
 

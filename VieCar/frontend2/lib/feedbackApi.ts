@@ -16,7 +16,7 @@ export interface TestDriveFeedbackRes {
   createAt: string;
 }
 
-const FEEDBACK_BASE = '/api/testdrive-feedback';
+const FEEDBACK_BASE = '/testdrive-feedback';
 
 /**
  * Create feedback for a test drive

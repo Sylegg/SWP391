@@ -7,8 +7,8 @@ export type { CategoryReq, CategoryRes, DealerCategoryReq, DealerCategoryRes };
 export type Category = CategoryRes;
 export type CategoryRequest = CategoryReq;
 
-const CATEGORY_BASE = '/api/categories';
-const DEALER_CATEGORY_BASE = '/api/dealerCategories';
+const CATEGORY_BASE = '/categories';
+const DEALER_CATEGORY_BASE = '/dealerCategories';
 
 // ============ Category APIs ============
 

@@ -1,6 +1,8 @@
 import api from './api';
 
-const VNPAY_BASE_URL = '/api/vnpay';
+import { API_BASE_URL } from './config';
+
+const VNPAY_BASE_URL = '/vnpay';
 
 /**
  * VNPay Response từ backend

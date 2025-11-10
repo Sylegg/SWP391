@@ -20,4 +20,8 @@ public interface ProductRepo extends JpaRepository<Product, Integer> {
     // Find products by dealer category ID
     @Query("SELECT p FROM Product p WHERE p.dealerCategory.id = :dealerCategoryId")
     List<Product> findByDealerCategoryId(@Param("dealerCategoryId") int dealerCategoryId);
+    
+    // Find products by dealer ID
+    @Query("SELECT p FROM Product p WHERE p.dealerCategory.dealer.id = :dealerId")
+    List<Product> findByDealerId(@Param("dealerId") int dealerId);
 }

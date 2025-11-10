@@ -25,6 +25,8 @@ import {
   AlertCircle,
   ShoppingCart,
   Trash2,
+  Plus,
+  Eye,
 } from 'lucide-react';
 import {
   getDistributionsByDealer,
@@ -32,9 +34,10 @@ import {
   submitDistributionOrder,
   confirmDistributionReceived,
   respondToManufacturerPrice,
+  createDealerRequest,
 } from '@/lib/distributionApi';
-import { getAllProducts, getProductsByCategory } from '@/lib/productApi';
-import { getAllCategories } from '@/lib/categoryApi';
+import { getProductsByCategory } from '@/lib/productApi';
+import { getCategoriesByDealerId } from '@/lib/categoryApi';
 import type { ProductRes } from '@/types/product';
 import type { CategoryRes } from '@/types/category';
 import {
@@ -61,6 +64,7 @@ export default function DealerDistributionsPage() {
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
+  const [isNewRequestDialogOpen, setIsNewRequestDialogOpen] = useState(false);
   
   // Form states
   const [respondForm, setRespondForm] = useState({
@@ -75,6 +79,13 @@ export default function DealerDistributionsPage() {
   const [orderNotes, setOrderNotes] = useState('');
   const [orderRequestedDeliveryDate, setOrderRequestedDeliveryDate] = useState('');
   const totalOrderQty = orderItems.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+
+  // New request form state (for dealer-initiated requests)
+  const [newRequestItems, setNewRequestItems] = useState<{ categoryId?: number; color?: string; quantity: number; }[]>([
+    { categoryId: undefined, color: undefined, quantity: 1 },
+  ]);
+  const [newRequestNotes, setNewRequestNotes] = useState('');
+  const [newRequestDeliveryDate, setNewRequestDeliveryDate] = useState('');
 
   const [completeForm, setCompleteForm] = useState({
     receivedQuantity: 0,
@@ -114,15 +125,17 @@ export default function DealerDistributionsPage() {
 
     try {
       setLoading(true);
-      const [distData, productData, categoryData] = await Promise.all([
+      const [distData, categoryData] = await Promise.all([
         getDistributionsByDealer(user.dealerId),
-        getAllProducts(),
-        getAllCategories(),
+        getCategoriesByDealerId(user.dealerId), // ✅ CHỈ LẤY CATEGORIES CỦA DEALER NÀY
       ]);
       
       setDistributions(distData);
-      setProducts(productData || []);
+      setProducts([]); // Products sẽ được load khi chọn category
       setCategories(categoryData || []);
+      
+      console.log('📊 Dealer Categories loaded:', categoryData?.length, categoryData);
+      console.log('� Chỉ hiển thị categories của dealer:', user.dealerId);
       
       // Calculate stats
       const statsData = {
@@ -142,7 +155,7 @@ export default function DealerDistributionsPage() {
       
       toast({
         title: '✅ Tải thành công',
-        description: `Đã tải ${distData.length} phân phối, ${productData?.length || 0} sản phẩm, ${categoryData?.length || 0} danh mục`,
+        description: `Đã tải ${distData.length} phân phối của dealer, ${categoryData?.length || 0} danh mục`,
       });
     } catch (error: any) {
       toast({
@@ -269,6 +282,64 @@ export default function DealerDistributionsPage() {
     }
   };
 
+  // NEW: Handle create dealer request (Dealer-initiated flow)
+  const handleCreateNewRequest = async () => {
+    if (!user?.dealerId) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Không tìm thấy thông tin đại lý',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const validItems = newRequestItems.filter((it) => (it.categoryId || 0) > 0 && (it.quantity || 0) > 0);
+
+    if (validItems.length === 0) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng thêm ít nhất 1 dòng danh mục hợp lệ',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const items = validItems.map((it) => ({
+      categoryId: it.categoryId!,
+      color: it.color || undefined,
+      quantity: it.quantity,
+    }));
+
+    try {
+      setIsSubmittingOrder(true);
+      const requestData = {
+        dealerId: user.dealerId,
+        items,
+        dealerNotes: newRequestNotes || undefined,
+        requestedDeliveryDate: newRequestDeliveryDate 
+          ? `${newRequestDeliveryDate}T00:00:00`
+          : undefined,
+      };
+
+      await createDealerRequest(requestData);
+      toast({
+        title: '✅ Tạo yêu cầu thành công',
+        description: 'Yêu cầu phân phối đã được gửi đến EVM để duyệt',
+      });
+      setIsNewRequestDialogOpen(false);
+      resetNewRequestForm();
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: '❌ Lỗi',
+        description: error.message || 'Không thể tạo yêu cầu',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
+
   // Step 6: Confirm received - So sánh số lượng đã đặt vs số lượng giao tới
   const handleConfirmReceived = async () => {
     if (!selectedDistribution) {
@@ -358,6 +429,12 @@ export default function DealerDistributionsPage() {
     setOrderRequestedDeliveryDate('');
   };
 
+  const resetNewRequestForm = () => {
+    setNewRequestItems([{ categoryId: undefined, color: undefined, quantity: 1 }]);
+    setNewRequestNotes('');
+    setNewRequestDeliveryDate('');
+  };
+
   const resetCompleteForm = () => {
     setCompleteForm({ receivedQuantity: 0 });
     setReceivedItems([]);
@@ -399,15 +476,24 @@ export default function DealerDistributionsPage() {
 
   const openCompleteDialog = (distribution: DistributionRes) => {
     setSelectedDistribution(distribution);
+    console.log('🔍 Opening complete dialog. Distribution:', distribution);
+    console.log('📦 Items:', distribution.items);
+    console.log('📊 requestedQuantity (dealer đặt ban đầu):', distribution.requestedQuantity);
+    
     // Build per-item list if available; default received = ordered
     if (distribution.items && distribution.items.length > 0) {
-      const list = distribution.items.map((it) => ({
-        id: it.id,
-        name: it.product?.name,
-        color: it.color,
-        ordered: it.quantity || 0,
-        received: it.quantity || 0,
-      }));
+      const list = distribution.items.map((it) => {
+        console.log(`   Item ${it.id}: quantity=${it.quantity}, product=${it.product?.name}, color=${it.color}`);
+        return {
+          id: it.id,
+          name: it.product?.name,
+          color: it.color,
+          ordered: it.quantity || 0, // Số lượng EVM đã duyệt (đã được cập nhật trong approveOrder)
+          received: it.quantity || 0, // Mặc định = số đã duyệt
+        };
+      });
+      console.log('📋 Received items list:', list);
+      console.log('⚠️ Nếu ordered khác với số EVM duyệt → Backend chưa cập nhật quantity!');
       setReceivedItems(list);
       const total = list.reduce((s, it) => s + (it.received || 0), 0);
       setCompleteForm({ receivedQuantity: total });
@@ -457,112 +543,183 @@ export default function DealerDistributionsPage() {
   return (
   <ProtectedRoute allowedRoles={['Dealer Manager']}>
       <DealerManagerLayout>
-        <div className="p-6 space-y-6">
-          {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold">📦 Phân phối Sản phẩm</h1>
-            <p className="text-muted-foreground mt-1">
-              Quản lý lời mời nhập hàng và xác nhận nhận hàng từ hãng
-            </p>
+        <div className="relative min-h-screen overflow-hidden">
+          {/* Animated Water Droplets Background */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-[10%] left-[15%] w-32 h-32 bg-purple-400/20 rounded-full blur-3xl animate-float-slow"></div>
+            <div className="absolute top-[60%] right-[20%] w-40 h-40 bg-pink-400/20 rounded-full blur-3xl animate-float-medium"></div>
+            <div className="absolute bottom-[20%] left-[25%] w-36 h-36 bg-indigo-400/20 rounded-full blur-3xl animate-float-fast"></div>
+            <div className="absolute top-[30%] right-[10%] w-28 h-28 bg-rose-300/20 rounded-full blur-2xl animate-float-slow-reverse"></div>
           </div>
 
-          {/* Stats Cards */}
+          <div className="relative z-10 p-6 space-y-6">
+          {/* Liquid Glass Header */}
+          <div className="backdrop-blur-md bg-white/70 dark:bg-gray-900/70 p-6 rounded-2xl border border-white/20 shadow-xl">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent flex items-center gap-2">
+                  <Package className="h-8 w-8 text-purple-600 drop-shadow-lg" />
+                  Phân phối Sản phẩm
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Quản lý lời mời nhập hàng và xác nhận nhận hàng từ hãng
+                </p>
+              </div>
+              <Button 
+                onClick={() => {
+                  console.log('🚀 Opening new request dialog. Categories:', categories.length, categories);
+                  setIsNewRequestDialogOpen(true);
+                }}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Tạo yêu cầu mới
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats Cards with Glass Effect */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Chờ xử lý</CardTitle>
-                <Clock className="h-4 w-4 text-amber-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.pending}</div>
-                <p className="text-xs text-muted-foreground">Cần phản hồi/gửi đơn</p>
-              </CardContent>
-            </Card>
+            <div className="backdrop-blur-md bg-gradient-to-br from-yellow-500/20 to-amber-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">Chờ xử lý</p>
+                  <p className="text-3xl font-bold mt-2 text-yellow-600">{stats.pending}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Cần phản hồi/gửi đơn</p>
+                </div>
+                <Clock className="h-10 w-10 text-yellow-500 opacity-70" />
+              </div>
+              <div className="mt-2 h-1 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Đang giao</CardTitle>
-                <Truck className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.planned}</div>
-                <p className="text-xs text-muted-foreground">Chờ nhận hàng</p>
-              </CardContent>
-            </Card>
+            <div className="backdrop-blur-md bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">Đang giao</p>
+                  <p className="text-3xl font-bold mt-2 text-blue-600">{stats.planned}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Chờ nhận hàng</p>
+                </div>
+                <Truck className="h-10 w-10 text-blue-500 opacity-70" />
+              </div>
+              <div className="mt-2 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Hoàn thành</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.completed}</div>
-                <p className="text-xs text-muted-foreground">Đã nhận đủ hàng</p>
-              </CardContent>
-            </Card>
+            <div className="backdrop-blur-md bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-green-700 dark:text-green-300 font-medium">Hoàn thành</p>
+                  <p className="text-3xl font-bold mt-2 text-green-600">{stats.completed}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Đã nhận đủ hàng</p>
+                </div>
+                <CheckCircle2 className="h-10 w-10 text-green-500 opacity-70" />
+              </div>
+              <div className="mt-2 h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tổng sản phẩm</CardTitle>
-                <Package className="h-4 w-4 text-purple-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalProducts}</div>
-                <p className="text-xs text-muted-foreground">Đã nhận tất cả</p>
-              </CardContent>
-            </Card>
+            <div className="backdrop-blur-md bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">Tổng sản phẩm</p>
+                  <p className="text-3xl font-bold mt-2 text-purple-600">{stats.totalProducts}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Đã nhận tất cả</p>
+                </div>
+                <Package className="h-10 w-10 text-purple-500 opacity-70" />
+              </div>
+              <div className="mt-2 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            </div>
           </div>
 
-          {/* Distribution List */}
+          {/* Distribution List - Compact Glass Cards */}
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <p className="mt-2 text-muted-foreground">Đang tải...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <p className="mt-2 text-purple-600 font-medium">Đang tải...</p>
             </div>
           ) : distributions.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Chưa có lời mời phân phối nào</p>
-              </CardContent>
-            </Card>
+            <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 p-12 rounded-2xl border border-white/20 shadow-lg text-center">
+              <Package className="h-12 w-12 mx-auto text-purple-600 mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Chưa có lời mời phân phối nào</p>
+            </div>
           ) : (
             <div className="grid gap-4">
-              {distributions.map((dist) => (
-                <Card key={dist.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
+              {distributions.map((dist) => {
+                const statusColors: Record<DistributionStatus, string> = {
+                  [DistributionStatus.INVITED]: 'from-blue-400/20 to-blue-600/20 border-blue-400/40',
+                  [DistributionStatus.ACCEPTED]: 'from-cyan-400/20 to-cyan-600/20 border-cyan-400/40',
+                  [DistributionStatus.DECLINED]: 'from-orange-400/20 to-orange-600/20 border-orange-400/40',
+                  [DistributionStatus.PENDING]: 'from-yellow-400/20 to-amber-600/20 border-yellow-400/40',
+                  [DistributionStatus.CONFIRMED]: 'from-green-400/20 to-emerald-600/20 border-green-400/40',
+                  [DistributionStatus.CANCELED]: 'from-gray-400/20 to-gray-600/20 border-gray-400/40',
+                  [DistributionStatus.PRICE_SENT]: 'from-indigo-400/20 to-indigo-600/20 border-indigo-400/40',
+                  [DistributionStatus.PRICE_ACCEPTED]: 'from-lime-400/20 to-lime-600/20 border-lime-400/40',
+                  [DistributionStatus.PRICE_REJECTED]: 'from-red-400/20 to-red-600/20 border-red-400/40',
+                  [DistributionStatus.PLANNED]: 'from-purple-400/20 to-purple-600/20 border-purple-400/40',
+                  [DistributionStatus.COMPLETED]: 'from-teal-400/20 to-teal-600/20 border-teal-400/40',
+                };
+                
+                return (
+                  <div 
+                    key={dist.id} 
+                    className={`backdrop-blur-md bg-gradient-to-br ${statusColors[dist.status] || 'from-gray-400/20 to-gray-600/20 border-gray-400/40'} p-6 rounded-2xl border shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300`}
+                  >
                     <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <CardTitle>Phân phối #{dist.id}</CardTitle>
-                          <Badge className={getDistributionStatusColor(dist.status)}>
+                      {/* Left: Compact Info */}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-4 mb-3">
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                            Mã phân phối: {dist.code || `#${dist.id}`}
+                          </h3>
+                          <Badge className={`${getDistributionStatusColor(dist.status)} px-4 py-1`}>
                             {getDistributionStatusLabel(dist.status)}
                           </Badge>
                         </div>
-                        <CardDescription>
-                          <div className="flex items-center gap-4 mt-2">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {dist.createdAt ? new Date(dist.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                        
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 mb-3">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {dist.createdAt ? new Date(dist.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                          </span>
+                          {dist.deadline && dist.status === DistributionStatus.INVITED && (
+                            <span className="flex items-center gap-1 text-amber-600 font-medium">
+                              <AlertCircle className="h-4 w-4" />
+                              Hạn: {new Date(dist.deadline).toLocaleDateString('vi-VN')}
                             </span>
-                            {dist.deadline && dist.status === DistributionStatus.INVITED && (
-                              <span className="flex items-center gap-1 text-amber-600">
-                                <AlertCircle className="h-4 w-4" />
-                                Hạn: {new Date(dist.deadline).toLocaleDateString('vi-VN')}
-                              </span>
-                            )}
+                          )}
+                        </div>
+                        
+                        {/* Additional Info */}
+                        {dist.invitationMessage && (
+                          <div className="text-sm text-gray-700 dark:text-gray-300 mb-2 flex items-start gap-2">
+                            <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-600" />
+                            <span>{dist.invitationMessage}</span>
                           </div>
-                        </CardDescription>
+                        )}
+                        
+                        {dist.products && dist.products.length > 0 && (
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-900 dark:text-white">
+                              Sản phẩm ({dist.products.length}):
+                            </span>
+                            <span className="ml-2 text-gray-600 dark:text-gray-300">
+                              {dist.products.slice(0, 2).map(p => p.name).join(', ')}
+                              {dist.products.length > 2 && ` và ${dist.products.length - 2} sản phẩm khác`}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex gap-2">
+                      
+                      {/* Right: Action Buttons */}
+                      <div className="flex gap-2 flex-shrink-0 ml-4">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => openDetailDialog(dist)}
+                          className="bg-white/50 dark:bg-gray-800/50 border-white/40 hover:bg-white/70 hover:scale-105 transition-all duration-300"
                         >
+                          <Eye className="h-4 w-4 mr-1" />
                           Chi tiết
                         </Button>
-                        
+                      
                         {/* Step 2: Accept/Decline buttons for INVITED status */}
                         {dist.status === DistributionStatus.INVITED && (
                           <>
@@ -570,7 +727,7 @@ export default function DealerDistributionsPage() {
                               variant="default"
                               size="sm"
                               onClick={() => openRespondDialog(dist, true)}
-                              className="bg-green-600 hover:bg-green-700"
+                              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 hover:scale-105 transition-all duration-300"
                             >
                               <CheckCircle2 className="h-4 w-4 mr-1" />
                               Chấp nhận
@@ -579,6 +736,7 @@ export default function DealerDistributionsPage() {
                               variant="destructive"
                               size="sm"
                               onClick={() => openRespondDialog(dist, false)}
+                              className="hover:scale-105 transition-all duration-300"
                             >
                               <XCircle className="h-4 w-4 mr-1" />
                               Từ chối
@@ -592,35 +750,11 @@ export default function DealerDistributionsPage() {
                             variant="default"
                             size="sm"
                             onClick={() => openOrderDialog(dist)}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 hover:scale-105 transition-all duration-300"
                           >
                             <ShoppingCart className="h-4 w-4 mr-1" />
                             Tạo đơn nhập hàng
                           </Button>
-                        )}
-                        
-                        {/* Status PENDING: Đã gửi đơn, chờ EVM duyệt - no action needed */}
-                        {dist.status === DistributionStatus.PENDING && (
-                          <Badge className="bg-yellow-100 text-yellow-800">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Đang chờ EVM duyệt
-                          </Badge>
-                        )}
-                        
-                        {/* Status CONFIRMED: EVM đã duyệt, chờ lên kế hoạch - no action needed */}
-                        {dist.status === DistributionStatus.CONFIRMED && (
-                          <Badge className="bg-green-100 text-green-800">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            EVM đã duyệt, chờ lên kế hoạch
-                          </Badge>
-                        )}
-                        
-                        {/* Status CANCELED: EVM đã từ chối đơn */}
-                        {dist.status === DistributionStatus.CANCELED && (
-                          <Badge className="bg-red-100 text-red-800">
-                            <XCircle className="h-3 w-3 mr-1" />
-                            EVM đã từ chối đơn
-                          </Badge>
                         )}
                         
                         {/* Status PRICE_SENT: EVM gửi giá hãng, chờ dealer phản hồi */}
@@ -630,7 +764,7 @@ export default function DealerDistributionsPage() {
                               variant="default"
                               size="sm"
                               onClick={() => openPriceDialog(dist)}
-                              className="bg-green-600 hover:bg-green-700"
+                              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 hover:scale-105 transition-all duration-300"
                             >
                               <CheckCircle2 className="h-4 w-4 mr-1" />
                               Xem giá & Chấp nhận
@@ -639,19 +773,12 @@ export default function DealerDistributionsPage() {
                               variant="destructive"
                               size="sm"
                               onClick={() => openPriceDialog(dist)}
+                              className="hover:scale-105 transition-all duration-300"
                             >
                               <XCircle className="h-4 w-4 mr-1" />
                               Từ chối giá
                             </Button>
                           </>
-                        )}
-                        
-                        {/* Status PRICE_REJECTED: Dealer đã từ chối giá */}
-                        {dist.status === DistributionStatus.PRICE_REJECTED && (
-                          <Badge className="bg-red-100 text-red-800">
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Đã từ chối giá hãng
-                          </Badge>
                         )}
                         
                         {/* Step 6: Confirm received button for PLANNED status */}
@@ -660,7 +787,7 @@ export default function DealerDistributionsPage() {
                             variant="default"
                             size="sm"
                             onClick={() => openCompleteDialog(dist)}
-                            className="bg-purple-600 hover:bg-purple-700"
+                            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 hover:scale-105 transition-all duration-300"
                           >
                             <CheckCircle2 className="h-4 w-4 mr-1" />
                             Xác nhận nhận hàng
@@ -668,46 +795,9 @@ export default function DealerDistributionsPage() {
                         )}
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm">
-                      {dist.invitationMessage && (
-                        <div className="flex items-start gap-2">
-                          <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                          <span className="text-muted-foreground">{dist.invitationMessage}</span>
-                        </div>
-                      )}
-                      {dist.products && dist.products.length > 0 && (
-                        <div>
-                          <span className="font-medium">Sản phẩm ({dist.products.length}):</span>
-                          <ul className="ml-6 mt-1 space-y-1">
-                            {dist.products.slice(0, 3).map((product, idx) => (
-                              <li key={idx} className="text-muted-foreground">
-                                • {product.name}
-                              </li>
-                            ))}
-                            {dist.products.length > 3 && (
-                              <li className="text-muted-foreground">
-                                ... và {dist.products.length - 3} sản phẩm khác
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                      {dist.estimatedDeliveryDate && (
-                        <div className="text-blue-600">
-                          🚚 Dự kiến giao: {new Date(dist.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
-                        </div>
-                      )}
-                      {dist.evmNotes && (
-                        <div className="p-2 bg-green-50 rounded text-green-800">
-                          💬 EVM: {dist.evmNotes}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -717,7 +807,7 @@ export default function DealerDistributionsPage() {
               <DialogHeader>
                 <DialogTitle>❌ Từ chối lời mời</DialogTitle>
                 <DialogDescription>
-                  Phân phối #{selectedDistribution?.id}
+                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -758,7 +848,7 @@ export default function DealerDistributionsPage() {
               <DialogHeader>
                 <DialogTitle>🛒 Tạo đơn nhập hàng chi tiết</DialogTitle>
                 <DialogDescription>
-                  Phân phối #{selectedDistribution?.id}
+                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -891,7 +981,7 @@ export default function DealerDistributionsPage() {
               <DialogHeader>
                 <DialogTitle>✅ Xác nhận đã nhận hàng</DialogTitle>
                 <DialogDescription>
-                  Phân phối #{selectedDistribution?.id}
+                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4 overflow-y-auto flex-1">
@@ -899,6 +989,14 @@ export default function DealerDistributionsPage() {
                   <p className="text-sm text-blue-800">
                     ℹ️ Số lượng xe đã giao tới từ hãng sẽ được ghi nhận tự động. Bạn chỉ cần xác nhận đã nhận hàng.
                   </p>
+                  {selectedDistribution?.requestedQuantity && (
+                    <p className="text-xs text-blue-600 mt-2">
+                      📝 Bạn đã yêu cầu: <strong>{selectedDistribution.requestedQuantity}</strong> xe • 
+                      EVM đã duyệt: <strong>
+                        {selectedDistribution.approvedQuantity || receivedItems.reduce((sum, item) => sum + item.ordered, 0) || selectedDistribution.requestedQuantity}
+                      </strong> xe
+                    </p>
+                  )}
                 </div>
 
                 {receivedItems.length > 0 && (
@@ -915,7 +1013,7 @@ export default function DealerDistributionsPage() {
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-4">
                               <div className="space-y-1">
-                                <div className="text-xs text-muted-foreground">Số lượng đã đặt</div>
+                                <div className="text-xs text-muted-foreground">Số lượng đã duyệt (EVM)</div>
                                 <div className="text-2xl font-bold text-blue-600">{row.ordered} xe</div>
                               </div>
                               <div className="space-y-1">
@@ -942,7 +1040,7 @@ export default function DealerDistributionsPage() {
                     <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-gray-200 rounded-md">
                       <div className="grid grid-cols-2 gap-4 text-center">
                         <div>
-                          <div className="text-xs text-muted-foreground mb-1">Tổng đã đặt</div>
+                          <div className="text-xs text-muted-foreground mb-1">Tổng đã duyệt (EVM)</div>
                           <div className="text-2xl font-bold text-blue-600">
                             {receivedItems.reduce((sum, item) => sum + item.ordered, 0)} xe
                           </div>
@@ -1014,22 +1112,25 @@ export default function DealerDistributionsPage() {
           </Dialog>
 
           {/* Dialog: Distribution Detail */}
+          {/* Dialog: Detail View with Glass Effect */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-white/30">
               <DialogHeader>
-                <DialogTitle>Chi tiết Phân phối #{selectedDistribution?.id}</DialogTitle>
+                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  📋 Chi tiết - Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
+                </DialogTitle>
                 <DialogDescription>
-                  <Badge className={getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)}>
+                  <Badge className={`${getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)} px-4 py-1`}>
                     {getDistributionStatusLabel(selectedDistribution?.status || DistributionStatus.INVITED)}
                   </Badge>
                 </DialogDescription>
               </DialogHeader>
               {selectedDistribution && (
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 py-2">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Ngày tạo</Label>
-                      <p className="font-medium">
+                    <div className="backdrop-blur-md bg-gradient-to-br from-blue-50/70 to-cyan-50/70 dark:from-blue-950/70 dark:to-cyan-950/70 p-4 rounded-xl border border-white/30">
+                      <Label className="text-sm text-blue-700 dark:text-blue-300 font-medium">📅 Ngày tạo</Label>
+                      <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
                         {selectedDistribution.createdAt 
                           ? new Date(selectedDistribution.createdAt).toLocaleDateString('vi-VN')
                           : 'N/A'
@@ -1037,9 +1138,9 @@ export default function DealerDistributionsPage() {
                       </p>
                     </div>
                     {selectedDistribution.deadline && (
-                      <div>
-                        <Label className="text-muted-foreground">Hạn phản hồi</Label>
-                        <p className="font-medium">
+                      <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/70 to-orange-50/70 dark:from-amber-950/70 dark:to-orange-950/70 p-4 rounded-xl border border-white/30">
+                        <Label className="text-sm text-amber-700 dark:text-amber-300 font-medium">⏰ Hạn phản hồi</Label>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
                           {new Date(selectedDistribution.deadline).toLocaleDateString('vi-VN')}
                         </p>
                       </div>
@@ -1047,38 +1148,50 @@ export default function DealerDistributionsPage() {
                   </div>
                   
                   {selectedDistribution.invitationMessage && (
-                    <div>
-                      <Label className="text-muted-foreground">Lời mời từ EVM</Label>
-                      <p className="mt-1 p-3 bg-blue-50 rounded-md">{selectedDistribution.invitationMessage}</p>
+                    <div className="backdrop-blur-md bg-gradient-to-br from-purple-50/70 to-pink-50/70 dark:from-purple-950/70 dark:to-pink-950/70 p-4 rounded-xl border border-white/30">
+                      <Label className="text-sm text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Lời mời từ EVM
+                      </Label>
+                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.invitationMessage}</p>
                     </div>
                   )}
                   
                   {selectedDistribution.dealerNotes && (
-                    <div>
-                      <Label className="text-muted-foreground">Ghi chú của bạn</Label>
-                      <p className="mt-1 p-3 bg-amber-50 rounded-md">{selectedDistribution.dealerNotes}</p>
+                    <div className="backdrop-blur-md bg-gradient-to-br from-yellow-50/70 to-amber-50/70 dark:from-yellow-950/70 dark:to-amber-950/70 p-4 rounded-xl border border-white/30">
+                      <Label className="text-sm text-yellow-700 dark:text-yellow-300 font-semibold flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Ghi chú của bạn
+                      </Label>
+                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.dealerNotes}</p>
                     </div>
                   )}
                   
                   {selectedDistribution.evmNotes && (
-                    <div>
-                      <Label className="text-muted-foreground">Ghi chú của EVM</Label>
-                      <p className="mt-1 p-3 bg-green-50 rounded-md">{selectedDistribution.evmNotes}</p>
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/70 to-emerald-50/70 dark:from-green-950/70 dark:to-emerald-950/70 p-4 rounded-xl border border-white/30">
+                      <Label className="text-sm text-green-700 dark:text-green-300 font-semibold flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Ghi chú của EVM
+                      </Label>
+                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.evmNotes}</p>
                     </div>
                   )}
                   
                   {selectedDistribution.products && selectedDistribution.products.length > 0 && (
                     <div>
-                      <Label className="text-muted-foreground">Sản phẩm ({selectedDistribution.products.length})</Label>
-                      <div className="mt-2 space-y-2">
+                      <Label className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
+                        <Package className="h-5 w-5 text-purple-600" />
+                        Sản phẩm ({selectedDistribution.products.length})
+                      </Label>
+                      <div className="space-y-3">
                         {selectedDistribution.products.map((product, idx) => (
-                          <div key={idx} className="p-3 border rounded-md">
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              VIN: {product.vinNum} | Engine: {product.engineNum}
+                          <div key={idx} className="backdrop-blur-md bg-gradient-to-br from-gray-50/70 to-white/70 dark:from-gray-800/70 dark:to-gray-900/70 p-4 rounded-xl border border-white/30 hover:shadow-lg transition-all duration-300">
+                            <div className="font-bold text-lg text-gray-900 dark:text-white">{product.name}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              VIN: <span className="font-mono font-medium">{product.vinNum}</span> | Engine: <span className="font-mono font-medium">{product.engineNum}</span>
                             </div>
-                            <div className="text-sm font-medium text-green-600">
-                              {product.price?.toLocaleString('vi-VN')}đ
+                            <div className="text-base font-bold text-green-600 dark:text-green-400 mt-2">
+                              💰 {product.price?.toLocaleString('vi-VN')}đ
                             </div>
                             {product.stockInDate && (
                               <div className="text-sm text-muted-foreground mt-1">
@@ -1107,33 +1220,46 @@ export default function DealerDistributionsPage() {
                   )}
                   
                   {selectedDistribution.estimatedDeliveryDate && (
-                    <div>
-                      <Label className="text-muted-foreground">Ngày giao dự kiến</Label>
-                      <p className="font-medium">
+                    <div className="backdrop-blur-md bg-gradient-to-br from-cyan-50/70 to-blue-50/70 dark:from-cyan-950/70 dark:to-blue-950/70 p-4 rounded-xl border border-white/30">
+                      <Label className="text-sm text-cyan-700 dark:text-cyan-300 font-semibold flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        Ngày giao dự kiến
+                      </Label>
+                      <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
                         {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
                       </p>
                     </div>
                   )}
                   
                   {selectedDistribution.actualDeliveryDate && (
-                    <div>
-                      <Label className="text-muted-foreground">Ngày giao thực tế</Label>
-                      <p className="font-medium">
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/70 to-emerald-50/70 dark:from-green-950/70 dark:to-emerald-950/70 p-4 rounded-xl border border-white/30">
+                      <Label className="text-sm text-green-700 dark:text-green-300 font-semibold flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Ngày giao thực tế
+                      </Label>
+                      <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
                         {new Date(selectedDistribution.actualDeliveryDate).toLocaleDateString('vi-VN')}
                       </p>
                     </div>
                   )}
                   
                   {selectedDistribution.feedback && (
-                    <div>
-                      <Label className="text-muted-foreground">Đánh giá</Label>
-                      <p className="mt-1 p-3 bg-purple-50 rounded-md">{selectedDistribution.feedback}</p>
+                    <div className="backdrop-blur-md bg-gradient-to-br from-pink-50/70 to-rose-50/70 dark:from-pink-950/70 dark:to-rose-950/70 p-4 rounded-xl border border-white/30">
+                      <Label className="text-sm text-pink-700 dark:text-pink-300 font-semibold flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Đánh giá
+                      </Label>
+                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.feedback}</p>
                     </div>
                   )}
                 </div>
               )}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsDetailDialogOpen(false)}
+                  className="bg-white/50 hover:bg-white/70 border-white/40"
+                >
                   Đóng
                 </Button>
               </DialogFooter>
@@ -1146,7 +1272,7 @@ export default function DealerDistributionsPage() {
               <DialogHeader>
                 <DialogTitle>💰 Xác nhận Giá Hãng</DialogTitle>
                 <DialogDescription>
-                  Phân phối #{selectedDistribution?.id}
+                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
                 </DialogDescription>
               </DialogHeader>
               {selectedDistribution && (
@@ -1166,26 +1292,23 @@ export default function DealerDistributionsPage() {
 
                   {/* Chi tiết từng dòng xe mà EVM đã duyệt */}
                   {selectedDistribution.items && selectedDistribution.items.length > 0 && (() => {
-                    // Parse evmNotes để lấy thông tin approved/requested cho mỗi item
-                    const itemInfoMap = new Map<string, { approved: number; requested: number; price?: number }>();
+                    // Parse evmNotes để lấy requested quantity cho từng item
+                    // Format: "Duyệt theo dòng: vf3 (Đen): 5/10 xe @ 10.000 VND; vf3 (Xanh): 3/5 xe @ 20.000 VND"
+                    const itemRequestedMap = new Map<string, number>();
                     
                     if (selectedDistribution.evmNotes) {
-                      // Format: "Duyệt theo dòng: egg (Trắng): 3/3 xe @ 50.000.000.000 VND; vf3 (Xám): 3/4 xe"
                       const match = selectedDistribution.evmNotes.match(/Duyệt theo dòng:\s*(.+?)(\s*\|\s*Ghi chú:|$)/);
                       if (match) {
                         const itemsText = match[1];
                         const itemParts = itemsText.split(';').map(s => s.trim());
                         
                         for (const part of itemParts) {
-                          // Parse: "egg (Trắng): 3/3 xe @ 50.000.000.000 VND"
-                          const itemMatch = part.match(/^(.+?):\s*(\d+)\/(\d+)\s*xe(?:\s*@\s*([\d.,]+)\s*VND)?/);
+                          // Parse: "vf3 (Đen): 5/10 xe @ 10.000 VND"
+                          const itemMatch = part.match(/^(.+?):\s*(\d+)\/(\d+)\s*xe/);
                           if (itemMatch) {
-                            const key = itemMatch[1].trim(); // "egg (Trắng)"
-                            const approved = parseInt(itemMatch[2]);
-                            const requested = parseInt(itemMatch[3]);
-                            const priceStr = itemMatch[4];
-                            const price = priceStr ? parseFloat(priceStr.replace(/,/g, '')) : undefined;
-                            itemInfoMap.set(key, { approved, requested, price });
+                            const key = itemMatch[1].trim(); // "vf3 (Đen)"
+                            const requestedQty = parseInt(itemMatch[3]); // 10
+                            itemRequestedMap.set(key, requestedQty);
                           }
                         }
                       }
@@ -1196,9 +1319,13 @@ export default function DealerDistributionsPage() {
                         <Label className="text-sm font-medium mb-2 block">Chi tiết xe hãng nhập:</Label>
                         <div className="space-y-2">
                           {selectedDistribution.items.map((item) => {
-                            const itemKey = `${item.product.name}${item.color ? ' ('+item.color+')' : ''}`;
-                            const itemInfo = itemInfoMap.get(itemKey);
-                            const isMissing = itemInfo && itemInfo.approved < itemInfo.requested;
+                            // Backend đã update item.quantity = approved quantity
+                            const approvedQty = item.quantity || 0;
+                            
+                            // Lấy requested quantity từ evmNotes, fallback về distribution total nếu không parse được
+                            const itemKey = `${item.product?.name || item.category?.name || 'Unknown'}${item.color ? ' ('+item.color+')' : ''}`;
+                            const requestedQty = itemRequestedMap.get(itemKey) || (selectedDistribution.requestedQuantity || 0);
+                            const isMissing = approvedQty < requestedQty;
                             
                             return (
                               <div 
@@ -1213,7 +1340,7 @@ export default function DealerDistributionsPage() {
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                       <p className="font-medium">
-                                        {item.product.name} 
+                                        {item.product?.name || item.category?.name || 'Sản phẩm'} 
                                         {item.color && <span className="text-muted-foreground"> ({item.color})</span>}
                                       </p>
                                       {isMissing && (
@@ -1222,28 +1349,24 @@ export default function DealerDistributionsPage() {
                                         </Badge>
                                       )}
                                     </div>
-                                    {itemInfo ? (
-                                      <p className="text-sm mt-1">
-                                        <span className={isMissing ? 'text-red-700 font-semibold' : 'text-green-700 font-semibold'}>
-                                          {itemInfo.approved} xe
+                                    <p className="text-sm mt-1">
+                                      <span className={isMissing ? 'text-red-700 font-semibold' : 'text-green-700 font-semibold'}>
+                                        {approvedQty} xe được duyệt
+                                      </span>
+                                      <span className="text-muted-foreground"> / {requestedQty} xe yêu cầu</span>
+                                      {isMissing && (
+                                        <span className="text-red-600 font-semibold ml-2">
+                                          (Thiếu {requestedQty - approvedQty} xe)
                                         </span>
-                                        <span className="text-muted-foreground"> / {itemInfo.requested} xe yêu cầu</span>
-                                        {isMissing && (
-                                          <span className="text-red-600 font-semibold ml-2">
-                                            (Thiếu {itemInfo.requested - itemInfo.approved} xe)
-                                          </span>
-                                        )}
-                                      </p>
-                                    ) : (
-                                      <p className="text-sm text-muted-foreground">
-                                        Số lượng: <span className="font-semibold text-green-700">{item.quantity} xe</span>
-                                      </p>
-                                    )}
+                                      )}
+                                    </p>
                                   </div>
                                   <div className="text-right">
                                     <p className="text-sm text-muted-foreground">Giá hãng</p>
                                     <p className={`text-lg font-bold ${isMissing ? 'text-red-600' : 'text-green-600'}`}>
-                                      {item.dealerPrice ? `${item.dealerPrice.toLocaleString('vi-VN')} VND` : 'Chưa có giá'}
+                                      {item.dealerPrice 
+                                        ? `${item.dealerPrice.toLocaleString('vi-VN')} VND` 
+                                        : 'Chưa có giá'}
                                     </p>
                                   </div>
                                 </div>
@@ -1287,6 +1410,249 @@ export default function DealerDistributionsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* NEW REQUEST DIALOG - Dealer-initiated request with Glass Effect */}
+          <Dialog open={isNewRequestDialogOpen} onOpenChange={setIsNewRequestDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-white/30">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent flex items-center gap-2">
+                  🚀 Tạo yêu cầu phân phối mới
+                </DialogTitle>
+                <DialogDescription className="text-base">
+                  Tạo yêu cầu nhập hàng trực tiếp từ hãng (không cần chờ lời mời)
+                  {categories.length > 0 && (
+                    <span className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
+                      <CheckCircle2 className="h-3 w-3" />
+                      {categories.length} danh mục có sẵn
+                    </span>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Categories loading check */}
+                {categories.length === 0 && (
+                  <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-950/80 dark:to-orange-950/80 p-4 rounded-xl border border-amber-300/50">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-amber-800 dark:text-amber-200 font-semibold mb-2">
+                          ⚠️ Chưa tải được danh mục xe
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={loadData}
+                          disabled={loading}
+                          className="bg-white/50 hover:bg-white/70"
+                        >
+                          {loading ? 'Đang tải...' : '🔄 Tải lại'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Items */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-purple-50/60 to-pink-50/60 dark:from-purple-950/60 dark:to-pink-950/60 p-6 rounded-2xl border border-white/30">
+                  <Label className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-1">
+                    <Package className="h-5 w-5 text-purple-600" />
+                    📋 Danh sách sản phẩm yêu cầu
+                  </Label>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Chọn danh mục, màu sắc và số lượng cho từng dòng
+                  </p>
+                  
+                  <div className="space-y-3">
+                  {newRequestItems.map((item, idx) => (
+                    <div key={idx} className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 p-4 rounded-xl border border-white/30 hover:shadow-md transition-all duration-300">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                        {/* Category Select - takes more space */}
+                        <div className="md:col-span-5">
+                          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">Danh mục</Label>
+                          <Select
+                            value={item.categoryId?.toString() || ''}
+                            onValueChange={(val) => {
+                              const updated = [...newRequestItems];
+                              updated[idx].categoryId = val ? parseInt(val) : undefined;
+                              setNewRequestItems(updated);
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Chọn danh mục..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.length === 0 ? (
+                                <div className="p-2 text-sm text-muted-foreground text-center">
+                                  Không có danh mục nào
+                                </div>
+                              ) : (
+                                categories.map((cat) => (
+                                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                                    {cat.name} ({cat.brand})
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Color Select */}
+                        <div className="md:col-span-3">
+                          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">Màu sắc</Label>
+                          <Select
+                            value={item.color || ''}
+                            onValueChange={(val) => {
+                              const updated = [...newRequestItems];
+                              updated[idx].color = val || undefined;
+                              setNewRequestItems(updated);
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Màu..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COLOR_OPTIONS.map((color) => (
+                                <SelectItem key={color} value={color}>
+                                  {color}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Quantity Input */}
+                        <div className="md:col-span-3">
+                          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">Số lượng</Label>
+                          <Input
+                            type="number"
+                            placeholder="SL"
+                            className="w-full"
+                            min={1}
+                            value={item.quantity || ''}
+                            onChange={(e) => {
+                              const updated = [...newRequestItems];
+                              updated[idx].quantity = parseInt(e.target.value) || 0;
+                              setNewRequestItems(updated);
+                            }}
+                          />
+                        </div>
+                        
+                        {/* Delete Button */}
+                        <div className="md:col-span-1 flex items-end pb-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (newRequestItems.length > 1) {
+                                setNewRequestItems(newRequestItems.filter((_, i) => i !== idx));
+                              }
+                            }}
+                            disabled={newRequestItems.length === 1}
+                            className="h-10 w-10 hover:bg-red-50 dark:hover:bg-red-950/20"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNewRequestItems([...newRequestItems, { categoryId: undefined, color: undefined, quantity: 1 }]);
+                    }}
+                    className="mt-3 bg-white/50 hover:bg-white/70 border-purple-200 hover:border-purple-400 hover:scale-105 transition-all duration-300"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm dòng
+                  </Button>
+                  
+                  <div className="mt-4 p-3 backdrop-blur-sm bg-blue-50/70 dark:bg-blue-950/70 rounded-lg border border-blue-200/50">
+                    <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold">
+                      🚗 Tổng số lượng: <span className="text-lg">{newRequestItems.reduce((s, it) => s + (Number(it.quantity) || 0), 0)}</span> xe
+                    </p>
+                  </div>
+                  </div>
+                </div>
+
+                {/* Requested Delivery Date */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-cyan-50/60 to-blue-50/60 dark:from-cyan-950/60 dark:to-blue-950/60 p-5 rounded-2xl border border-white/30">
+                  <Label htmlFor="newRequestDeliveryDate" className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
+                    <Calendar className="h-5 w-5 text-cyan-600" />
+                    📅 Ngày giao hàng mong muốn
+                  </Label>
+                  <Input
+                    id="newRequestDeliveryDate"
+                    type="date"
+                    value={newRequestDeliveryDate}
+                    onChange={(e) => setNewRequestDeliveryDate(e.target.value)}
+                    className="bg-white/70 dark:bg-gray-800/70 border-white/40 focus:border-cyan-400"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-green-50/60 to-emerald-50/60 dark:from-green-950/60 dark:to-emerald-950/60 p-5 rounded-2xl border border-white/30">
+                  <Label htmlFor="newRequestNotes" className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-5 w-5 text-green-600" />
+                    💬 Ghi chú
+                  </Label>
+                  <Textarea
+                    id="newRequestNotes"
+                    placeholder="Thêm ghi chú về yêu cầu này..."
+                    value={newRequestNotes}
+                    onChange={(e) => setNewRequestNotes(e.target.value)}
+                    rows={3}
+                    className="bg-white/70 dark:bg-gray-800/70 border-white/40 focus:border-green-400"
+                  />
+                </div>
+
+                <div className="backdrop-blur-md bg-gradient-to-br from-blue-50/70 to-cyan-50/70 dark:from-blue-950/70 dark:to-cyan-950/70 p-4 rounded-xl border border-blue-300/50">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      <strong>ℹ️ Lưu ý:</strong> Yêu cầu sẽ được gửi trực tiếp đến EVM để duyệt. 
+                      Sau khi EVM duyệt và báo giá, bạn sẽ cần xác nhận giá trước khi tiếp tục quy trình giao hàng.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsNewRequestDialogOpen(false);
+                    resetNewRequestForm();
+                  }}
+                  className="bg-white/50 hover:bg-white/70 border-white/40"
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleCreateNewRequest}
+                  disabled={isSubmittingOrder || newRequestItems.filter(it => (it.categoryId || 0) > 0).length === 0}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                >
+                  {isSubmittingOrder ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Đang gửi...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      ✅ Gửi yêu cầu
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          </div>
         </div>
       </DealerManagerLayout>
     </ProtectedRoute>

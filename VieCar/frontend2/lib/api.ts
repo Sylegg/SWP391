@@ -1,8 +1,8 @@
 /// <reference types="node" />
 import axios from 'axios';
 
-// Prefer env var; default to backend's configured port (6969)
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:6969';
+// Prefer env var; default to backend's configured port (6969) with /api prefix
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:6969/api';
 
 export const api = axios.create({
   baseURL,

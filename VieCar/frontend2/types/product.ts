@@ -19,7 +19,12 @@ export interface ProductReq {
   color: string;
   manufacture_date: string | Date; // ISO date string or Date object
   stockInDate?: string | Date; // Ngày nhập kho (tùy chọn)
-  dealerPrice: number;
+  
+  // ✅ NEW: Manufacturer & Retail Price
+  manufacturerPrice?: number; // Giá gốc từ hãng (chỉ set khi tạo mới, không update)
+  retailPrice?: number; // Giá bán lẻ (dealer có thể update)
+  
+  dealerPrice?: number; // @Deprecated - backward compatibility
   description: string;
   status: ProductStatus;
   categoryId: number;
@@ -42,9 +47,12 @@ export interface ProductRes {
   stockInDate?: string | Date;
   image: string;
   description: string;
-  price: number;  // ❌ DEPRECATED: Giữ để backward compatibility
-  manufacturerPrice?: number; // Giá hãng nhập vào (cố định)
-  retailPrice?: number; // Giá đại lý bán ra (dealer staff có thể chỉnh sửa)
+  
+  // ✅ NEW PRICE STRUCTURE
+  manufacturerPrice?: number; // Giá gốc từ hãng (READ-ONLY, không được thay đổi)
+  retailPrice?: number; // Giá bán lẻ của đại lý (CÓ THỂ update)
+  price: number;  // @Deprecated: Backward compatibility (= retailPrice hoặc manufacturerPrice)
+  
   status: ProductStatus;
   categoryId: number;
   dealerCategoryId: number;

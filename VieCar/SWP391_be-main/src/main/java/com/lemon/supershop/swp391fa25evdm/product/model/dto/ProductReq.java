@@ -3,10 +3,6 @@ package com.lemon.supershop.swp391fa25evdm.product.model.dto;
 import java.sql.Date;
 
 import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
-import jakarta.persistence.Column;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 public class ProductReq {
     private String name;
@@ -20,7 +16,14 @@ public class ProductReq {
     private Date manufacture_date;
     // Ngày nhập kho (tùy chọn). Nếu không gửi, backend sẽ tự set khi hoàn tất phân phối
     private Date stockInDate;
-    private long dealerPrice;
+    
+    // Giá gốc từ hãng (chỉ set khi nhập kho lần đầu)
+    private Long manufacturerPrice;
+    
+    // Giá bán lẻ của đại lý (có thể update)
+    private Long retailPrice;
+    
+    private long dealerPrice; // @Deprecated - backward compatibility
     private String description;
     private ProductStatus status;
     private int categoryId;
@@ -156,5 +159,21 @@ public class ProductReq {
 
     public void setColor(String color) {
         this.color = color;
+    }
+
+    public Long getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Long manufacturerPrice) {
+        this.manufacturerPrice = manufacturerPrice;
+    }
+
+    public Long getRetailPrice() {
+        return retailPrice;
+    }
+
+    public void setRetailPrice(Long retailPrice) {
+        this.retailPrice = retailPrice;
     }
 }

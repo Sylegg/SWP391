@@ -187,7 +187,9 @@ export default function EvmDistributionsPage() {
     if (searchQuery) {
       filtered = filtered.filter(d => {
         const dealerName = getDealerName(d); // Pass the entire distribution object
+        const code = d.code || '';
         return dealerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          code.toLowerCase().includes(searchQuery.toLowerCase()) ||
           d.id.toString().includes(searchQuery);
       });
     }
@@ -461,8 +463,8 @@ export default function EvmDistributionsPage() {
           .filter(it => it.approved)
           .map(it => ({
             distributionItemId: it.id,
-            manufacturerPrice: it.manufacturerPrice, // Giá hãng bán cho dealer
-            quantity: it.approvedQuantity, // Số lượng EVM duyệt
+            dealerPrice: it.manufacturerPrice, // Giá hãng bán cho dealer (backend expects dealerPrice)
+            approvedQuantity: it.approvedQuantity, // Số lượng EVM duyệt
           })),
       };
 
@@ -498,52 +500,46 @@ export default function EvmDistributionsPage() {
           </div>
 
           <div className="relative z-10 p-6 space-y-6">
-          {/* Header with Glass Effect */}
-          <div className="backdrop-blur-md bg-white/70 dark:bg-gray-900/70 p-6 rounded-2xl border border-white/20 shadow-xl">
+          {/* Liquid Glass Header */}
+          <div className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/80 to-blue-50/80 dark:from-cyan-950/80 dark:to-blue-950/80 p-6 rounded-3xl border border-white/30 shadow-2xl">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-teal-600 bg-clip-text text-transparent flex items-center gap-2">
-                  <Package className="h-8 w-8 text-cyan-600 drop-shadow-lg" />
-                  Quản lý Phân phối
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-3">
+                  <Package className="h-10 w-10 text-cyan-600 drop-shadow-lg" />
+                  📦 Quản lý Phân phối
                 </h1>
-                <p className="text-muted-foreground mt-2">
+                <p className="text-gray-600 dark:text-gray-300 mt-2 text-lg">
                   Gửi lời mời, duyệt đơn và lên kế hoạch giao hàng cho đại lý
                 </p>
               </div>
               <Button 
                 onClick={() => setIsInviteDialogOpen(true)}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-6 text-lg"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-5 w-5 mr-2" />
                 Gửi lời mời mới
               </Button>
             </div>
           </div>
 
-          {/* Stats Cards with Glass Effect */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="backdrop-blur-md bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">Lời mời đang chờ</p>
-                  <p className="text-3xl font-bold mt-2 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{stats.totalInvitations}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Chờ dealer phản hồi</p>
-                </div>
-                <Clock className="h-10 w-10 text-blue-500 opacity-70" />
+          {/* Liquid Glass Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="backdrop-blur-xl bg-gradient-to-br from-blue-50/80 to-cyan-50/80 dark:from-blue-950/80 dark:to-cyan-950/80 p-6 rounded-2xl border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200">Lời mời đang chờ</h3>
+                <Clock className="h-8 w-8 text-blue-500" />
               </div>
-              <div className="mt-2 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+              <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{stats.totalInvitations}</div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Chờ dealer phản hồi</p>
             </div>
 
-            <div className="backdrop-blur-md bg-gradient-to-br from-yellow-500/20 to-amber-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">Chờ duyệt</p>
-                  <p className="text-3xl font-bold mt-2 text-yellow-600">{stats.pendingApproval}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Đơn cần xem xét</p>
-                </div>
-                <AlertCircle className="h-10 w-10 text-yellow-500 opacity-70" />
+            <div className="backdrop-blur-xl bg-gradient-to-br from-amber-50/80 to-yellow-50/80 dark:from-amber-950/80 dark:to-yellow-950/80 p-6 rounded-2xl border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">Chờ duyệt</h3>
+                <AlertCircle className="h-8 w-8 text-amber-500" />
               </div>
-              <div className="mt-2 h-1 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+              <div className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent">{stats.pendingApproval}</div>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">Đơn cần xem xét</p>
             </div>
 
             <div className="backdrop-blur-md bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
@@ -641,7 +637,7 @@ export default function EvmDistributionsPage() {
                       <div className="flex items-center gap-6">
                         <div>
                           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-                            Phân phối #{dist.id}
+                            Mã phân phối: {dist.code || `#${dist.id}`}
                           </h3>
                           <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
                             <span className="flex items-center gap-1 font-medium">
@@ -816,7 +812,7 @@ export default function EvmDistributionsPage() {
                   {approveForm.approved ? '✅ Duyệt đơn nhập hàng' : '❌ Từ chối đơn nhập hàng'}
                 </DialogTitle>
                 <DialogDescription className="text-gray-600 dark:text-gray-300">
-                  Phân phối #{selectedDistribution?.id} - {selectedDistribution ? getDealerName(selectedDistribution) : ''}
+                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`} - {selectedDistribution ? getDealerName(selectedDistribution) : ''}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -842,14 +838,18 @@ export default function EvmDistributionsPage() {
                       <Label htmlFor="manufacturerPrice">Giá hãng (VND) *</Label>
                       <Input
                         id="manufacturerPrice"
-                        type="number"
-                        min={0}
-                        placeholder="VD: 500000000"
-                        value={approveForm.manufacturerPrice || ''}
-                        onChange={(e) => setApproveForm({ ...approveForm, manufacturerPrice: Number(e.target.value) })}
+                        type="text"
+                        placeholder="VD: 50000000 hoặc 50.000.000"
+                        value={approveForm.manufacturerPrice ? approveForm.manufacturerPrice.toLocaleString('vi-VN') : ''}
+                        onChange={(e) => {
+                          // Remove all non-digit characters to get pure number
+                          const numericValue = e.target.value.replace(/[^\d]/g, '');
+                          const price = numericValue ? Number(numericValue) : 0;
+                          setApproveForm({ ...approveForm, manufacturerPrice: price });
+                        }}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Giá này sẽ được gửi cho dealer để xác nhận
+                        Giá này sẽ được gửi cho dealer để xác nhận. Có thể nhập 50.000.000 hoặc 50000000
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -902,7 +902,7 @@ export default function EvmDistributionsPage() {
                   👀 Xem đơn & duyệt theo dòng
                 </DialogTitle>
                 <DialogDescription className="text-gray-600 dark:text-gray-300">
-                  Phân phối #{selectedDistribution?.id} - {selectedDistribution ? getDealerName(selectedDistribution) : ''}
+                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`} - {selectedDistribution ? getDealerName(selectedDistribution) : ''}
                 </DialogDescription>
               </DialogHeader>
               {selectedDistribution && (
@@ -966,13 +966,14 @@ export default function EvmDistributionsPage() {
                             <div>
                               <Label className="text-xs text-muted-foreground">Giá hãng (VND/xe) *</Label>
                               <Input
-                                type="number"
-                                min={0}
-                                placeholder="VD: 500000000"
-                                value={it.manufacturerPrice || ''}
+                                type="text"
+                                placeholder="VD: 50000000 hoặc 50.000.000"
+                                value={it.manufacturerPrice ? it.manufacturerPrice.toLocaleString('vi-VN') : ''}
                                 disabled={!it.approved}
                                 onChange={(e) => {
-                                  const price = Number(e.target.value);
+                                  // Remove all non-digit characters (dots, commas, spaces)
+                                  const numericValue = e.target.value.replace(/[^\d]/g, '');
+                                  const price = numericValue ? Number(numericValue) : 0;
                                   setReviewItems((prev) => prev.map((x) => x.id === it.id ? { ...x, manufacturerPrice: price } : x));
                                 }}
                               />
@@ -1059,7 +1060,7 @@ export default function EvmDistributionsPage() {
                   🚚 Lên kế hoạch giao hàng
                 </DialogTitle>
                 <DialogDescription className="text-gray-600 dark:text-gray-300">
-                  Phân phối #{selectedDistribution?.id} - {selectedDistribution ? getDealerName(selectedDistribution) : ''}
+                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`} - {selectedDistribution ? getDealerName(selectedDistribution) : ''}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -1106,7 +1107,7 @@ export default function EvmDistributionsPage() {
             <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-2xl bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
-                  Chi tiết Phân phối #{selectedDistribution?.id}
+                  Chi tiết - Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
                 </DialogTitle>
                 <DialogDescription className="text-gray-600 dark:text-gray-300">
                   <Badge className={getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)}>

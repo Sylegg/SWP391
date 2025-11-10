@@ -89,6 +89,7 @@ export interface DistributionCompletionReq {
  */
 export interface DistributionRes {
   id: number;
+  code?: string; // Mã phân phối (PP2025-0013)
   status: DistributionStatus;
   
   // Dealer info

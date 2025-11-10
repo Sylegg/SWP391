@@ -20,54 +20,12 @@ import Link from "next/link";
 export default function EvmStaffDashboard() {
   const { user } = useAuth();
 
-  const quickActions = [
-    {
-      title: "Phân phối sản phẩm",
-      description: "Quản lý phân phối xe đến các đại lý",
-      icon: Truck,
-      href: "/dashboard/evm-staff/distributions",
-      color: "from-cyan-500 to-blue-600",
-      iconBg: "bg-cyan-100 dark:bg-cyan-900/30",
-      iconColor: "text-cyan-600 dark:text-cyan-400"
-    }
-  ];
-
-  const stats = [
-    {
-      label: "Tổng đại lý",
-      value: "---",
-      icon: Building2,
-      color: "text-cyan-600 dark:text-cyan-400",
-      bg: "bg-cyan-50 dark:bg-cyan-900/20"
-    },
-    {
-      label: "Phân phối tháng này",
-      value: "---",
-      icon: Package,
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-900/20"
-    },
-    {
-      label: "Sản phẩm hoạt động",
-      value: "---",
-      icon: Zap,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-50 dark:bg-emerald-900/20"
-    },
-    {
-      label: "Tăng trưởng",
-      value: "---",
-      icon: TrendingUp,
-      color: "text-purple-600 dark:text-purple-400",
-      bg: "bg-purple-50 dark:bg-purple-900/20"
-    }
-  ];
-
   return (
     <ProtectedRoute allowedRoles={['EVM Staff', 'Admin']}>
       <EvmStaffLayout>
-        {/* Welcome Header with Liquid Glass */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 p-8 shadow-2xl mb-8">
+        <div className="space-y-6">
+          {/* Welcome Header with Liquid Glass */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 p-8 shadow-2xl backdrop-blur-md border border-white/20">
           <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent animate-gradient-shift"></div>
           <div className="relative z-10">
             <div className="flex items-center space-x-3 mb-4">
@@ -101,58 +59,6 @@ export default function EvmStaffDashboard() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
-                      {stat.label}
-                    </p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                      {stat.value}
-                    </p>
-                  </div>
-                  <div className={`p-4 rounded-xl ${stat.bg}`}>
-                    <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 gap-6 mb-8">
-          {quickActions.map((action, index) => (
-            <Link key={index} href={action.href} className="block">
-              <Card className="border-none shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 overflow-hidden group">
-                <div className={`absolute inset-0 bg-gradient-to-r ${action.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none`}></div>
-                <CardHeader className="relative">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-4 rounded-xl ${action.iconBg} group-hover:scale-110 transition-transform duration-300`}>
-                        <action.icon className={`h-8 w-8 ${action.iconColor}`} />
-                      </div>
-                      <div>
-                        <CardTitle className="text-xl group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                          {action.title}
-                        </CardTitle>
-                        <CardDescription className="text-base mt-1">
-                          {action.description}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 group-hover:translate-x-2 transition-all duration-300" />
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
-          ))}
         </div>
 
         {/* Info Cards */}
@@ -207,6 +113,7 @@ export default function EvmStaffDashboard() {
             </CardContent>
           </Card>
         </div>
+      </div>
       </EvmStaffLayout>
     </ProtectedRoute>
   );

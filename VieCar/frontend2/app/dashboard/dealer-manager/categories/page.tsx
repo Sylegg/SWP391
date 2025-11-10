@@ -149,13 +149,22 @@ export default function DealerManagerCategoriesPage() {
   return (
     <ProtectedRoute allowedRoles={['Dealer Manager', 'Dealer Staff', 'Admin']}>
       <DealerManagerLayout>
-        <div className="p-6">
-          {/* Header */}
-          <div className="mb-6">
+        <div className="relative min-h-screen overflow-hidden">
+          {/* Animated Water Droplets Background */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-[10%] left-[15%] w-32 h-32 bg-purple-400/20 rounded-full blur-3xl animate-float-slow"></div>
+            <div className="absolute top-[60%] right-[20%] w-40 h-40 bg-pink-400/20 rounded-full blur-3xl animate-float-medium"></div>
+            <div className="absolute bottom-[20%] left-[25%] w-36 h-36 bg-indigo-400/20 rounded-full blur-3xl animate-float-fast"></div>
+            <div className="absolute top-[30%] right-[10%] w-28 h-28 bg-rose-300/20 rounded-full blur-2xl animate-float-slow-reverse"></div>
+          </div>
+
+          <div className="relative z-10 p-6 space-y-6">
+          {/* Header with Glass Effect */}
+          <div className="backdrop-blur-md bg-white/70 dark:bg-gray-900/70 p-6 rounded-2xl border border-white/20 shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold flex items-center">
-                  <Tag className="mr-3 h-8 w-8" />
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent flex items-center gap-2">
+                  <Tag className="h-8 w-8 text-purple-600 drop-shadow-lg" />
                   Danh mục sản phẩm
                 </h1>
                 <p className="text-muted-foreground mt-2">
@@ -163,20 +172,25 @@ export default function DealerManagerCategoriesPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-sm">
+                <Badge variant="secondary" className="text-sm backdrop-blur-sm bg-purple-100/70 dark:bg-purple-900/70 border border-purple-200/50">
                   <Info className="w-4 h-4 mr-1" />
                   Dành cho Dealer Manager
                 </Badge>
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button onClick={() => setIsCreateDialogOpen(true)}>
+                    <Button 
+                      onClick={() => setIsCreateDialogOpen(true)}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                    >
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Tạo danh mục
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-white/30">
                     <DialogHeader>
-                      <DialogTitle>Tạo danh mục mới</DialogTitle>
+                      <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        Tạo danh mục mới
+                      </DialogTitle>
                       <DialogDescription>Nhập thông tin danh mục mới</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -268,36 +282,47 @@ export default function DealerManagerCategoriesPage() {
             </div>
           </div>
 
-          {/* Search */}
-          <div className="bg-card rounded-lg border p-4 mb-6">
+          {/* Search with Glass Effect */}
+          <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 p-4 rounded-2xl border border-white/20 shadow-lg">
             <div className="flex gap-2">
-              <Input
-                placeholder="Tìm theo tên danh mục..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="max-w-sm"
-              />
-              <Button size="icon" variant="outline" onClick={handleSearch}>
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-600" />
+                <Input
+                  placeholder="Tìm theo tên danh mục..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  className="pl-10 bg-white/50 dark:bg-gray-800/50 border-white/30 focus:border-purple-400 transition-all duration-300"
+                />
+              </div>
+              <Button 
+                size="icon" 
+                variant="outline" 
+                onClick={handleSearch}
+                className="bg-white/50 hover:bg-white/70 border-white/40 hover:scale-105 transition-all duration-300"
+              >
                 <Search className="h-4 w-4" />
               </Button>
-              <Button variant="outline" onClick={loadCategories}>
+              <Button 
+                variant="outline" 
+                onClick={loadCategories}
+                className="bg-white/50 hover:bg-white/70 border-white/40 hover:scale-105 transition-all duration-300"
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Làm mới
               </Button>
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-card rounded-lg border">
+          {/* Table with Glass Effect */}
+          <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl border border-white/20 shadow-lg overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
                   <TableHead>Tên danh mục</TableHead>
                   <TableHead>Thương hiệu</TableHead>
-                  {/* Removed columns: Phiên bản, Loại xe */}
-                  <TableHead>Giá cơ bản</TableHead>
+                  <TableHead>Giá hãng</TableHead>
+                  <TableHead>Giá đại lý</TableHead>
                   <TableHead>Bảo hành</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead className="text-right">Hành động</TableHead>
@@ -306,28 +331,29 @@ export default function DealerManagerCategoriesPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Đang tải...
                     </TableCell>
                   </TableRow>
                 ) : categories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Không có danh mục nào
                     </TableCell>
                   </TableRow>
                 ) : (
                   categories.map((category) => (
                     <TableRow key={category.id}>
-                      <TableCell className="font-medium">{category.id}</TableCell>
                       <TableCell className="font-semibold">
                         {category.name}
                         {category.isSpecial && <span className="ml-2">⭐</span>}
                       </TableCell>
                       <TableCell>{category.brand}</TableCell>
-                      {/* Removed cells: version, type */}
-                      <TableCell className="font-medium">
-                        {category.basePrice ? category.basePrice.toLocaleString('vi-VN') : '0'} ₫
+                      <TableCell className="font-medium text-blue-600 dark:text-blue-400">
+                        {category.manufacturerPrice ? category.manufacturerPrice.toLocaleString('vi-VN') : (category.basePrice ? category.basePrice.toLocaleString('vi-VN') : '0')} ₫
+                      </TableCell>
+                      <TableCell className="font-medium text-green-600 dark:text-green-400">
+                        {category.dealerPrice ? category.dealerPrice.toLocaleString('vi-VN') : (category.basePrice ? category.basePrice.toLocaleString('vi-VN') : '0')} ₫
                       </TableCell>
                       <TableCell>{category.warranty || 0} năm</TableCell>
                       <TableCell>
@@ -454,12 +480,17 @@ export default function DealerManagerCategoriesPage() {
               )}
 
               <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsViewDialogOpen(false)}
+                  className="bg-white/50 hover:bg-white/70 border-white/40"
+                >
                   Đóng
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </DealerManagerLayout>
     </ProtectedRoute>

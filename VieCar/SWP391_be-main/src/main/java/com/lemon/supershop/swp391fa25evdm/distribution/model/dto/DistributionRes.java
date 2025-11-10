@@ -11,6 +11,7 @@ import java.util.List;
 public class DistributionRes {
 
     private Integer id;
+    private String code; // Mã phân phối (PP2025-0013)
     private String status;
     // ❌ Xóa category - không dùng
     // private CategoryRes category;
@@ -58,6 +59,14 @@ public class DistributionRes {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
     }
 
     public String getStatus() {

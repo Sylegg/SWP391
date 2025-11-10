@@ -7,7 +7,7 @@ export type { DealerReq, DealerRes };
 export type Dealer = DealerRes;
 export type DealerRequest = DealerReq;
 
-const DEALER_BASE = '/api/dealer'; // Backend uses /api/dealer (singular)
+const DEALER_BASE = '/dealer'; // Backend uses /dealer (baseURL already has /api)
 
 // ============ Dealer APIs ============
 

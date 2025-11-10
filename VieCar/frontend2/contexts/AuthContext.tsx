@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginRequest) => {
     try {
       setIsLoading(true);
-      const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);
+      const { data } = await api.post<LoginResponse>('/auth/login', credentials);
 
       const userData: User = {
         username: data.username,
@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: RegisterRequest) => {
     try {
       setIsLoading(true);
-      await api.post('/api/auth/register', userData);
+      await api.post('/auth/register', userData);
 
       await login({
         identifier: userData.email,

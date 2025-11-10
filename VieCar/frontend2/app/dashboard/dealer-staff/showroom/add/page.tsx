@@ -254,6 +254,8 @@ export default function AddProductToShowroomPage() {
     try {
       setLoading(true);
       
+      // ⚠️ IMPORTANT: Do NOT send manufacturerPrice
+      // Only update retailPrice (dealer-controlled price)
       await updateProduct(selectedProduct.id, {
         name: selectedProduct.name,
         vinNum: selectedProduct.vinNum,
@@ -264,12 +266,18 @@ export default function AddProductToShowroomPage() {
         torque: selectedProduct.torque,
         color: selectedProduct.color || "",
         manufacture_date: selectedProduct.manufacture_date,
-        dealerPrice: formData.dealerPrice,
+        
+        // ✅ Send retailPrice (new field)
+        retailPrice: formData.dealerPrice,
+        dealerPrice: formData.dealerPrice, // Backward compatibility
+        
         image: formData.image,
         description: formData.description,
         status: formData.status,
         categoryId: selectedProduct.categoryId,
         dealerCategoryId: selectedProduct.dealerCategoryId,
+        
+        // ❌ manufacturerPrice NOT included (read-only)
       });
 
       toast({

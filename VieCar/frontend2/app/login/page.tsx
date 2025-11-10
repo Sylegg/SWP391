@@ -310,7 +310,7 @@ export default function LoginPage() {
                           setRegisterData({...registerData, email: value});
                         }}
                         required
-                        pattern="^[a-zA-Z0-9._%+-]+@gmail\.com$"
+                        pattern="^[a-zA-Z0-9._%+\-]+@gmail\.com$"
                         title="Email phải có đuôi @gmail.com"
                       />
                     </div>
@@ -345,8 +345,8 @@ export default function LoginPage() {
                         required
                         minLength={10}
                         maxLength={10}
-                        pattern="^(0[3|5|7|8|9])+([0-9]{8})$"
-                        title="Số điện thoại phải bắt đầu bằng 0 và có 10 số (VD: 0912345678)"
+                        pattern="^0[35789][0-9]{8}$"
+                        title="Số điện thoại phải bắt đầu bằng 03, 05, 07, 08, hoặc 09 và có tổng 10 số"
                       />
                     </div>
                     

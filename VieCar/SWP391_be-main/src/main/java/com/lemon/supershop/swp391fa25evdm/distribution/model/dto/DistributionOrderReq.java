@@ -4,11 +4,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public class DistributionOrderReq {
+    private Integer dealerId; // Optional - required for dealer-request flow, not needed for submit-order flow
     private List<DistributionOrderItemReq> items;
     private LocalDateTime requestedDeliveryDate;
     private String dealerNotes;
 
     public DistributionOrderReq() {}
+
+    public Integer getDealerId() {
+        return dealerId;
+    }
+
+    public void setDealerId(Integer dealerId) {
+        this.dealerId = dealerId;
+    }
 
     public List<DistributionOrderItemReq> getItems() {
         return items;

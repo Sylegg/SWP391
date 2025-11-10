@@ -54,6 +54,15 @@ public class Product {
     @Column(name = "Color", columnDefinition = "NVARCHAR(20)")
     private String Color;
 
+    // Giá gốc từ hãng sản xuất (KHÔNG được thay đổi sau khi nhập kho)
+    @Column(name = "ManufacturerPrice", columnDefinition = "BIGINT", updatable = false)
+    private Long manufacturerPrice;
+
+    // Giá bán lẻ của đại lý (CÓ THỂ thay đổi)
+    @Column(name = "RetailPrice", columnDefinition = "BIGINT")
+    private Long retailPrice;
+
+    // @Deprecated - Keep for backward compatibility, sử dụng retailPrice thay thế
     @Column(name = "DealerPrice", columnDefinition = "BIGINT")
     private long dealerPrice;
 
@@ -190,6 +199,29 @@ public class Product {
 
     public void setDealerPrice(long dealerPrice) {
         this.dealerPrice = dealerPrice;
+    }
+
+    // Manufacturer Price - Giá gốc từ hãng (KHÔNG được thay đổi sau khi set lần đầu)
+    public Long getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Long manufacturerPrice) {
+        // Chỉ set được 1 lần duy nhất khi manufacturerPrice == null
+        if (this.manufacturerPrice == null) {
+            this.manufacturerPrice = manufacturerPrice;
+        } else {
+            throw new IllegalStateException("Manufacturer price cannot be changed once set. Current value: " + this.manufacturerPrice);
+        }
+    }
+
+    // Retail Price - Giá bán lẻ của đại lý (CÓ THỂ thay đổi)
+    public Long getRetailPrice() {
+        return retailPrice;
+    }
+
+    public void setRetailPrice(Long retailPrice) {
+        this.retailPrice = retailPrice;
     }
 
     public List<PreOrder> getPreOrders() {

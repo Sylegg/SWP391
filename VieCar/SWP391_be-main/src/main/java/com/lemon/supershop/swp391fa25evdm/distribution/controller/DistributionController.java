@@ -177,4 +177,18 @@ public class DistributionController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    // LUỒNG MỚI: Dealer Manager tạo yêu cầu xe trực tiếp (Pull Model)
+    // Bỏ qua bước invitation, trực tiếp tạo distribution với status PENDING
+    @PostMapping("/dealer-request")
+    public ResponseEntity<?> createDealerRequest(@RequestBody DistributionOrderReq request) {
+        try {
+            DistributionRes response = distributionService.createDealerRequest(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", e.getMessage() != null ? e.getMessage() : "Bad Request"
+            ));
+        }
+    }
 }

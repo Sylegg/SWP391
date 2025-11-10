@@ -12,7 +12,7 @@ import {
   DistributionStats,
 } from '@/types/distribution';
 
-const DISTRIBUTION_BASE = '/api/distributions';
+const DISTRIBUTION_BASE = '/distributions';
 
 // ============ EVM Staff APIs ============
 
