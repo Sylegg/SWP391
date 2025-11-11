@@ -392,7 +392,7 @@ export default function CategoryInventoryPage() {
             <div className="backdrop-blur-md bg-gradient-to-br from-gray-500/20 to-slate-500/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ngưng hoạt động</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Không hoạt động</p>
                   <div className="text-3xl font-bold text-gray-600 dark:text-gray-400">{counts.inactive}</div>
                   <p className="text-xs text-muted-foreground mt-1">Ẩn khỏi bán hàng</p>
                 </div>
@@ -424,7 +424,7 @@ export default function CategoryInventoryPage() {
                   <TabsTrigger value="all">Tất cả</TabsTrigger>
                   <TabsTrigger value={ProductStatus.ACTIVE}>Đang hoạt động</TabsTrigger>
                   <TabsTrigger value={ProductStatus.SOLDOUT}>Hết hàng</TabsTrigger>
-                  <TabsTrigger value={ProductStatus.INACTIVE}>Ngưng hoạt động</TabsTrigger>
+                  <TabsTrigger value={ProductStatus.INACTIVE}>Không hoạt động</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>

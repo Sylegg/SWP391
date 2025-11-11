@@ -49,6 +49,10 @@ public class DistributionRes {
     // private Integer actualQuantity;
 
     private Double manufacturerPrice; // Giá hãng gửi cho dealer
+    
+    // Supplementary order fields
+    private Integer parentDistributionId; // ID của đơn gốc nếu đây là đơn bổ sung
+    private Boolean isSupplementary; // True nếu đây là đơn bổ sung số lượng thiếu
 
     public DistributionRes() {}
 
@@ -225,6 +229,22 @@ public class DistributionRes {
 
     public void setManufacturerPrice(Double manufacturerPrice) {
         this.manufacturerPrice = manufacturerPrice;
+    }
+
+    public Integer getParentDistributionId() {
+        return parentDistributionId;
+    }
+
+    public void setParentDistributionId(Integer parentDistributionId) {
+        this.parentDistributionId = parentDistributionId;
+    }
+
+    public Boolean getIsSupplementary() {
+        return isSupplementary;
+    }
+
+    public void setIsSupplementary(Boolean isSupplementary) {
+        this.isSupplementary = isSupplementary;
     }
 }
 

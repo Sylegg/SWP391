@@ -229,10 +229,23 @@ export default function AdminDealersPage() {
         loadAvailableManagers();
       }
     } catch (error: any) {
+      // Log để debug
+      console.error('❌ Error creating dealer:', error);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      
+      // Backend trả về error message dạng plain text trong response.data
+      const errorMessage = typeof error.response?.data === 'string' 
+        ? error.response.data 
+        : error.response?.data?.message || error.message || 'Không thể tạo đại lý';
+      
+      console.log('📢 Displaying toast with message:', errorMessage);
+      
       toast({
         title: '❌ Lỗi tạo đại lý',
-        description: error.response?.data?.message || 'Không thể tạo đại lý',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 5000, // Hiển thị 5 giây
       });
     }
   };
@@ -273,10 +286,23 @@ export default function AdminDealersPage() {
       resetForm();
       loadDealers();
     } catch (error: any) {
+      // Log để debug
+      console.error('❌ Error updating dealer:', error);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      
+      // Backend trả về error message dạng plain text trong response.data
+      const errorMessage = typeof error.response?.data === 'string' 
+        ? error.response.data 
+        : error.response?.data?.message || error.message || 'Không thể cập nhật đại lý';
+      
+      console.log('📢 Displaying toast with message:', errorMessage);
+      
       toast({
         title: '❌ Lỗi cập nhật',
-        description: error.response?.data?.message || 'Không thể cập nhật đại lý',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 5000, // Hiển thị 5 giây
       });
     }
   };
@@ -582,16 +608,42 @@ export default function AdminDealersPage() {
                     placeholder="VD: 0912345678"
                     value={formData.phone}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
+                      let value = e.target.value.replace(/\D/g, ''); // Chỉ giữ số
+                      
+                      // Ngăn chặn nhiều số 0 liên tiếp ở đầu (chỉ cho phép 1 số 0)
+                      if (value.startsWith('00')) {
+                        value = value.replace(/^0+/, '0'); // Thay thế nhiều số 0 thành 1 số 0
+                      }
+                      
+                      // Nếu chưa có số 0 ở đầu và có số khác, tự động thêm
+                      if (value.length > 0 && !value.startsWith('0')) {
+                        value = '0' + value;
+                      }
+                      
+                      // Giới hạn tối đa 10 số
+                      if (value.length > 10) {
+                        value = value.slice(0, 10);
+                      }
+                      
                       setFormData({ ...formData, phone: value });
+                    }}
+                    onFocus={(e) => {
+                      // Khi focus vào ô input, nếu rỗng thì tự động thêm số 0
+                      if (!e.target.value) {
+                        setFormData({ ...formData, phone: '0' });
+                      }
                     }}
                     onKeyPress={(e) => {
                       if (!/[0-9]/.test(e.key)) {
                         e.preventDefault();
                       }
                     }}
+                    maxLength={10}
                     className="mt-2 bg-white/70 dark:bg-gray-900/70 border-teal-200 dark:border-teal-800 focus:border-teal-400"
                   />
+                  <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">
+                    💡 Bắt đầu bằng 1 số 0, tối đa 10 chữ số
+                  </p>
                 </div>
                 
                 <div className="backdrop-blur-sm bg-blue-500/5 p-3 rounded-xl border border-blue-300/30">
@@ -721,10 +773,45 @@ export default function AdminDealersPage() {
                     Điện thoại *
                   </Label>
                   <Input
+                    placeholder="VD: 0912345678"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ''); // Chỉ giữ số
+                      
+                      // Ngăn chặn nhiều số 0 liên tiếp ở đầu (chỉ cho phép 1 số 0)
+                      if (value.startsWith('00')) {
+                        value = value.replace(/^0+/, '0'); // Thay thế nhiều số 0 thành 1 số 0
+                      }
+                      
+                      // Nếu chưa có số 0 ở đầu và có số khác, tự động thêm
+                      if (value.length > 0 && !value.startsWith('0')) {
+                        value = '0' + value;
+                      }
+                      
+                      // Giới hạn tối đa 10 số
+                      if (value.length > 10) {
+                        value = value.slice(0, 10);
+                      }
+                      
+                      setFormData({ ...formData, phone: value });
+                    }}
+                    onFocus={(e) => {
+                      // Khi focus vào ô input, nếu rỗng thì tự động thêm số 0
+                      if (!e.target.value) {
+                        setFormData({ ...formData, phone: '0' });
+                      }
+                    }}
+                    onKeyPress={(e) => {
+                      if (!/[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    maxLength={10}
                     className="mt-2 bg-white/70 dark:bg-gray-900/70 border-teal-200 dark:border-teal-800 focus:border-teal-400"
                   />
+                  <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">
+                    💡 Bắt đầu bằng 1 số 0, tối đa 10 chữ số
+                  </p>
                 </div>
                 
                 <div className="backdrop-blur-sm bg-blue-500/5 p-3 rounded-xl border border-blue-300/30">

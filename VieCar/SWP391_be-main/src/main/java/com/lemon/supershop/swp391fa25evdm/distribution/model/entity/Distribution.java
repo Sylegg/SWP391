@@ -39,6 +39,13 @@ public class Distribution {
     @JoinColumn(name = "DealerId")
     private Dealer dealer;
 
+    // Parent Distribution (for supplementary orders)
+    @Column(name = "ParentDistributionId")
+    private Integer parentDistributionId; // ID của đơn gốc nếu đây là đơn bổ sung
+    
+    @Column(name = "IsSupplementary")
+    private Boolean isSupplementary; // True nếu đây là đơn bổ sung số lượng thiếu
+
     // ❌ Xóa Contract - không sử dụng
     // @OneToOne(mappedBy = "distribution")
     // private Contract contract;
@@ -280,5 +287,21 @@ public class Distribution {
 
     public void setManufacturerPrice(Double manufacturerPrice) {
         this.manufacturerPrice = manufacturerPrice;
+    }
+
+    public Integer getParentDistributionId() {
+        return parentDistributionId;
+    }
+
+    public void setParentDistributionId(Integer parentDistributionId) {
+        this.parentDistributionId = parentDistributionId;
+    }
+
+    public Boolean getIsSupplementary() {
+        return isSupplementary;
+    }
+
+    public void setIsSupplementary(Boolean isSupplementary) {
+        this.isSupplementary = isSupplementary;
     }
 }

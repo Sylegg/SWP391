@@ -153,10 +153,7 @@ export default function DealerDistributionsPage() {
       };
       setStats(statsData);
       
-      toast({
-        title: '✅ Tải thành công',
-        description: `Đã tải ${distData.length} phân phối của dealer, ${categoryData?.length || 0} danh mục`,
-      });
+      // Không hiển thị toast khi load data thành công - chỉ hiển thị khi có lỗi hoặc action quan trọng
     } catch (error: any) {
       toast({
         title: '❌ Lỗi',
@@ -660,16 +657,29 @@ export default function DealerDistributionsPage() {
                 return (
                   <div 
                     key={dist.id} 
-                    className={`backdrop-blur-md bg-gradient-to-br ${statusColors[dist.status] || 'from-gray-400/20 to-gray-600/20 border-gray-400/40'} p-6 rounded-2xl border shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300`}
+                    className={`backdrop-blur-md bg-gradient-to-br ${
+                      dist.isSupplementary 
+                        ? 'from-orange-400/20 to-amber-400/20 border-orange-400/50 ring-2 ring-orange-400/30' 
+                        : statusColors[dist.status] || 'from-gray-400/20 to-gray-600/20 border-gray-400/40'
+                    } p-6 rounded-2xl border shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300`}
                   >
                     <div className="flex justify-between items-start">
                       {/* Left: Compact Info */}
                       <div className="flex-1">
-                        <div className="flex items-center gap-4 mb-3">
+                        <div className="flex items-center gap-3 mb-3 flex-wrap">
                           <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                            Mã phân phối: {dist.code || `#${dist.id}`}
+                            Mã phân phối: {dist.code || `PP${String(dist.id).padStart(4, '0')}`}
                           </h3>
-                          <Badge className={`${getDistributionStatusColor(dist.status)} px-4 py-1`}>
+                          
+                          {/* Badge đơn bổ sung - gọn nhẹ */}
+                          {dist.isSupplementary && (
+                            <Badge className="bg-gradient-to-r from-orange-500 to-amber-600 text-white px-2.5 py-1 text-xs font-semibold border-0 flex items-center gap-1.5">
+                              <Package className="h-3.5 w-3.5" />
+                              Đơn bổ sung
+                            </Badge>
+                          )}
+                          
+                          <Badge className={`${getDistributionStatusColor(dist.status)} px-3 py-1`}>
                             {getDistributionStatusLabel(dist.status)}
                           </Badge>
                         </div>
@@ -679,6 +689,18 @@ export default function DealerDistributionsPage() {
                             <Calendar className="h-4 w-4" />
                             {dist.createdAt ? new Date(dist.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                           </span>
+                          
+                          {/* Thông tin đơn gốc nếu là đơn bổ sung - inline */}
+                          {dist.isSupplementary && dist.parentDistributionId && (
+                            <span className="flex items-center gap-1.5 text-orange-600 font-medium">
+                              <AlertCircle className="h-4 w-4" />
+                              Bổ sung cho {(() => {
+                                const parent = distributions.find(d => d.id === dist.parentDistributionId);
+                                return parent?.code || `PP${String(dist.parentDistributionId).padStart(4, '0')}`;
+                              })()}
+                            </span>
+                          )}
+                          
                           {dist.deadline && dist.status === DistributionStatus.INVITED && (
                             <span className="flex items-center gap-1 text-amber-600 font-medium">
                               <AlertCircle className="h-4 w-4" />

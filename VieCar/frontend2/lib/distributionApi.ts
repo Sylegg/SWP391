@@ -282,3 +282,21 @@ export const planDelivery = planDistributionDelivery;
 export const respondInvitation = respondToInvitation;
 export const submitOrder = submitDistributionOrder;
 export const confirmReceived = confirmDistributionReceived;
+
+/**
+ * Tạo đơn phân phối bổ sung cho số lượng thiếu
+ * EVM Staff gọi API này khi duyệt đơn với số lượng < yêu cầu
+ */
+export const createSupplementaryDistribution = async (
+  parentDistributionId: number
+): Promise<DistributionRes> => {
+  try {
+    const response = await api.post<DistributionRes>(
+      `${DISTRIBUTION_BASE}/${parentDistributionId}/create-supplementary`
+    );
+    return response.data;
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Failed to create supplementary distribution';
+    throw new Error(msg);
+  }
+};

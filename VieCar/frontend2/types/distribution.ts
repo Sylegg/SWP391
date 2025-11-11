@@ -138,6 +138,10 @@ export interface DistributionRes {
   
   // Manufacturer price (giá hãng - tham khảo cao nhất)
   manufacturerPrice?: number;
+  
+  // Supplementary order fields
+  parentDistributionId?: number;      // ID của đơn gốc nếu đây là đơn bổ sung
+  isSupplementary?: boolean;          // True nếu đây là đơn bổ sung số lượng thiếu
 }
 
 /**

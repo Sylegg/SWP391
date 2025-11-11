@@ -191,4 +191,21 @@ public class DistributionController {
             ));
         }
     }
+    
+    /**
+     * Tạo đơn phân phối bổ sung cho số lượng thiếu
+     * POST /api/distributions/{parentId}/create-supplementary
+     * EVM Staff gọi endpoint này khi duyệt đơn với số lượng < yêu cầu
+     */
+    @PostMapping("/{parentId}/create-supplementary")
+    public ResponseEntity<?> createSupplementaryDistribution(@PathVariable int parentId) {
+        try {
+            DistributionRes response = distributionService.createSupplementaryDistribution(parentId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", e.getMessage() != null ? e.getMessage() : "Bad Request"
+            ));
+        }
+    }
 }

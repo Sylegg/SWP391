@@ -42,22 +42,30 @@ public class DealerController {
     }
 
     @PostMapping("/registerDealer")
-    public ResponseEntity<DealerRes> registerDealer(@RequestBody DealerReq dto) {
-        DealerRes dealer = dealerService.registerDealer(dto);
-        if (dealer != null) {
-            return ResponseEntity.ok(dealer);
-        } else {
-            return ResponseEntity.badRequest().build();
+    public ResponseEntity<?> registerDealer(@RequestBody DealerReq dto) {
+        try {
+            DealerRes dealer = dealerService.registerDealer(dto);
+            if (dealer != null) {
+                return ResponseEntity.ok(dealer);
+            } else {
+                return ResponseEntity.badRequest().body("Không thể tạo đại lý");
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @PutMapping("dealerHome/{id}")
-    public ResponseEntity<DealerRes> updateDealer(@PathVariable("id") int id, @RequestBody DealerReq dto) throws Exception {
-        DealerRes dealer = dealerService.updateDealer(id, dto);
-        if (dealer != null) {
-            return ResponseEntity.ok(dealer);
-        } else {
-            return ResponseEntity.badRequest().build();
+    public ResponseEntity<?> updateDealer(@PathVariable("id") int id, @RequestBody DealerReq dto) {
+        try {
+            DealerRes dealer = dealerService.updateDealer(id, dto);
+            if (dealer != null) {
+                return ResponseEntity.ok(dealer);
+            } else {
+                return ResponseEntity.badRequest().body("Không thể cập nhật đại lý");
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

@@ -33,9 +33,9 @@ public class AuthenService {
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$", Pattern.CASE_INSENSITIVE);
 
-    // Hợp lệ cho VN: 10-digit bắt đầu 03|05|07|08|09 OR old 11-digit 01(2|6|8|9)
+    // Chỉ cho phép 10 chữ số, bắt đầu bằng số 0
     private static final Pattern PHONE_PATTERN =
-            Pattern.compile("^(?:(?:03|05|07|08|09)\\d{8}|01(?:2|6|8|9)\\d{8})$");
+            Pattern.compile("^0\\d{9}$");
 
 
     public LoginRes login(LoginReq dto) {

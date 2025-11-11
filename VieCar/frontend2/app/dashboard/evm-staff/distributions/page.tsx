@@ -29,6 +29,8 @@ import {
   Search,
   Eye,
   Car,
+  FileText,
+  Check,
 } from 'lucide-react';
 import {
   getAllDistributions,
@@ -36,6 +38,7 @@ import {
   approveDistributionOrder,
   planDistributionDelivery,
   getDistributionStats,
+  createSupplementaryDistribution,
 } from '@/lib/distributionApi';
 import { getAllDealers } from '@/lib/dealerApi';
 import {
@@ -64,6 +67,22 @@ export default function EvmDistributionsPage() {
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isSupplementaryConfirmOpen, setIsSupplementaryConfirmOpen] = useState(false);
+  
+  // Supplementary confirm data
+  const [supplementaryConfirmData, setSupplementaryConfirmData] = useState<{
+    parentDist: DistributionRes | null;
+    shortage: number;
+    requested: number;
+    approved: number;
+    parentCode: string;
+  }>({
+    parentDist: null,
+    shortage: 0,
+    requested: 0,
+    approved: 0,
+    parentCode: '',
+  });
   
   // Form states
   const [inviteForm, setInviteForm] = useState({
@@ -96,6 +115,9 @@ export default function EvmDistributionsPage() {
   }[]>([]);
   
   const [reviewNote, setReviewNote] = useState<string>('');
+  
+  // State để track đơn nào đang tạo bổ sung (tránh spam click)
+  const [creatingSupplementaryId, setCreatingSupplementaryId] = useState<number | null>(null);
   
   // Stats
   const [stats, setStats] = useState({
@@ -162,10 +184,7 @@ export default function EvmDistributionsPage() {
       };
       setStats(statsData);
       
-      toast({
-        title: '✅ Tải thành công',
-        description: `Đã tải ${distData.length} phân phối`,
-      });
+      // Không hiển thị toast khi load data thành công - chỉ hiển thị khi có lỗi hoặc action quan trọng
     } catch (error: any) {
       toast({
         title: '❌ Lỗi',
@@ -486,6 +505,169 @@ export default function EvmDistributionsPage() {
       toast({ title: '❌ Lỗi', description: error.message || 'Không thể duyệt đơn', variant: 'destructive' });
     }
   };
+  
+  // Handler: Tạo đơn bổ sung cho số lượng thiếu
+  const handleCreateSupplementary = async (parentDistribution: DistributionRes) => {
+    // Prevent spam clicking
+    if (creatingSupplementaryId === parentDistribution.id) return;
+    
+    try {
+      // Tính số lượng thiếu
+      const requested = parentDistribution.requestedQuantity || 0;
+      const approved = parentDistribution.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+      const shortage = requested - approved;
+      
+      if (shortage <= 0) {
+        toast({ 
+          title: (
+            <div className="flex items-center gap-2">
+              <span className="text-xl">ℹ️</span>
+              <span className="font-bold">Không cần tạo đơn bổ sung</span>
+            </div>
+          ) as any,
+          description: (
+            <div className="mt-2 space-y-1 text-sm">
+              <p>Số lượng đã duyệt đã đủ hoặc vượt yêu cầu ban đầu:</p>
+              <div className="flex gap-4 mt-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">Yêu cầu:</span>
+                  <span className="font-bold text-blue-600">{requested} xe</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">Đã duyệt:</span>
+                  <span className="font-bold text-green-600">{approved} xe</span>
+                </div>
+              </div>
+            </div>
+          ) as any,
+          variant: 'default',
+          duration: 5000,
+        });
+        return;
+      }
+      
+      // Generate code từ ID hoặc sử dụng code có sẵn
+      const parentCode = parentDistribution.code || `PP${String(parentDistribution.id).padStart(4, '0')}`;
+      
+      // Mở dialog xác nhận thay vì dùng confirm()
+      setSupplementaryConfirmData({
+        parentDist: parentDistribution,
+        shortage,
+        requested,
+        approved,
+        parentCode,
+      });
+      setIsSupplementaryConfirmOpen(true);
+      
+    } catch (error: any) {
+      toast({ 
+        title: (
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-white/20">
+              <XCircle className="h-5 w-5 text-white" />
+            </div>
+            <span className="font-bold text-white text-lg">Không thể kiểm tra đơn bổ sung</span>
+          </div>
+        ) as any,
+        description: (
+          <div className="mt-3">
+            <div className="backdrop-blur-md bg-white/10 p-4 rounded-lg border border-white/20">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <AlertCircle className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm leading-relaxed">
+                    {error.message || 'Đã xảy ra lỗi không xác định'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) as any,
+        variant: 'destructive',
+        duration: 6000,
+      });
+    }
+  };
+  
+  // Xác nhận tạo đơn bổ sung
+  const confirmCreateSupplementary = async () => {
+    const { parentDist, shortage } = supplementaryConfirmData;
+    if (!parentDist) return;
+    
+    try {
+      setCreatingSupplementaryId(parentDist.id);
+      setLoading(true);
+      setIsSupplementaryConfirmOpen(false);
+      
+      const supplementary = await createSupplementaryDistribution(parentDist.id);
+      
+      const suppCode = supplementary.code || `PP${String(supplementary.id).padStart(4, '0')}`;
+      const dealerName = getDealerName(parentDist);
+      
+      // Toast đẹp với nhiều thông tin hơn
+      toast({ 
+        title: (
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎉</span>
+            <span className="font-bold">Đã tạo đơn bổ sung thành công!</span>
+          </div>
+        ) as any,
+        description: (
+          <div className="mt-2 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold text-green-600">Mã đơn mới:</span>
+              <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-mono font-bold">{suppCode}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold">Số lượng:</span>
+              <span className="text-orange-600 font-bold">{shortage} xe</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold">Dealer:</span>
+              <span>{dealerName}</span>
+            </div>
+          </div>
+        ) as any,
+        duration: 8000, // Hiển thị lâu hơn để đọc được thông tin
+      });
+      
+      await loadData(); // Reload để hiện đơn mới
+    } catch (error: any) {
+      toast({ 
+        title: (
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-white/20">
+              <XCircle className="h-5 w-5 text-white" />
+            </div>
+            <span className="font-bold text-white text-lg">Không thể tạo đơn bổ sung</span>
+          </div>
+        ) as any,
+        description: (
+          <div className="mt-3 space-y-3">
+            <div className="backdrop-blur-md bg-white/10 p-4 rounded-lg border border-white/20">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  <AlertCircle className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm leading-relaxed">
+                    {error.message || 'Đã xảy ra lỗi không xác định'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) as any,
+        variant: 'destructive',
+        duration: 8000,
+      });
+    } finally {
+      setLoading(false);
+      setCreatingSupplementaryId(null);
+    }
+  };
 
   return (
   <ProtectedRoute allowedRoles={['EVM Staff']}>
@@ -638,6 +820,11 @@ export default function EvmDistributionsPage() {
                         <div>
                           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                             Mã phân phối: {dist.code || `#${dist.id}`}
+                            {dist.isSupplementary && (
+                              <Badge className="ml-2 bg-orange-100 text-orange-700 border-orange-300">
+                                📦 Đơn bổ sung
+                              </Badge>
+                            )}
                           </h3>
                           <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
                             <span className="flex items-center gap-1 font-medium">
@@ -648,6 +835,16 @@ export default function EvmDistributionsPage() {
                               <Calendar className="h-4 w-4" />
                               {dist.createdAt ? new Date(dist.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                             </span>
+                            {dist.parentDistributionId && (
+                              <span className="flex items-center gap-1 text-orange-600 font-medium">
+                                🔗 Bổ sung cho {(() => {
+                                  const parentDist = distributions.find(d => d.id === dist.parentDistributionId);
+                                  if (parentDist?.code) return parentDist.code;
+                                  // Generate code từ ID nếu không có code
+                                  return `PP${String(dist.parentDistributionId).padStart(4, '0')}`;
+                                })()}
+                              </span>
+                            )}
                           </div>
                         </div>
                         
@@ -728,6 +925,39 @@ export default function EvmDistributionsPage() {
                             Lên kế hoạch
                           </Button>
                         )}
+                        
+                        {/* Button: Tạo đơn bổ sung nếu số lượng duyệt < yêu cầu */}
+                        {(dist.status === DistributionStatus.PRICE_SENT || 
+                          dist.status === DistributionStatus.CONFIRMED ||
+                          dist.status === DistributionStatus.PRICE_ACCEPTED ||
+                          dist.status === DistributionStatus.PLANNED) && (() => {
+                          const requested = dist.requestedQuantity || 0;
+                          const approved = dist.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+                          const hasShortage = approved < requested && approved > 0;
+                          const isCreating = creatingSupplementaryId === dist.id;
+                          
+                          return hasShortage && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCreateSupplementary(dist)}
+                              disabled={isCreating || loading}
+                              className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isCreating ? (
+                                <>
+                                  <span className="animate-spin mr-1">⏳</span>
+                                  Đang tạo...
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Đơn bổ sung ({requested - approved} xe)
+                                </>
+                              )}
+                            </Button>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1268,6 +1498,80 @@ export default function EvmDistributionsPage() {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
                   Đóng
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Dialog xác nhận tạo đơn bổ sung */}
+          <Dialog open={isSupplementaryConfirmOpen} onOpenChange={setIsSupplementaryConfirmOpen}>
+            <DialogContent className="max-w-md backdrop-blur-xl bg-gradient-to-br from-white/95 via-orange-50/90 to-amber-50/95 dark:from-gray-900/95 dark:via-orange-900/30 dark:to-amber-900/30 border-2 border-orange-200/50 shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3 text-2xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+                  <div className="p-2 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 shadow-lg">
+                    <Package className="h-6 w-6 text-white" />
+                  </div>
+                  Xác nhận tạo đơn bổ sung
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="backdrop-blur-md bg-gradient-to-br from-blue-400/10 to-blue-500/10 p-4 rounded-xl border border-blue-200/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-semibold text-blue-700 uppercase">Đơn gốc</span>
+                  </div>
+                  <div className="text-xl font-mono font-bold text-blue-600">
+                    {supplementaryConfirmData.parentCode}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-3 rounded-xl border border-green-200/30">
+                    <div className="text-xs font-semibold text-green-700 mb-1">Yêu cầu</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {supplementaryConfirmData.requested} <span className="text-sm">xe</span>
+                    </div>
+                  </div>
+                  
+                  <div className="backdrop-blur-md bg-gradient-to-br from-blue-400/10 to-cyan-400/10 p-3 rounded-xl border border-blue-200/30">
+                    <div className="text-xs font-semibold text-blue-700 mb-1">Đã duyệt</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {supplementaryConfirmData.approved} <span className="text-sm">xe</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="backdrop-blur-md bg-gradient-to-br from-orange-400/20 to-amber-400/20 p-4 rounded-xl border-2 border-orange-300/50 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-full bg-gradient-to-br from-orange-500 to-amber-500">
+                        <AlertCircle className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-sm font-semibold text-orange-800">Số lượng bổ sung</span>
+                    </div>
+                    <div className="text-3xl font-black text-orange-600">
+                      {supplementaryConfirmData.shortage} <span className="text-lg">xe</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsSupplementaryConfirmOpen(false)}
+                  className="hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Hủy
+                </Button>
+                <Button 
+                  onClick={confirmCreateSupplementary}
+                  className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Xác nhận tạo
                 </Button>
               </DialogFooter>
             </DialogContent>
