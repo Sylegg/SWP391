@@ -144,8 +144,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (error) {
       console.error('Login error:', error);
-      // Throw a more specific error message
-      if ((error as any)?.response?.status === 401) {
+      
+      // Xử lý error message từ backend
+      const errorMessage = (error as any)?.response?.data?.message;
+      
+      if (errorMessage) {
+        // Backend đã trả về message rõ ràng (tiếng Việt)
+        throw new Error(errorMessage);
+      } else if ((error as any)?.response?.status === 401) {
         throw new Error('Email hoặc mật khẩu không đúng');
       } else if ((error as any)?.code === 'ECONNREFUSED' || (error as any)?.code === 'ERR_NETWORK') {
         throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra lại.');

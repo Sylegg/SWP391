@@ -37,27 +37,31 @@ public class VnpayController {
     /**
      * Tạo URL thanh toán VNPay
      * 
-     * POST /api/vnpay/create-payment?orderId=123&bankCode=NCB
+     * POST /api/vnpay/create-payment?orderId=123&paymentType=deposit&bankCode=NCB&userType=customer
      * 
      * @param orderId Mã đơn hàng
+     * @param paymentType Loại thanh toán: "deposit" (30%) hoặc "final" (70%) - default: "deposit"
      * @param bankCode Mã ngân hàng (optional: NCB, VIETCOMBANK, etc.)
+     * @param userType Loại người dùng: "customer" hoặc "dealer-staff" - default: "customer"
      * @param request HttpServletRequest để lấy IP
      * @return ResponseEntity với payment URL
      */
     @PostMapping("/create-payment")
     public ResponseEntity<?> createPayment(
             @RequestParam String orderId,
+            @RequestParam(required = false, defaultValue = "deposit") String paymentType,
             @RequestParam(required = false) String bankCode,
+            @RequestParam(required = false, defaultValue = "customer") String userType,
             HttpServletRequest request
     ) {
         try {
             // Lấy IP address của client
             String ipAddress = vnpayService.getIpAddress(request);
             
-            // Tạo payment URL
-            VnpayRes response = vnpayService.createPaymentUrl(orderId, ipAddress, bankCode);
+            // Tạo payment URL với loại thanh toán và user type
+            VnpayRes response = vnpayService.createPaymentUrl(orderId, paymentType, ipAddress, bankCode, userType);
             
-            System.out.println("✅ Payment URL created for order: " + orderId);
+            System.out.println("✅ Payment URL created for order: " + orderId + " - Type: " + paymentType + " - User: " + userType);
             
             return ResponseEntity.ok(response);
             
@@ -140,6 +144,64 @@ public class VnpayController {
         
         // Xử lý callback từ VNPay (giống như /return)
         Map<String, String> result = vnpayService.handleCallback(request);
+        
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Tạo URL thanh toán VNPay cho Distribution
+     * 
+     * POST /api/vnpay/create-distribution-payment?distributionId=123&totalAmount=500000000
+     * 
+     * @param distributionId ID của phân phối
+     * @param totalAmount Tổng tiền cần thanh toán (VNĐ)
+     * @param bankCode Mã ngân hàng (optional)
+     * @param request HttpServletRequest để lấy IP
+     * @return ResponseEntity với payment URL
+     */
+    @PostMapping("/create-distribution-payment")
+    public ResponseEntity<?> createDistributionPayment(
+            @RequestParam Integer distributionId,
+            @RequestParam Long totalAmount,
+            @RequestParam(required = false) String bankCode,
+            HttpServletRequest request
+    ) {
+        try {
+            // Lấy IP address của client
+            String ipAddress = vnpayService.getIpAddress(request);
+            
+            // Tạo payment URL cho distribution
+            VnpayRes response = vnpayService.createDistributionPaymentUrl(distributionId, totalAmount, ipAddress, bankCode);
+            
+            System.out.println("✅ Distribution payment URL created for ID: " + distributionId + " - Amount: " + totalAmount);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error creating distribution payment: " + e.getMessage());
+            e.printStackTrace();
+            
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Verify distribution payment từ Frontend
+     * 
+     * POST /api/vnpay/verify-distribution-payment
+     * 
+     * @param request HttpServletRequest chứa callback params từ VNPay
+     * @return ResponseEntity với kết quả verify
+     */
+    @PostMapping("/verify-distribution-payment")
+    public ResponseEntity<?> verifyDistributionPayment(HttpServletRequest request) {
+        System.out.println("📨 Distribution payment verification request from Frontend");
+        
+        // Xử lý callback từ VNPay
+        Map<String, String> result = vnpayService.handleDistributionCallback(request);
         
         return ResponseEntity.ok(result);
     }

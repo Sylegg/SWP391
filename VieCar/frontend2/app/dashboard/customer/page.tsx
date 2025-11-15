@@ -77,6 +77,7 @@ export default function CustomerDashboard() {
           toast({
             title: 'Đã xác định vị trí',
             description: 'Đại lý đã được sắp xếp theo khoảng cách từ bạn',
+            duration: 3000,
           });
         },
         (error) => {
@@ -134,6 +135,7 @@ export default function CustomerDashboard() {
         title: 'Lỗi',
         description: 'Không thể tải dữ liệu',
         variant: 'destructive',
+        duration: 3000,
       });
     } finally {
       setLoading(false);
@@ -232,6 +234,7 @@ export default function CustomerDashboard() {
         toast({
           title: '✅ Đã chọn đại lý',
           description: `Bạn đang xem thông tin tại ${pendingDealer.name}`,
+          duration: 3000,
         });
       } catch (error) {
         console.error('❌ Error updating preferred dealer:', error);
@@ -239,6 +242,7 @@ export default function CustomerDashboard() {
           title: '❌ Lỗi',
           description: 'Không thể lưu đại lý đã chọn',
           variant: 'destructive',
+          duration: 3000,
         });
       }
     } else {
@@ -268,6 +272,7 @@ export default function CustomerDashboard() {
       toast({
         title: 'Chọn lại đại lý',
         description: 'Vui lòng chọn đại lý khác từ danh sách',
+        duration: 3000,
       });
     } catch (error) {
       console.error('Error removing preferred dealer:', error);
@@ -275,6 +280,7 @@ export default function CustomerDashboard() {
         title: '❌ Lỗi',
         description: 'Không thể xóa đại lý đã chọn',
         variant: 'destructive',
+        duration: 3000,
       });
     }
   };
@@ -449,60 +455,97 @@ export default function CustomerDashboard() {
                   </div>
 
                   {/* Dealer List - Clickable Cards */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <div className="w-1 h-5 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full"></div>
-                      Danh sách đại lý ({dealersWithDistance.length})
-                    </label>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <div className="w-1 h-5 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full"></div>
+                        Danh sách đại lý
+                      </label>
+                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-300">
+                        {dealersWithDistance.length} đại lý
+                      </Badge>
+                    </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
-                      {dealersWithDistance.map((dealer) => (
+                    <div className="grid grid-cols-1 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      {dealersWithDistance.map((dealer, index) => (
                         <div
                           key={dealer.id}
                           onClick={() => setSelectedDealer(dealer.id.toString())}
-                          className={`group relative p-5 border-2 rounded-xl cursor-pointer transition-all duration-300 ${
+                          className={`group relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 ${
                             selectedDealer === dealer.id.toString()
-                              ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-lg scale-[1.02]'
-                              : 'border-gray-200 hover:border-emerald-300 hover:shadow-md hover:scale-[1.01] bg-white'
+                              ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-cyan-50/30 shadow-lg ring-2 ring-emerald-200'
+                              : 'border-gray-200 hover:border-emerald-300 hover:shadow-md bg-white hover:bg-gradient-to-br hover:from-white hover:to-emerald-50/30'
                           }`}
                         >
                           {/* Selected Indicator Ring */}
                           {selectedDealer === dealer.id.toString() && (
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl opacity-20 blur-sm"></div>
+                            <>
+                              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-xl opacity-10 blur-md"></div>
+                              <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
+                            </>
                           )}
                           
-                          <div className="relative flex items-start gap-3.5">
-                            <MapPin className={`h-5 w-5 mt-0.5 flex-shrink-0 transition-all ${
-                              selectedDealer === dealer.id.toString() ? 'text-emerald-600 scale-110' : 'text-gray-400 group-hover:text-emerald-500'
-                            }`} />
+                          <div className="relative flex items-start gap-4">
+                            {/* Ranking Badge */}
+                            {index < 3 && (
+                              <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-md ${
+                                index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-900' :
+                                index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-800' :
+                                'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-900'
+                              }`}>
+                                #{index + 1}
+                              </div>
+                            )}
+                            {index >= 3 && (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100 border border-emerald-200">
+                                <MapPin className={`h-4 w-4 transition-all ${
+                                  selectedDealer === dealer.id.toString() ? 'text-emerald-600' : 'text-gray-400 group-hover:text-emerald-500'
+                                }`} />
+                              </div>
+                            )}
                             
                             <div className="flex-1 min-w-0">
-                              <h3 className={`font-semibold text-base mb-1.5 transition-colors ${
-                                selectedDealer === dealer.id.toString() ? 'text-emerald-700' : 'text-gray-900'
-                              }`}>
-                                {dealer.name}
-                              </h3>
-                              <p className="text-xs text-gray-600 mb-2 line-clamp-2">{dealer.address}</p>
-                              <div className="flex items-center gap-2 text-xs">
-                                {dealer.phone && (
-                                  <span className="text-gray-500 flex items-center gap-1">
-                                    <span className="text-emerald-600">📞</span> {dealer.phone}
-                                  </span>
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <h3 className={`font-bold text-base transition-colors ${
+                                  selectedDealer === dealer.id.toString() ? 'text-emerald-700' : 'text-gray-900'
+                                }`}>
+                                  {dealer.name}
+                                </h3>
+                                {selectedDealer === dealer.id.toString() && (
+                                  <CheckCircle className="h-6 w-6 text-emerald-600 fill-emerald-100 flex-shrink-0 animate-[scale-in_0.2s_ease-out]" />
                                 )}
                               </div>
-                              {dealer.distance && (
-                                <div className="mt-3">
-                                  <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50">
-                                    <Navigation className="h-3 w-3 mr-1" />
-                                    {dealer.distance.toFixed(1)} km
-                                  </Badge>
+                              
+                              <div className="space-y-2">
+                                <p className="text-sm text-gray-600 flex items-start gap-2">
+                                  <MapPinned className="h-4 w-4 mt-0.5 text-gray-400 flex-shrink-0" />
+                                  <span className="line-clamp-1">{dealer.address}</span>
+                                </p>
+                                
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  {dealer.phone && (
+                                    <span className="text-sm text-gray-600 flex items-center gap-1.5">
+                                      <span className="text-base">📞</span>
+                                      <span className="font-medium">{dealer.phone}</span>
+                                    </span>
+                                  )}
+                                  
+                                  {dealer.distance && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs font-semibold ${
+                                        selectedDealer === dealer.id.toString()
+                                          ? 'border-emerald-400 text-emerald-700 bg-emerald-100'
+                                          : 'border-blue-300 text-blue-700 bg-blue-50'
+                                      }`}
+                                    >
+                                      <Navigation className="h-3 w-3 mr-1" />
+                                      Cách {dealer.distance.toFixed(1)} km
+                                    </Badge>
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </div>
-                            
-                            {selectedDealer === dealer.id.toString() && (
-                              <CheckCircle className="h-6 w-6 text-emerald-600 fill-emerald-100 flex-shrink-0 animate-[scale-in_0.2s_ease-out]" />
-                            )}
                           </div>
                         </div>
                       ))}

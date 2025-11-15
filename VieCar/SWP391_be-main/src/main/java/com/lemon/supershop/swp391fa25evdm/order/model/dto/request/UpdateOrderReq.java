@@ -1,11 +1,14 @@
 package com.lemon.supershop.swp391fa25evdm.order.model.dto.request;
 
+import java.util.Date;
+
 public class UpdateOrderReq {
     private int productId;
     private int contractId;
     private int dealerId;
     private String status;
     private String notes;
+    private Date deliveryDate;
 
     public int getProductId() {
         return productId;
@@ -45,5 +48,13 @@ public class UpdateOrderReq {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Date getDeliveryDate() {
+        return deliveryDate;
+    }
+
+    public void setDeliveryDate(Date deliveryDate) {
+        this.deliveryDate = deliveryDate;
     }
 }

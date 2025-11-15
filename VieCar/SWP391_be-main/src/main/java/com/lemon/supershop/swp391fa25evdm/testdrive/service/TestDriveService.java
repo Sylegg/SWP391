@@ -113,6 +113,17 @@ public class TestDriveService {
             throw new IllegalArgumentException("Bạn chỉ có thể đặt 1 lịch lái thử tại một thời điểm. Vui lòng hoàn thành hoặc hủy lịch hiện tại trước.");
         }
         
+        // 6️⃣ Check if user has already completed test drive for this category
+        boolean hasCompletedThisCategory = testDriveRepository.findByUserId(req.getUserId())
+            .stream()
+            .anyMatch(td -> "DONE".equals(td.getStatus()) && 
+                           td.getCategory() != null && 
+                           td.getCategory().getId() == req.getCategoryId());
+        
+        if (hasCompletedThisCategory) {
+            throw new IllegalArgumentException("Bạn đã lái thử mẫu xe '" + category.getName() + "' thành công rồi. Vui lòng chọn mẫu xe khác.");
+        }
+        
         // All validations passed, create test drive (product and escortStaff will be set later by dealer staff)
         TestDrive testDrive = new TestDrive();
         testDrive.setUser(user);

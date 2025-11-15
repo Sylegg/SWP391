@@ -109,6 +109,29 @@ public class EmailService {
         sendHtmlEmail(to, subject, htmlBody);
     }
     
+    /**
+     * Send vehicle ready notification email (Order ready for pickup)
+     */
+    public void sendVehicleReadyNotification(
+            String to,
+            String customerName,
+            String productName,
+            String dealerName,
+            String dealerAddress,
+            double totalPrice,
+            double depositPaid,
+            double remainingAmount,
+            String expectedDeliveryDate) {
+        
+        String subject = "🚗 Xe của bạn đã sẵn sàng - Vui lòng đến nhận xe - EVDM";
+        String htmlBody = buildVehicleReadyHtml(
+            customerName, productName, dealerName, dealerAddress, 
+            totalPrice, depositPaid, remainingAmount, expectedDeliveryDate
+        );
+        
+        sendHtmlEmail(to, subject, htmlBody);
+    }
+    
     // ===== HTML Template Builders =====
     
     private String buildTestDriveConfirmationHtml(
@@ -309,5 +332,87 @@ public class EmailService {
             </html>
             """, statusColor, statusColor, customerName, productName, statusColor, statusText,
             notes != null && !notes.isEmpty() ? "<p><strong>Ghi chú:</strong> " + notes + "</p>" : "");
+    }
+    
+    private String buildVehicleReadyHtml(
+            String customerName,
+            String productName,
+            String dealerName,
+            String dealerAddress,
+            double totalPrice,
+            double depositPaid,
+            double remainingAmount,
+            String expectedDeliveryDate) {
+        
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background-color: #9333EA; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 5px 5px; }
+                    .info-box { background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #9333EA; }
+                    .price-box { background-color: #FEF3C7; padding: 15px; margin: 15px 0; border-left: 4px solid #F59E0B; border-radius: 5px; }
+                    .date-box { background-color: #D1FAE5; padding: 15px; margin: 15px 0; border-left: 4px solid #10B981; border-radius: 5px; }
+                    .highlight { color: #9333EA; font-weight: bold; }
+                    .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+                    .important { background-color: #DBEAFE; padding: 15px; margin: 15px 0; border-left: 4px solid #3B82F6; border-radius: 5px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🚗 Xe của bạn đã sẵn sàng!</h1>
+                    </div>
+                    <div class="content">
+                        <p>Xin chào <strong>%s</strong>,</p>
+                        <p>Chúng tôi vui mừng thông báo rằng chiếc xe <span class="highlight">%s</span> của bạn đã được chuẩn bị xong và sẵn sàng để giao!</p>
+                        
+                        <div class="date-box">
+                            <h3 style="margin: 0 0 10px 0; color: #059669;">📅 Ngày giao dự kiến</h3>
+                            <p style="margin: 0; font-size: 18px; font-weight: bold; color: #047857;">%s</p>
+                        </div>
+                        
+                        <div class="info-box">
+                            <h3>📋 Thông tin nhận xe:</h3>
+                            <p><strong>Sản phẩm:</strong> %s</p>
+                            <p><strong>Đại lý:</strong> %s</p>
+                            <p><strong>Địa chỉ:</strong> %s</p>
+                        </div>
+                        
+                        <div class="price-box">
+                            <h3>💰 Thông tin thanh toán:</h3>
+                            <p><strong>Tổng giá trị đơn hàng:</strong> %,.0f VNĐ</p>
+                            <p><strong>Đã đặt cọc (30%%):</strong> <span style="color: #059669;">%,.0f VNĐ</span></p>
+                            <p style="font-size: 18px; margin-top: 10px;"><strong>Còn phải thanh toán (70%%):</strong> <span style="color: #DC2626; font-size: 20px;">%,.0f VNĐ</span></p>
+                        </div>
+                        
+                        <div class="important">
+                            <h3>⚠️ Lưu ý quan trọng:</h3>
+                            <ul>
+                                <li>Vui lòng đến đại lý để nhận xe và hoàn tất thanh toán</li>
+                                <li>Mang theo giấy tờ tùy thân (CMND/CCCD) khi đến nhận xe</li>
+                                <li>Số tiền cần thanh toán khi nhận xe: <strong>%,.0f VNĐ (70%% còn lại)</strong></li>
+                                <li>Nhân viên sẽ hướng dẫn bàn giao xe và các thủ tục cần thiết</li>
+                            </ul>
+                        </div>
+                        
+                        <p style="margin-top: 20px;">Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ với đại lý <strong>%s</strong> hoặc hotline của chúng tôi.</p>
+                        
+                        <p>Cảm ơn bạn đã tin tưởng lựa chọn EVDM!</p>
+                        
+                        <p>Trân trọng,<br><strong>EVDM Team</strong></p>
+                    </div>
+                    <div class="footer">
+                        <p>© 2025 EVDM - Electric Vehicle Dealer Management. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, customerName, productName, expectedDeliveryDate, productName, dealerName, dealerAddress, 
+            totalPrice, depositPaid, remainingAmount, remainingAmount, dealerName);
     }
 }

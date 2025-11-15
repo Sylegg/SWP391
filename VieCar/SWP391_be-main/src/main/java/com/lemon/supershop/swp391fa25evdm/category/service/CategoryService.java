@@ -46,9 +46,19 @@ public class CategoryService {
         if (dto == null) {
             throw new IllegalArgumentException("Category data cannot be null");
         }
-        if (dto.getName() != null && categoryRepository.existsByNameIgnoreCase(dto.getName())) {
-            throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+        
+        // Check for duplicate name within the same dealer
+        if (dto.getName() != null && dto.getDealerId() != null) {
+            if (categoryRepository.existsByNameIgnoreCaseAndDealerId(dto.getName(), dto.getDealerId())) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists for this dealer");
+            }
+        } else if (dto.getName() != null && dto.getDealerId() == null) {
+            // For system-wide categories (no dealerId), check globally
+            if (categoryRepository.existsByNameIgnoreCase(dto.getName())) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+            }
         }
+        
         Category category = convertToEntity(dto);
         categoryRepository.save(category);
         return convertToRes(category);
@@ -61,9 +71,19 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
 
-        Optional<Category> nameCheck = categoryRepository.findByNameIgnoreCase(dto.getName());
-        if (nameCheck.isPresent() && !Objects.equals(nameCheck.get().getId(), id)) {
-            throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+        // Check for duplicate name within the same dealer (exclude current category)
+        if (dto.getName() != null && category.getDealer() != null) {
+            Optional<Category> nameCheck = categoryRepository.findByNameIgnoreCaseAndDealerId(
+                dto.getName(), category.getDealer().getId());
+            if (nameCheck.isPresent() && !Objects.equals(nameCheck.get().getId(), id)) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists for this dealer");
+            }
+        } else if (dto.getName() != null && category.getDealer() == null) {
+            // For system-wide categories (no dealer), check globally
+            Optional<Category> nameCheck = categoryRepository.findByNameIgnoreCase(dto.getName());
+            if (nameCheck.isPresent() && !Objects.equals(nameCheck.get().getId(), id)) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+            }
         }
 
         category.setName(dto.getName());

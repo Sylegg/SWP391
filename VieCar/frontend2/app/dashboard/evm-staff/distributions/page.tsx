@@ -31,11 +31,15 @@ import {
   Car,
   FileText,
   Check,
+  DollarSign,
+  TruckIcon,
+  CheckCircle,
 } from 'lucide-react';
 import {
   getAllDistributions,
   sendDistributionInvitation,
   approveDistributionOrder,
+  resendPrice,
   planDistributionDelivery,
   getDistributionStats,
   createSupplementaryDistribution,
@@ -60,6 +64,8 @@ export default function EvmDistributionsPage() {
   // Filter state
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDealerId, setSelectedDealerId] = useState<number | null>(null); // Thêm filter theo dealer
+  const [viewMode, setViewMode] = useState<'all' | 'byDealer'>('all'); // Chế độ xem
   
   // Dialog states
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
@@ -76,12 +82,22 @@ export default function EvmDistributionsPage() {
     requested: number;
     approved: number;
     parentCode: string;
+    shortageItems?: {
+      id: number;
+      name: string;
+      color?: string;
+      requested: number;
+      approved: number;
+      shortage: number;
+      manufacturerPrice?: number;
+    }[];
   }>({
     parentDist: null,
     shortage: 0,
     requested: 0,
     approved: 0,
     parentCode: '',
+    shortageItems: [],
   });
   
   // Form states
@@ -133,7 +149,7 @@ export default function EvmDistributionsPage() {
 
   useEffect(() => {
     filterDistributions();
-  }, [distributions, filterStatus, searchQuery]);
+  }, [distributions, filterStatus, searchQuery, selectedDealerId]);
 
   // Helper function to get dealer name - check distribution object first, then lookup
   const getDealerName = (distribution: DistributionRes | number | undefined): string => {
@@ -190,6 +206,7 @@ export default function EvmDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể tải dữ liệu',
         variant: 'destructive',
+        duration: 3000,
       });
     } finally {
       setLoading(false);
@@ -201,6 +218,10 @@ export default function EvmDistributionsPage() {
     
     if (filterStatus !== 'all') {
       filtered = filtered.filter(d => d.status === filterStatus);
+    }
+    
+    if (selectedDealerId) {
+      filtered = filtered.filter(d => d.dealerId === selectedDealerId);
     }
     
     if (searchQuery) {
@@ -215,6 +236,48 @@ export default function EvmDistributionsPage() {
     
     setFilteredDistributions(filtered);
   };
+  
+  // Get distributions grouped by dealer
+  const getDistributionsByDealer = () => {
+    // Get distributions filtered by status and search, but NOT by dealer
+    let distsToGroup = distributions;
+    
+    if (filterStatus !== 'all') {
+      distsToGroup = distsToGroup.filter(d => d.status === filterStatus);
+    }
+    
+    if (searchQuery) {
+      distsToGroup = distsToGroup.filter(d => {
+        const dealerName = getDealerName(d);
+        const code = d.code || '';
+        return dealerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          d.id.toString().includes(searchQuery);
+      });
+    }
+    
+    const grouped = new Map<number, DistributionRes[]>();
+    
+    distsToGroup.forEach(dist => {
+      if (!grouped.has(dist.dealerId)) {
+        grouped.set(dist.dealerId, []);
+      }
+      grouped.get(dist.dealerId)!.push(dist);
+    });
+    
+    return Array.from(grouped.entries()).map(([dealerId, dists]) => ({
+      dealerId,
+      dealerName: getDealerName(dists[0]),
+      distributions: dists,
+      count: dists.length,
+      stats: {
+        invited: dists.filter(d => d.status === DistributionStatus.INVITED).length,
+        pending: dists.filter(d => d.status === DistributionStatus.PENDING).length,
+        confirmed: dists.filter(d => d.status === DistributionStatus.CONFIRMED).length,
+        completed: dists.filter(d => d.status === DistributionStatus.COMPLETED).length,
+      }
+    }));
+  };
 
   // Step 1: Send invitation
   const handleSendInvitation = async () => {
@@ -225,6 +288,7 @@ export default function EvmDistributionsPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Vui lòng chọn đại lý',
         variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -246,6 +310,7 @@ export default function EvmDistributionsPage() {
       toast({
         title: '✅ Gửi lời mời thành công',
         description: 'Đại lý sẽ nhận được thông báo',
+        duration: 3000,
       });
       setIsInviteDialogOpen(false);
       resetInviteForm();
@@ -262,6 +327,7 @@ export default function EvmDistributionsPage() {
         title: '❌ Lỗi API',
         description: error.response?.data?.message || error.message || 'Backend chưa có endpoint này. Kiểm tra console để biết thêm chi tiết.',
         variant: 'destructive',
+        duration: 3000,
       });
     }
   };
@@ -272,11 +338,11 @@ export default function EvmDistributionsPage() {
 
     if (approveForm.approved) {
       if (!approveForm.approvedQuantity || approveForm.approvedQuantity <= 0) {
-        toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập số lượng duyệt', variant: 'destructive' });
+        toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập số lượng duyệt', variant: 'destructive', duration: 3000 });
         return;
       }
       if (!approveForm.manufacturerPrice || approveForm.manufacturerPrice <= 0) {
-        toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập giá hãng', variant: 'destructive' });
+        toast({ title: '⚠️ Thiếu thông tin', description: 'Vui lòng nhập giá hãng', variant: 'destructive', duration: 3000 });
         return;
       }
     }
@@ -300,6 +366,7 @@ export default function EvmDistributionsPage() {
         description: approveForm.approved 
           ? (qtyMismatch ? 'Đã gửi giá hãng cho dealer. Chờ dealer xác nhận.' : 'Lên kế hoạch giao hàng ngay')
           : 'Đơn nhập hàng đã bị từ chối',
+        duration: 3000,
       });
       
       // If approved and no quantity mismatch, open planning dialog immediately
@@ -314,6 +381,7 @@ export default function EvmDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể xử lý đơn',
         variant: 'destructive',
+        duration: 3000,
       });
     }
   };
@@ -325,6 +393,7 @@ export default function EvmDistributionsPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Vui lòng nhập ngày giao hàng dự kiến',
         variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -340,6 +409,7 @@ export default function EvmDistributionsPage() {
       toast({
         title: '✅ Lên kế hoạch thành công',
         description: 'Đã cập nhật kế hoạch giao hàng',
+        duration: 3000,
       });
       setIsPlanDialogOpen(false);
       resetPlanForm();
@@ -349,6 +419,7 @@ export default function EvmDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể lên kế hoạch',
         variant: 'destructive',
+        duration: 3000,
       });
     }
   };
@@ -401,7 +472,7 @@ export default function EvmDistributionsPage() {
     // Initialize review items from dealer's submitted items
     const items = (distribution.items || []).map((it) => ({
       id: it.id,
-      name: it.product?.name || 'Sản phẩm',
+      name: it.product?.name || it.category?.name || 'Sản phẩm',
       color: it.color,
       requested: it.quantity || 0,
       approved: true,
@@ -419,7 +490,7 @@ export default function EvmDistributionsPage() {
   const handleSubmitReview = async () => {
     if (!selectedDistribution) return;
     if (!reviewItems.length) {
-      toast({ title: '⚠️ Không có dòng nào', description: 'Đơn không có dòng sản phẩm để duyệt', variant: 'destructive' });
+      toast({ title: '⚠️ Không có dòng nào', description: 'Đơn không có dòng sản phẩm để duyệt', variant: 'destructive', duration: 3000 });
       return;
     }
     
@@ -442,7 +513,8 @@ export default function EvmDistributionsPage() {
       toast({ 
         title: '⚠️ Số lượng không hợp lệ', 
         description: `Các dòng sau có số lượng không hợp lệ: ${invalidQuantityItems.join(', ')}`, 
-        variant: 'destructive' 
+        variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -451,14 +523,15 @@ export default function EvmDistributionsPage() {
       toast({ 
         title: '⚠️ Thiếu giá hãng', 
         description: `Vui lòng nhập giá hãng cho: ${missingPriceItems.join(', ')}`, 
-        variant: 'destructive' 
+        variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
     
     const approvedQty = reviewItems.filter(i => i.approved).reduce((s, i) => s + (i.approvedQuantity || 0), 0);
     if (approvedQty <= 0) {
-      toast({ title: '⚠️ Chưa chọn dòng nào', description: 'Chọn ít nhất 1 dòng để duyệt', variant: 'destructive' });
+      toast({ title: '⚠️ Chưa chọn dòng nào', description: 'Chọn ít nhất 1 dòng để duyệt', variant: 'destructive', duration: 3000 });
       return;
     }
 
@@ -467,7 +540,20 @@ export default function EvmDistributionsPage() {
 
     // Calculate average manufacturer price from approved items
     const approvedItems = reviewItems.filter(i => i.approved);
-    const avgManufacturerPrice = approvedItems.reduce((sum, it) => sum + it.manufacturerPrice, 0) / approvedItems.length;
+    const avgManufacturerPrice = approvedItems.length > 0 
+      ? approvedItems.reduce((sum, it) => sum + it.manufacturerPrice, 0) / approvedItems.length 
+      : 0;
+
+    // Validate average price
+    if (!avgManufacturerPrice || avgManufacturerPrice <= 0) {
+      toast({ 
+        title: '⚠️ Giá hãng không hợp lệ', 
+        description: 'Vui lòng kiểm tra lại giá hãng của các dòng xe đã chọn', 
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
 
     try {
       const requestData: any = {
@@ -488,13 +574,35 @@ export default function EvmDistributionsPage() {
       };
 
       console.log('🔥 Sending approval with items (manufacturerPrice + quantity):', requestData);
-      await approveDistributionOrder(selectedDistribution.id, requestData);
-      
-      // Always send price to dealer for confirmation
-      toast({ 
-        title: '📤 Đã gửi báo giá', 
-        description: 'Đã gửi giá hãng cho dealer. Chờ dealer xác nhận giá trước khi lên kế hoạch giao hàng.'
+      console.log('📊 Request breakdown:', {
+        approvedQty,
+        avgManufacturerPrice,
+        roundedPrice: Math.round(avgManufacturerPrice),
+        itemsCount: requestData.items.length,
+        firstItem: requestData.items[0],
+        currentStatus: selectedDistribution.status
       });
+      
+      // Kiểm tra status để dùng đúng endpoint
+      const isResendingPrice = selectedDistribution.status === DistributionStatus.PRICE_REJECTED;
+      
+      if (isResendingPrice) {
+        // Gửi lại báo giá (dealer đã từ chối giá trước đó)
+        await resendPrice(selectedDistribution.id, requestData);
+        toast({ 
+          title: '🔄 Đã gửi lại báo giá', 
+          description: 'Đã cập nhật và gửi lại báo giá cho dealer. Chờ dealer xác nhận giá mới.',
+          duration: 3000,
+        });
+      } else {
+        // Lần đầu gửi báo giá (status = PENDING)
+        await approveDistributionOrder(selectedDistribution.id, requestData);
+        toast({ 
+          title: '📤 Đã gửi báo giá', 
+          description: 'Đã gửi giá hãng cho dealer. Chờ dealer xác nhận giá trước khi lên kế hoạch giao hàng.',
+          duration: 3000,
+        });
+      }
       
       setIsReviewDialogOpen(false);
       
@@ -502,7 +610,16 @@ export default function EvmDistributionsPage() {
       
       loadData();
     } catch (error: any) {
-      toast({ title: '❌ Lỗi', description: error.message || 'Không thể duyệt đơn', variant: 'destructive' });
+      console.error('❌ Approval error:', error);
+      console.error('Error response:', error.response?.data);
+      
+      const errorMsg = error.response?.data?.message || error.message || 'Không thể duyệt đơn';
+      toast({ 
+        title: '❌ Lỗi gửi báo giá', 
+        description: errorMsg, 
+        variant: 'destructive',
+        duration: 3000,
+      });
     }
   };
   
@@ -512,12 +629,75 @@ export default function EvmDistributionsPage() {
     if (creatingSupplementaryId === parentDistribution.id) return;
     
     try {
-      // Tính số lượng thiếu
-      const requested = parentDistribution.requestedQuantity || 0;
-      const approved = parentDistribution.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-      const shortage = requested - approved;
+      // Tính số lượng thiếu chi tiết theo từng item
+      const shortageItems: {
+        id: number;
+        name: string;
+        color?: string;
+        requested: number;
+        approved: number;
+        shortage: number;
+        manufacturerPrice?: number;
+      }[] = [];
       
-      if (shortage <= 0) {
+      let totalRequested = 0;
+      let totalApproved = 0;
+      
+      // Parse evmNotes để lấy thông tin chi tiết
+      if (parentDistribution.evmNotes && parentDistribution.items) {
+        // Format evmNotes: "Duyệt theo dòng: vf3 (Đen): 5/10 xe @ 10.000 VND; vf3 (Xanh): 3/5 xe @ 20.000 VND"
+        // Lấy phần trước "| Ghi chú:" hoặc "| Dealer:" hoặc hết chuỗi
+        const match = parentDistribution.evmNotes.match(/Duyệt theo dòng:\s*(.+?)(?:\s*\|\s*(?:Ghi chú|Dealer):|$)/);
+        
+        if (match) {
+          const itemsText = match[1].trim();
+          const itemParts = itemsText.split(';').map(s => s.trim()).filter(s => s.length > 0);
+          
+          for (const part of itemParts) {
+            // Parse: "vf3 (Đen): 5/10 xe @ 10.000 VND"
+            const itemMatch = part.match(/^(.+?):\s*(\d+)\/(\d+)\s*xe(?:\s*@\s*([\d,.]+)\s*VND)?/);
+            if (itemMatch) {
+              const itemKey = itemMatch[1].trim(); // "vf3 (Đen)"
+              const approvedQty = parseInt(itemMatch[2]); // 5
+              const requestedQty = parseInt(itemMatch[3]); // 10
+              const priceStr = itemMatch[4]?.replace(/[,.\s]/g, '') || '0';
+              const price = parseInt(priceStr) || 0;
+              
+              totalRequested += requestedQty;
+              totalApproved += approvedQty;
+              
+              if (approvedQty < requestedQty) {
+                // Tìm item tương ứng trong distribution.items
+                const matchedItem = parentDistribution.items.find(item => {
+                  const itemName = item.product?.name || item.category?.name || 'Unknown';
+                  const fullName = `${itemName}${item.color ? ' ('+item.color+')' : ''}`;
+                  return fullName === itemKey;
+                });
+                
+                shortageItems.push({
+                  id: matchedItem?.id || 0,
+                  name: itemKey.split('(')[0].trim(),
+                  color: itemKey.includes('(') ? itemKey.match(/\((.+?)\)/)?.[1] : undefined,
+                  requested: requestedQty,
+                  approved: approvedQty,
+                  shortage: requestedQty - approvedQty,
+                  manufacturerPrice: price > 0 ? price : matchedItem?.dealerPrice,
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Fallback: nếu không parse được từ evmNotes, dùng requestedQuantity
+      if (shortageItems.length === 0) {
+        totalRequested = parentDistribution.requestedQuantity || 0;
+        totalApproved = parentDistribution.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+      }
+      
+      const totalShortage = totalRequested - totalApproved;
+      
+      if (totalShortage <= 0) {
         toast({ 
           title: (
             <div className="flex items-center gap-2">
@@ -531,11 +711,11 @@ export default function EvmDistributionsPage() {
               <div className="flex gap-4 mt-2">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-600">Yêu cầu:</span>
-                  <span className="font-bold text-blue-600">{requested} xe</span>
+                  <span className="font-bold text-blue-600">{totalRequested} xe</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-600">Đã duyệt:</span>
-                  <span className="font-bold text-green-600">{approved} xe</span>
+                  <span className="font-bold text-green-600">{totalApproved} xe</span>
                 </div>
               </div>
             </div>
@@ -549,13 +729,14 @@ export default function EvmDistributionsPage() {
       // Generate code từ ID hoặc sử dụng code có sẵn
       const parentCode = parentDistribution.code || `PP${String(parentDistribution.id).padStart(4, '0')}`;
       
-      // Mở dialog xác nhận thay vì dùng confirm()
+      // Mở dialog xác nhận với thông tin chi tiết
       setSupplementaryConfirmData({
         parentDist: parentDistribution,
-        shortage,
-        requested,
-        approved,
+        shortage: totalShortage,
+        requested: totalRequested,
+        approved: totalApproved,
         parentCode,
+        shortageItems, // Thêm chi tiết các xe thiếu
       });
       setIsSupplementaryConfirmOpen(true);
       
@@ -601,10 +782,16 @@ export default function EvmDistributionsPage() {
       setLoading(true);
       setIsSupplementaryConfirmOpen(false);
       
+      console.log('🔄 Creating supplementary distribution for parent ID:', parentDist.id);
+      console.log('📝 Parent evmNotes:', parentDist.evmNotes);
+      
       const supplementary = await createSupplementaryDistribution(parentDist.id);
       
       const suppCode = supplementary.code || `PP${String(supplementary.id).padStart(4, '0')}`;
       const dealerName = getDealerName(parentDist);
+      
+      // Reload data trước khi hiển thị toast
+      await loadData();
       
       // Toast đẹp với nhiều thông tin hơn
       toast({ 
@@ -632,9 +819,9 @@ export default function EvmDistributionsPage() {
         ) as any,
         duration: 8000, // Hiển thị lâu hơn để đọc được thông tin
       });
-      
-      await loadData(); // Reload để hiện đơn mới
     } catch (error: any) {
+      console.error('❌ Error creating supplementary:', error);
+      
       toast({ 
         title: (
           <div className="flex items-center gap-3">
@@ -655,13 +842,16 @@ export default function EvmDistributionsPage() {
                   <p className="text-white font-semibold text-sm leading-relaxed">
                     {error.message || 'Đã xảy ra lỗi không xác định'}
                   </p>
+                  <p className="text-white/80 text-xs mt-2">
+                    Vui lòng kiểm tra console để xem chi tiết lỗi
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         ) as any,
         variant: 'destructive',
-        duration: 8000,
+        duration: 10000, // Hiển thị lâu hơn để đọc được lỗi
       });
     } finally {
       setLoading(false);
@@ -751,7 +941,7 @@ export default function EvmDistributionsPage() {
 
           {/* Filters with Glass Effect */}
           <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 p-4 rounded-2xl border border-white/20 shadow-lg">
-            <div className="flex gap-4">
+            <div className="flex gap-4 mb-4">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-cyan-600" />
@@ -779,6 +969,46 @@ export default function EvmDistributionsPage() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Chế độ xem:</span>
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode('all');
+                    setSelectedDealerId(null);
+                  }}
+                  className={viewMode === 'all' ? 'bg-gradient-to-r from-cyan-600 to-blue-600' : ''}
+                >
+                  Tất cả phân phối
+                </Button>
+                <Button
+                  variant={viewMode === 'byDealer' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode('byDealer');
+                    setSelectedDealerId(null);
+                  }}
+                  className={viewMode === 'byDealer' ? 'bg-gradient-to-r from-cyan-600 to-blue-600' : ''}
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Theo đại lý
+                </Button>
+              </div>
+              {selectedDealerId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedDealerId(null)}
+                  className="text-cyan-600 hover:text-cyan-700"
+                >
+                  ✕ Bỏ lọc đại lý
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Distribution List - Compact Glass Cards */}
@@ -791,6 +1021,76 @@ export default function EvmDistributionsPage() {
             <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 p-12 rounded-2xl border border-white/20 shadow-lg text-center">
               <Package className="h-12 w-12 mx-auto text-cyan-600 mb-4" />
               <p className="text-gray-600 dark:text-gray-400">Chưa có phân phối nào</p>
+            </div>
+          ) : viewMode === 'byDealer' && !selectedDealerId ? (
+            /* Dealer Groups View */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {getDistributionsByDealer().map((group) => (
+                <div
+                  key={group.dealerId}
+                  onClick={() => {
+                    setSelectedDealerId(group.dealerId);
+                    setViewMode('all');
+                  }}
+                  className="backdrop-blur-xl bg-gradient-to-br from-white/80 to-cyan-50/80 dark:from-gray-900/80 dark:to-cyan-950/80 p-6 rounded-3xl border border-white/40 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg">
+                        <Building2 className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white">{group.dealerName}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Mã: {group.dealerId}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                        {group.count}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Phân phối</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <div className="bg-blue-50 dark:bg-blue-950/50 p-3 rounded-xl border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Lời mời</span>
+                      </div>
+                      <div className="text-2xl font-bold text-blue-600 mt-1">{group.stats.invited}</div>
+                    </div>
+                    <div className="bg-amber-50 dark:bg-amber-950/50 p-3 rounded-xl border border-amber-200 dark:border-amber-800">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        <span className="text-sm font-medium text-amber-700 dark:text-amber-300">Chờ duyệt</span>
+                      </div>
+                      <div className="text-2xl font-bold text-amber-600 mt-1">{group.stats.pending}</div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-950/50 p-3 rounded-xl border border-green-200 dark:border-green-800">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-700 dark:text-green-300">Đã duyệt</span>
+                      </div>
+                      <div className="text-2xl font-bold text-green-600 mt-1">{group.stats.confirmed}</div>
+                    </div>
+                    <div className="bg-purple-50 dark:bg-purple-950/50 p-3 rounded-xl border border-purple-200 dark:border-purple-800">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Hoàn thành</span>
+                      </div>
+                      <div className="text-2xl font-bold text-purple-600 mt-1">{group.stats.completed}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Nhấn để xem chi tiết</span>
+                      <span className="text-cyan-600 font-medium">→</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="grid gap-4">
@@ -889,29 +1189,7 @@ export default function EvmDistributionsPage() {
                           </>
                         )}
                         
-                        {/* Step 4a: If dealer rejected price, allow EVM to revise */}
-                        {dist.status === DistributionStatus.PRICE_REJECTED && (
-                          <>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => openReviewDialog(dist)}
-                              className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 hover:scale-105 transition-all duration-300"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Sửa giá
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => openApproveDialog(dist, false)}
-                              className="hover:scale-105 transition-all duration-300"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Hủy đơn
-                            </Button>
-                          </>
-                        )}
+                        {/* Step 4a: Removed "Sửa giá" button - when dealer rejects due to insufficient quantity, no need to revise price */}
                         
                         {/* Step 5: Plan button for CONFIRMED status */}
                         {dist.status === DistributionStatus.CONFIRMED && (
@@ -927,16 +1205,95 @@ export default function EvmDistributionsPage() {
                         )}
                         
                         {/* Button: Tạo đơn bổ sung nếu số lượng duyệt < yêu cầu */}
-                        {(dist.status === DistributionStatus.PRICE_SENT || 
+                        {!dist.isSupplementary && (dist.status === DistributionStatus.PRICE_SENT || 
+                          dist.status === DistributionStatus.PRICE_REJECTED ||
                           dist.status === DistributionStatus.CONFIRMED ||
                           dist.status === DistributionStatus.PRICE_ACCEPTED ||
-                          dist.status === DistributionStatus.PLANNED) && (() => {
-                          const requested = dist.requestedQuantity || 0;
-                          const approved = dist.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-                          const hasShortage = approved < requested && approved > 0;
+                          dist.status === DistributionStatus.PLANNED ||
+                          dist.status === DistributionStatus.COMPLETED) && (() => {
+                          // Parse evmNotes để lấy số lượng yêu cầu THẬT (không bị thay đổi)
+                          let requested = 0;
+                          let approved = 0;
+                          
+                          if (dist.evmNotes && dist.items) {
+                            // Format: "Duyệt theo dòng: vf3 (Đen): 5/10 xe @ 10.000 VND; vf3 (Xanh): 3/5 xe | Ghi chú: ..."
+                            // Lấy phần trước "| Ghi chú:" hoặc "| Dealer:" hoặc hết chuỗi
+                            const match = dist.evmNotes.match(/Duyệt theo dòng:\s*(.+?)(?:\s*\|\s*(?:Ghi chú|Dealer):|$)/);
+                            if (match) {
+                              const itemsText = match[1].trim();
+                              const itemParts = itemsText.split(';').map(s => s.trim()).filter(s => s.length > 0);
+                              
+                              for (const part of itemParts) {
+                                // Parse: "vf3 (Đen): 5/10 xe @ 10.000 VND" hoặc "vf3 (Đen): 5/10 xe"
+                                const itemMatch = part.match(/^(.+?):\s*(\d+)\/(\d+)\s*xe/);
+                                if (itemMatch) {
+                                  approved += parseInt(itemMatch[2]);
+                                  requested += parseInt(itemMatch[3]);
+                                }
+                              }
+                            }
+                          }
+                          
+                          // Fallback nếu không parse được evmNotes
+                          if (requested === 0) {
+                            requested = dist.requestedQuantity || 0;
+                            approved = dist.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+                          }
+                          
                           const isCreating = creatingSupplementaryId === dist.id;
                           
-                          return hasShortage && (
+                          // Tính tổng số lượng đã nhận từ đơn gốc + TẤT CẢ đơn bổ sung
+                          let totalReceived = dist.receivedQuantity || 0; // Số lượng đơn gốc đã nhận
+                          
+                          // Cộng thêm số lượng từ các đơn bổ sung đã hoàn thành
+                          const supplementaryDists = distributions.filter(d => 
+                            d.parentDistributionId === dist.id && 
+                            d.isSupplementary === true &&
+                            d.status !== DistributionStatus.CANCELED
+                          );
+                          
+                          supplementaryDists.forEach(suppDist => {
+                            totalReceived += (suppDist.receivedQuantity || 0);
+                          });
+                          
+                          // Tính số lượng còn thiếu: So sánh số lượng YÊU CẦU với số lượng ĐÃ DUYỆT (không phải đã nhận)
+                          // Chỉ hiển thị nút bổ sung khi số lượng đã duyệt < số lượng yêu cầu
+                          const shortage = requested - approved;
+                          const hasShortage = shortage > 0;
+                          
+                          // Kiểm tra có đơn bổ sung đang chờ xử lý không (PENDING, PRICE_SENT, CONFIRMED, PLANNED)
+                          const hasPendingSupplementary = supplementaryDists.some(d => 
+                            d.status === DistributionStatus.PENDING ||
+                            d.status === DistributionStatus.PRICE_SENT ||
+                            d.status === DistributionStatus.PRICE_ACCEPTED ||
+                            d.status === DistributionStatus.CONFIRMED ||
+                            d.status === DistributionStatus.PLANNED
+                          );
+                          
+                          // Kiểm tra có đơn bổ sung đã hoàn thành không
+                          const hasCompletedSupplementary = supplementaryDists.some(d => 
+                            d.status === DistributionStatus.COMPLETED
+                          );
+                          
+                          // Debug log
+                          if (hasShortage || supplementaryDists.length > 0) {
+                            console.log(`📊 Dist ${dist.id} - Shortage Check:`, {
+                              requested,
+                              approved,
+                              shortage: requested - approved,
+                              receivedOriginal: dist.receivedQuantity || 0,
+                              receivedFromSupp: totalReceived - (dist.receivedQuantity || 0),
+                              totalReceived,
+                              hasShortage,
+                              hasPendingSupp: hasPendingSupplementary,
+                              hasCompletedSupp: hasCompletedSupplementary,
+                              suppCount: supplementaryDists.length,
+                              evmNotesPresent: !!dist.evmNotes
+                            });
+                          }
+                          
+                          // Chỉ hiển thị nếu: còn thiếu hàng VÀ không có đơn bổ sung đang chờ VÀ không có đơn bổ sung đã hoàn thành
+                          return hasShortage && !hasPendingSupplementary && !hasCompletedSupplementary && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -952,7 +1309,7 @@ export default function EvmDistributionsPage() {
                               ) : (
                                 <>
                                   <Plus className="h-4 w-4 mr-1" />
-                                  Đơn bổ sung ({requested - approved} xe)
+                                  Đơn bổ sung
                                 </>
                               )}
                             </Button>
@@ -1186,12 +1543,17 @@ export default function EvmDistributionsPage() {
                                 min={0}
                                 max={it.requested}
                                 value={it.approvedQuantity}
-                                disabled={!it.approved}
+                                disabled={!it.approved || selectedDistribution?.isSupplementary}
                                 onChange={(e) => {
                                   const v = Math.max(0, Math.min(it.requested, Number(e.target.value)));
                                   setReviewItems((prev) => prev.map((x) => x.id === it.id ? { ...x, approvedQuantity: v } : x));
                                 }}
                               />
+                              {selectedDistribution?.isSupplementary && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                  ⚠️ Đơn bổ sung: Số lượng cố định (phải có đủ hàng)
+                                </p>
+                              )}
                             </div>
                             <div>
                               <Label className="text-xs text-muted-foreground">Giá hãng (VND/xe) *</Label>
@@ -1299,6 +1661,7 @@ export default function EvmDistributionsPage() {
                   <Input
                     id="deliveryDate"
                     type="date"
+                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                     value={planForm.estimatedDeliveryDate}
                     onChange={(e) => setPlanForm({ ...planForm, estimatedDeliveryDate: e.target.value })}
                   />
@@ -1334,31 +1697,43 @@ export default function EvmDistributionsPage() {
 
           {/* Dialog: Distribution Detail - Glass Effect */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-2xl bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
-                  Chi tiết - Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
-                </DialogTitle>
-                <DialogDescription className="text-gray-600 dark:text-gray-300">
-                  <Badge className={getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="text-3xl bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent font-bold">
+                      📋 Chi tiết phân phối
+                    </DialogTitle>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Mã: <span className="font-mono font-semibold text-cyan-600">{selectedDistribution?.code || `#${selectedDistribution?.id}`}</span>
+                    </p>
+                  </div>
+                  <Badge className={`${getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)} px-4 py-2 text-base`}>
                     {getDistributionStatusLabel(selectedDistribution?.status || DistributionStatus.INVITED)}
                   </Badge>
-                </DialogDescription>
+                </div>
               </DialogHeader>
               {selectedDistribution && (
                 <div className="space-y-6 py-4">
-                  {/* Header Info Cards */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Info Grid - 3 columns */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="backdrop-blur-md bg-gradient-to-br from-blue-400/10 to-cyan-400/10 p-4 rounded-xl border border-blue-200/30">
-                      <Label className="text-xs text-blue-700 dark:text-blue-300 font-semibold uppercase">Đại lý</Label>
-                      <p className="mt-2 text-lg font-bold text-gray-900 dark:text-white">{getDealerName(selectedDistribution)}</p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building2 className="h-5 w-5 text-blue-600" />
+                        <Label className="text-xs text-blue-700 dark:text-blue-300 font-semibold uppercase">Đại lý</Label>
+                      </div>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">{getDealerName(selectedDistribution)}</p>
                       {selectedDistribution.dealerId && (
                         <p className="text-xs text-blue-600 mt-1">ID: {selectedDistribution.dealerId}</p>
                       )}
                     </div>
+                    
                     <div className="backdrop-blur-md bg-gradient-to-br from-purple-400/10 to-pink-400/10 p-4 rounded-xl border border-purple-200/30">
-                      <Label className="text-xs text-purple-700 dark:text-purple-300 font-semibold uppercase">Ngày tạo</Label>
-                      <p className="mt-2 text-lg font-bold text-gray-900 dark:text-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="h-5 w-5 text-purple-600" />
+                        <Label className="text-xs text-purple-700 dark:text-purple-300 font-semibold uppercase">Ngày tạo</Label>
+                      </div>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">
                         {selectedDistribution.createdAt 
                           ? new Date(selectedDistribution.createdAt).toLocaleDateString('vi-VN')
                           : 'N/A'
@@ -1366,112 +1741,402 @@ export default function EvmDistributionsPage() {
                       </p>
                       <p className="text-xs text-purple-600 mt-1">
                         {selectedDistribution.createdAt 
-                          ? new Date(selectedDistribution.createdAt).toLocaleTimeString('vi-VN')
+                          ? new Date(selectedDistribution.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                           : ''
                         }
                       </p>
                     </div>
-                  </div>
-                  
-                  {/* Messages Section */}
-                  {selectedDistribution.invitationMessage && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-blue-400/10 to-indigo-400/10 p-4 rounded-xl border border-blue-200/30">
+                    
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-4 rounded-xl border border-green-200/30">
                       <div className="flex items-center gap-2 mb-2">
-                        <MessageSquare className="h-4 w-4 text-blue-600" />
-                        <Label className="text-sm font-semibold text-blue-700 dark:text-blue-300">Lời mời từ EVM</Label>
+                        <Package className="h-5 w-5 text-green-600" />
+                        <Label className="text-xs text-green-700 dark:text-green-300 font-semibold uppercase">Tổng số lượng</Label>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedDistribution.invitationMessage}</p>
-                    </div>
-                  )}
-                  
-                  {selectedDistribution.dealerNotes && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-amber-400/10 to-orange-400/10 p-4 rounded-xl border border-amber-200/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <MessageSquare className="h-4 w-4 text-amber-600" />
-                        <Label className="text-sm font-semibold text-amber-700 dark:text-amber-300">Ghi chú của Dealer</Label>
-                      </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedDistribution.dealerNotes}</p>
-                    </div>
-                  )}
-
-                  {/* Price Section */}
-                  {selectedDistribution.manufacturerPrice && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-indigo-400/10 to-purple-400/10 p-4 rounded-xl border border-indigo-200/30">
-                      <Label className="text-xs text-indigo-700 dark:text-indigo-300 font-semibold uppercase">Giá hãng</Label>
-                      <p className="mt-2 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                        {selectedDistribution.manufacturerPrice.toLocaleString('vi-VN')} VND / xe
-                      </p>
-                      {selectedDistribution.requestedQuantity && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          Tổng: <span className="font-semibold">{(selectedDistribution.manufacturerPrice * selectedDistribution.requestedQuantity).toLocaleString('vi-VN')} VND</span>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-3xl font-bold text-green-600">
+                          {selectedDistribution.requestedQuantity || selectedDistribution.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0}
                         </p>
+                        <span className="text-sm text-gray-600">xe</span>
+                      </div>
+                      {selectedDistribution.receivedQuantity && (
+                        <p className="text-xs text-green-600 mt-1">Đã nhận: {selectedDistribution.receivedQuantity} xe</p>
                       )}
                     </div>
-                  )}
-
-                  {/* Dealer Order Items */}
-                  {selectedDistribution.items && selectedDistribution.items.length > 0 && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-4 rounded-xl border border-green-200/30">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4 text-green-600" />
-                          <Label className="text-sm font-semibold text-green-700 dark:text-green-300">Yêu cầu từ Dealer</Label>
-                        </div>
+                  </div>
+                  
+                  {/* Timeline - Horizontal */}
+                  {(selectedDistribution.deadline || selectedDistribution.requestedDeliveryDate || selectedDistribution.estimatedDeliveryDate || selectedDistribution.actualDeliveryDate) && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-indigo-50/80 to-purple-50/80 dark:from-indigo-950/80 dark:to-purple-950/80 p-5 rounded-xl border border-indigo-200/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Clock className="h-5 w-5 text-indigo-600" />
+                        <Label className="text-base font-bold text-indigo-800 dark:text-indigo-200">Timeline</Label>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {selectedDistribution.deadline && (
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">⏰ Hạn phản hồi</p>
+                            <p className="text-sm font-semibold text-orange-600">
+                              {new Date(selectedDistribution.deadline).toLocaleDateString('vi-VN')}
+                            </p>
+                          </div>
+                        )}
                         {selectedDistribution.requestedDeliveryDate && (
-                          <div className="flex items-center gap-1 text-xs text-green-600">
-                            <Calendar className="h-3 w-3" />
-                            <span>{new Date(selectedDistribution.requestedDeliveryDate).toLocaleDateString('vi-VN')}</span>
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">📅 Dealer mong muốn</p>
+                            <p className="text-sm font-semibold text-blue-600">
+                              {new Date(selectedDistribution.requestedDeliveryDate).toLocaleDateString('vi-VN')}
+                            </p>
+                          </div>
+                        )}
+                        {selectedDistribution.estimatedDeliveryDate && (
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">🚚 EVM dự kiến</p>
+                            <p className="text-sm font-semibold text-purple-600">
+                              {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
+                            </p>
+                          </div>
+                        )}
+                        {selectedDistribution.actualDeliveryDate && (
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">✅ Giao thực tế</p>
+                            <p className="text-sm font-semibold text-green-600">
+                              {new Date(selectedDistribution.actualDeliveryDate).toLocaleDateString('vi-VN')}
+                            </p>
                           </div>
                         )}
                       </div>
-                      <div className="space-y-2">
-                        {selectedDistribution.items.map((it, idx) => (
-                          <div key={idx} className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 p-3 rounded-lg border border-green-200/30">
-                            <div className="font-medium text-gray-900 dark:text-white">{it.product?.name || 'Sản phẩm'}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              {it.color && <span className="mr-2">🎨 Màu: {it.color}</span>}
-                              <span className="font-semibold">📦 Số lượng: {it.quantity}</span>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="pt-2 border-t border-green-200/30">
-                          <p className="text-sm font-semibold text-green-700 dark:text-green-300">
-                            Tổng số lượng yêu cầu: {selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)} xe
+                    </div>
+                  )}
+
+                  {/* Dealer Order Items - Enhanced Table */}
+                  {selectedDistribution.items && selectedDistribution.items.length > 0 && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/80 to-emerald-50/80 dark:from-green-950/80 dark:to-emerald-950/80 p-5 rounded-xl border border-green-200/30">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-5 w-5 text-green-600" />
+                          <Label className="text-base font-bold text-green-800 dark:text-green-200">Danh sách sản phẩm</Label>
+                        </div>
+                        <Badge variant="outline" className="text-green-700 border-green-400">
+                          {selectedDistribution.items.length} loại xe
+                        </Badge>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b-2 border-green-300/50">
+                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">#</th>
+                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Sản phẩm</th>
+                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Màu sắc</th>
+                              {selectedDistribution.items?.some(it => it.dealerPrice) && (
+                                <th className="text-right py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Giá hãng</th>
+                              )}
+                              <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Yêu cầu</th>
+                              {selectedDistribution.items?.some(it => it.approvedQuantity) && (
+                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã duyệt</th>
+                              )}
+                              {selectedDistribution.items?.some(it => it.receivedQuantity) && (
+                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã nhận</th>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedDistribution.items.map((it, idx) => (
+                              <tr key={idx} className="border-b border-green-200/30 hover:bg-green-100/30 dark:hover:bg-green-900/20 transition-colors">
+                                <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-400">{idx + 1}</td>
+                                <td className="py-3 px-3">
+                                  <div className="font-semibold text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
+                                  {it.product?.vinNum && <div className="text-xs text-gray-500 mt-0.5">{it.product.vinNum}</div>}
+                                </td>
+                                <td className="py-3 px-3">
+                                  {it.color && (
+                                    <Badge variant="outline" className="text-xs">
+                                      🎨 {it.color}
+                                    </Badge>
+                                  )}
+                                </td>
+                                {selectedDistribution.items?.some(item => item.dealerPrice) && (
+                                  <td className="py-3 px-3 text-right">
+                                    {it.dealerPrice ? (
+                                      <div className="font-semibold text-amber-700 dark:text-amber-400">
+                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} ₫
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                )}
+                                <td className="py-3 px-3 text-center">
+                                  <span className="font-bold text-blue-600">{it.quantity || 0}</span>
+                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                </td>
+                                {selectedDistribution.items?.some(item => item.approvedQuantity) && (
+                                  <td className="py-3 px-3 text-center">
+                                    {it.approvedQuantity ? (
+                                      <>
+                                        <span className="font-bold text-green-600">{it.approvedQuantity}</span>
+                                        <span className="text-xs text-gray-500 ml-1">xe</span>
+                                        {it.quantity && it.approvedQuantity < it.quantity && (
+                                          <div className="text-xs text-orange-600 mt-0.5">
+                                            Thiếu: {it.quantity - it.approvedQuantity}
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                )}
+                                {selectedDistribution.items?.some(item => item.receivedQuantity) && (
+                                  <td className="py-3 px-3 text-center">
+                                    {it.receivedQuantity ? (
+                                      <>
+                                        <span className="font-bold text-purple-600">{it.receivedQuantity}</span>
+                                        <span className="text-xs text-gray-500 ml-1">xe</span>
+                                      </>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t-2 border-green-300/50 bg-green-100/50 dark:bg-green-900/30">
+                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-3 px-3 text-sm font-bold text-green-800 dark:text-green-200">
+                                Tổng cộng
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className="font-bold text-blue-600 text-base">
+                                  {selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)}
+                                </span>
+                                <span className="text-xs text-gray-500 ml-1">xe</span>
+                              </td>
+                              {selectedDistribution.items?.some(it => it.approvedQuantity) && (
+                                <td className="py-3 px-3 text-center">
+                                  <span className="font-bold text-green-600 text-base">
+                                    {selectedDistribution.items.reduce((s, it) => s + (it.approvedQuantity || 0), 0)}
+                                  </span>
+                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                </td>
+                              )}
+                              {selectedDistribution.items?.some(it => it.receivedQuantity) && (
+                                <td className="py-3 px-3 text-center">
+                                  <span className="font-bold text-purple-600 text-base">
+                                    {selectedDistribution.items.reduce((s, it) => s + (it.receivedQuantity || 0), 0)}
+                                  </span>
+                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                </td>
+                              )}
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Information */}
+                  {selectedDistribution.paidAmount && selectedDistribution.paidAmount > 0 && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-emerald-50/80 to-teal-50/80 dark:from-emerald-950/80 dark:to-teal-950/80 p-5 rounded-xl border-2 border-emerald-300/50">
+                      <div className="flex items-center gap-2 mb-4">
+                        <DollarSign className="h-5 w-5 text-emerald-600" />
+                        <Label className="text-base font-bold text-emerald-800 dark:text-emerald-200">Thông tin thanh toán</Label>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">💰 Số tiền đã chuyển</p>
+                          <p className="text-lg font-bold text-emerald-600">
+                            {selectedDistribution.paidAmount.toLocaleString('vi-VN')} VND
                           </p>
                         </div>
+                        {selectedDistribution.transactionNo && (
+                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">🔖 Mã giao dịch</p>
+                            <p className="text-sm font-mono font-semibold text-gray-800 dark:text-gray-200">
+                              {selectedDistribution.transactionNo}
+                            </p>
+                          </div>
+                        )}
+                        {selectedDistribution.paidAt && (
+                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">⏰ Thời gian thanh toán</p>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                              {new Date(selectedDistribution.paidAt).toLocaleDateString('vi-VN')}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {new Date(selectedDistribution.paidAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Messages Section - Combined */}
+                  {(selectedDistribution.invitationMessage || selectedDistribution.dealerNotes || selectedDistribution.evmNotes) && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-yellow-50/80 dark:from-amber-950/80 dark:to-yellow-950/80 p-5 rounded-xl border border-amber-200/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <MessageSquare className="h-5 w-5 text-amber-600" />
+                        <Label className="text-base font-bold text-amber-800 dark:text-amber-200">Ghi chú & Tin nhắn</Label>
+                      </div>
+                      <div className="space-y-3">
+                        {selectedDistribution.invitationMessage && (
+                          <div className="bg-blue-50/50 dark:bg-blue-900/20 p-3 rounded-lg border-l-4 border-blue-400">
+                            <Label className="text-xs text-blue-700 dark:text-blue-300 font-semibold">📨 Lời mời từ EVM</Label>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">{selectedDistribution.invitationMessage}</p>
+                          </div>
+                        )}
+                        {selectedDistribution.dealerNotes && (
+                          <div className="bg-green-50/50 dark:bg-green-900/20 p-3 rounded-lg border-l-4 border-green-400">
+                            <Label className="text-xs text-green-700 dark:text-green-300 font-semibold">💼 Ghi chú từ Dealer</Label>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">{selectedDistribution.dealerNotes}</p>
+                          </div>
+                        )}
+                        {selectedDistribution.evmNotes && (
+                          <div className="bg-purple-50/50 dark:bg-purple-900/20 p-3 rounded-lg border-l-4 border-purple-400">
+                            <Label className="text-xs text-purple-700 dark:text-purple-300 font-semibold">🏢 Ghi chú từ EVM</Label>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap font-mono text-xs">{selectedDistribution.evmNotes}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
                   
-                  {/* EVM Notes */}
-                  {selectedDistribution.evmNotes && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-teal-400/10 to-cyan-400/10 p-4 rounded-xl border border-teal-200/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <MessageSquare className="h-4 w-4 text-teal-600" />
-                        <Label className="text-sm font-semibold text-teal-700 dark:text-teal-300">Ghi chú của EVM</Label>
+                  {/* Shortage Summary Section - Table Style */}
+                  {selectedDistribution.items && selectedDistribution.items.some(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity) && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/90 to-emerald-50/90 dark:from-green-950/90 dark:to-emerald-950/90 p-5 rounded-xl border-2 border-green-300/50 shadow-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-5 w-5 text-green-600" />
+                          <Label className="text-lg font-bold text-green-800 dark:text-green-200">
+                            📋 Danh sách sản phẩm
+                          </Label>
+                        </div>
+                        <Badge className="bg-green-600 text-white px-3 py-1">
+                          {selectedDistribution.items?.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity).length} loại xe
+                        </Badge>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{selectedDistribution.evmNotes}</p>
+                      
+                      <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl border border-green-200/50 overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-green-100/80 dark:bg-green-900/40">
+                            <tr className="border-b-2 border-green-300/50">
+                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">#</th>
+                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Sản phẩm</th>
+                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Màu sắc</th>
+                              <th className="text-center py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Yêu cầu</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedDistribution.items
+                              ?.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
+                              .map((it, idx) => {
+                                const shortage = (it.quantity || 0) - (it.approvedQuantity || 0);
+                                return (
+                                  <tr 
+                                    key={idx} 
+                                    className="border-b border-green-200/30 hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-colors"
+                                  >
+                                    <td className="py-4 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
+                                      {idx + 1}
+                                    </td>
+                                    <td className="py-4 px-4">
+                                      <div className="font-semibold text-base text-gray-900 dark:text-white">
+                                        {it.product?.name || it.category?.name || 'Sản phẩm'}
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-4">
+                                      {it.color && (
+                                        <div className="flex items-center gap-2">
+                                          <div 
+                                            className="w-4 h-4 rounded-full border-2 border-gray-300"
+                                            style={{ 
+                                              backgroundColor: it.color === 'Đỏ' ? '#ef4444' : 
+                                                             it.color === 'Xanh dương' || it.color === 'Xanh duong' ? '#3b82f6' :
+                                                             it.color === 'Đen' ? '#000000' :
+                                                             it.color === 'Trắng' ? '#ffffff' :
+                                                             it.color === 'Xám' ? '#6b7280' : '#9ca3af'
+                                            }}
+                                          ></div>
+                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            {it.color}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="py-4 px-4 text-center">
+                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-full">
+                                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                          {shortage}
+                                        </span>
+                                        <span className="text-xs text-blue-600 dark:text-blue-400">xe</span>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                          <tfoot className="bg-green-100/80 dark:bg-green-900/40">
+                            <tr className="border-t-2 border-green-300/50">
+                              <td colSpan={3} className="py-3 px-4 text-base font-bold text-green-900 dark:text-green-100">
+                                Tổng cộng
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="inline-flex items-center gap-1 px-4 py-1.5 bg-green-600 text-white rounded-full">
+                                  <span className="text-xl font-bold">
+                                    {selectedDistribution.items
+                                      ?.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
+                                      .reduce((sum, it) => sum + ((it.quantity || 0) - (it.approvedQuantity || 0)), 0)
+                                    }
+                                  </span>
+                                  <span className="text-sm">xe</span>
+                                </span>
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
                     </div>
                   )}
                   
-                  {/* Products List */}
+                  {/* Products List - Enhanced */}
                   {selectedDistribution.products && selectedDistribution.products.length > 0 && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-pink-400/10 to-rose-400/10 p-4 rounded-xl border border-pink-200/30">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Car className="h-4 w-4 text-pink-600" />
-                        <Label className="text-sm font-semibold text-pink-700 dark:text-pink-300">
-                          Sản phẩm phân phối ({selectedDistribution.products.length})
-                        </Label>
+                    <div className="backdrop-blur-md bg-gradient-to-br from-pink-50/80 to-rose-50/80 dark:from-pink-950/80 dark:to-rose-950/80 p-5 rounded-xl border border-pink-200/30">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Car className="h-5 w-5 text-pink-600" />
+                          <Label className="text-base font-bold text-pink-800 dark:text-pink-200">Sản phẩm phân phối</Label>
+                        </div>
+                        <Badge variant="outline" className="text-pink-700 border-pink-400">
+                          {selectedDistribution.products.length} xe
+                        </Badge>
                       </div>
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {selectedDistribution.products.map((product, idx) => (
-                          <div key={idx} className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 p-3 rounded-lg border border-pink-200/30 hover:shadow-md transition-shadow">
-                            <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              <span>🔢 VIN: {product.vinNum}</span> • <span>⚙️ Engine: {product.engineNum}</span>
+                          <div key={idx} className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg border border-pink-200/40 hover:shadow-lg hover:border-pink-300 transition-all">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="font-bold text-gray-900 dark:text-white">{product.name}</div>
+                              <Badge className="bg-pink-500 text-white text-xs">{idx + 1}</Badge>
                             </div>
-                            <div className="text-sm font-semibold text-pink-600 mt-1">
-                              💰 {product.price?.toLocaleString('vi-VN')}đ
+                            <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              {product.vinNum && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-pink-600">VIN:</span>
+                                  <span className="font-mono text-xs">{product.vinNum}</span>
+                                </div>
+                              )}
+                              {product.engineNum && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-pink-600">Engine:</span>
+                                  <span className="font-mono text-xs">{product.engineNum}</span>
+                                </div>
+                              )}
+                              {product.price && (
+                                <div className="flex items-center gap-2 pt-1 border-t border-pink-100">
+                                  <span className="text-xs font-semibold text-pink-600">Giá:</span>
+                                  <span className="font-bold text-pink-600">{product.price.toLocaleString('vi-VN')} VND</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1479,17 +2144,69 @@ export default function EvmDistributionsPage() {
                     </div>
                   )}
                   
-                  {selectedDistribution.estimatedDeliveryDate && (
+                  {/* Supplementary/Parent Relationship */}
+                  {(selectedDistribution.isSupplementary || selectedDistribution.parentDistributionId) && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-orange-50/80 to-amber-50/80 dark:from-orange-950/80 dark:to-amber-950/80 p-5 rounded-xl border-2 border-orange-300/50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                        <Label className="text-base font-bold text-orange-800 dark:text-orange-200">
+                          ⚠️ Đơn hàng bổ sung
+                        </Label>
+                      </div>
+                      <div className="bg-orange-100/50 dark:bg-orange-900/20 p-4 rounded-lg">
+                        <p className="text-sm text-orange-800 dark:text-orange-200 mb-2">
+                          Đây là đơn hàng bổ sung cho đơn phân phối gốc:
+                        </p>
+                        {selectedDistribution.parentDistributionId && (
+                          <div className="flex items-center gap-3">
+                            <Badge className="bg-orange-500 text-white text-sm">
+                              Mã đơn gốc: #{selectedDistribution.parentDistributionId}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-orange-600 border-orange-400 hover:bg-orange-100"
+                              onClick={async () => {
+                                const parentDist = distributions.find(d => d.id === selectedDistribution.parentDistributionId);
+                                if (parentDist) {
+                                  setSelectedDistribution(parentDist);
+                                } else {
+                                  toast({
+                                    title: "Không tìm thấy đơn gốc",
+                                    description: "Đơn phân phối gốc không có trong danh sách hiện tại.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              Xem đơn gốc →
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedDistribution.estimatedDeliveryDate && !selectedDistribution.actualDeliveryDate && (
                     <div className="backdrop-blur-md bg-gradient-to-br from-purple-400/10 to-violet-400/10 p-4 rounded-xl border border-purple-200/30">
                       <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="h-4 w-4 text-purple-600" />
+                        <TruckIcon className="h-4 w-4 text-purple-600" />
                         <Label className="text-xs text-purple-700 dark:text-purple-300 font-semibold uppercase">Ngày giao dự kiến</Label>
                       </div>
                       <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                         {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
                       </p>
-                      <p className="text-xs text-purple-600 mt-1">
-                        {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN', { weekday: 'long' })}
+                    </div>
+                  )}
+                  
+                  {selectedDistribution.actualDeliveryDate && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-4 rounded-xl border border-green-200/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <Label className="text-xs text-green-700 dark:text-green-300 font-semibold uppercase">Đã giao thành công</Label>
+                      </div>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {new Date(selectedDistribution.actualDeliveryDate).toLocaleDateString('vi-VN')}
                       </p>
                     </div>
                   )}
@@ -1505,7 +2222,7 @@ export default function EvmDistributionsPage() {
           
           {/* Dialog xác nhận tạo đơn bổ sung */}
           <Dialog open={isSupplementaryConfirmOpen} onOpenChange={setIsSupplementaryConfirmOpen}>
-            <DialogContent className="max-w-md backdrop-blur-xl bg-gradient-to-br from-white/95 via-orange-50/90 to-amber-50/95 dark:from-gray-900/95 dark:via-orange-900/30 dark:to-amber-900/30 border-2 border-orange-200/50 shadow-2xl">
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-white/95 via-orange-50/90 to-amber-50/95 dark:from-gray-900/95 dark:via-orange-900/30 dark:to-amber-900/30 border-2 border-orange-200/50 shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-3 text-2xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
                   <div className="p-2 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 shadow-lg">
@@ -1513,9 +2230,13 @@ export default function EvmDistributionsPage() {
                   </div>
                   Xác nhận tạo đơn bổ sung
                 </DialogTitle>
+                <DialogDescription className="text-gray-600 dark:text-gray-300">
+                  Tạo đơn phân phối bổ sung cho số lượng xe còn thiếu
+                </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-4 py-4">
+                {/* Header Info */}
                 <div className="backdrop-blur-md bg-gradient-to-br from-blue-400/10 to-blue-500/10 p-4 rounded-xl border border-blue-200/30">
                   <div className="flex items-center gap-2 mb-2">
                     <FileText className="h-4 w-4 text-blue-600" />
@@ -1524,34 +2245,135 @@ export default function EvmDistributionsPage() {
                   <div className="text-xl font-mono font-bold text-blue-600">
                     {supplementaryConfirmData.parentCode}
                   </div>
+                  <div className="text-sm text-blue-600 mt-1">
+                    Dealer: {supplementaryConfirmData.parentDist ? getDealerName(supplementaryConfirmData.parentDist) : 'N/A'}
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-3 rounded-xl border border-green-200/30">
-                    <div className="text-xs font-semibold text-green-700 mb-1">Yêu cầu</div>
-                    <div className="text-2xl font-bold text-green-600">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="backdrop-blur-md bg-gradient-to-br from-blue-400/10 to-cyan-400/10 p-3 rounded-xl border border-blue-200/30">
+                    <div className="text-xs font-semibold text-blue-700 mb-1">Yêu cầu ban đầu</div>
+                    <div className="text-2xl font-bold text-blue-600">
                       {supplementaryConfirmData.requested} <span className="text-sm">xe</span>
                     </div>
                   </div>
                   
-                  <div className="backdrop-blur-md bg-gradient-to-br from-blue-400/10 to-cyan-400/10 p-3 rounded-xl border border-blue-200/30">
-                    <div className="text-xs font-semibold text-blue-700 mb-1">Đã duyệt</div>
-                    <div className="text-2xl font-bold text-blue-600">
+                  <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-3 rounded-xl border border-green-200/30">
+                    <div className="text-xs font-semibold text-green-700 mb-1">Đã duyệt lần 1</div>
+                    <div className="text-2xl font-bold text-green-600">
                       {supplementaryConfirmData.approved} <span className="text-sm">xe</span>
                     </div>
                   </div>
-                </div>
-                
-                <div className="backdrop-blur-md bg-gradient-to-br from-orange-400/20 to-amber-400/20 p-4 rounded-xl border-2 border-orange-300/50 shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-full bg-gradient-to-br from-orange-500 to-amber-500">
-                        <AlertCircle className="h-4 w-4 text-white" />
-                      </div>
-                      <span className="text-sm font-semibold text-orange-800">Số lượng bổ sung</span>
+                  
+                  <div className="backdrop-blur-md bg-gradient-to-br from-orange-400/20 to-amber-400/20 p-3 rounded-xl border-2 border-orange-300/50 shadow-lg">
+                    <div className="text-xs font-semibold text-orange-800 mb-1">Số lượng bổ sung</div>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {supplementaryConfirmData.shortage} <span className="text-sm">xe</span>
                     </div>
-                    <div className="text-3xl font-black text-orange-600">
-                      {supplementaryConfirmData.shortage} <span className="text-lg">xe</span>
+                  </div>
+                </div>
+
+                {/* Detailed Shortage Items - Table Style */}
+                {supplementaryConfirmData.shortageItems && supplementaryConfirmData.shortageItems.length > 0 && (
+                  <div className="backdrop-blur-md bg-gradient-to-br from-green-50/90 to-emerald-50/90 dark:from-green-950/90 dark:to-emerald-950/90 p-5 rounded-xl border-2 border-green-300/50 shadow-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-5 w-5 text-green-600" />
+                        <Label className="text-lg font-bold text-green-800 dark:text-green-200">
+                          📋 Danh sách sản phẩm
+                        </Label>
+                      </div>
+                      <Badge className="bg-green-600 text-white px-3 py-1">
+                        {supplementaryConfirmData.shortageItems.length} loại xe
+                      </Badge>
+                    </div>
+                    
+                    <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl border border-green-200/50 overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-green-100/80 dark:bg-green-900/40">
+                          <tr className="border-b-2 border-green-300/50">
+                            <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">#</th>
+                            <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Sản phẩm</th>
+                            <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Màu sắc</th>
+                            <th className="text-center py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Yêu cầu</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {supplementaryConfirmData.shortageItems.map((item, idx) => (
+                            <tr 
+                              key={idx} 
+                              className="border-b border-green-200/30 hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-colors"
+                            >
+                              <td className="py-4 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
+                                {idx + 1}
+                              </td>
+                              <td className="py-4 px-4">
+                                <div className="font-semibold text-base text-gray-900 dark:text-white">
+                                  {item.name}
+                                </div>
+                              </td>
+                              <td className="py-4 px-4">
+                                {item.color && (
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-4 h-4 rounded-full border-2 border-gray-300"
+                                      style={{ 
+                                        backgroundColor: item.color === 'Đỏ' ? '#ef4444' : 
+                                                       item.color === 'Xanh dương' || item.color === 'Xanh duong' ? '#3b82f6' :
+                                                       item.color === 'Đen' ? '#000000' :
+                                                       item.color === 'Trắng' ? '#ffffff' :
+                                                       item.color === 'Xám' ? '#6b7280' : '#9ca3af'
+                                      }}
+                                    ></div>
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      {item.color}
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-4 px-4 text-center">
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-full">
+                                  <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                    {item.shortage}
+                                  </span>
+                                  <span className="text-xs text-blue-600 dark:text-blue-400">xe</span>
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-green-100/80 dark:bg-green-900/40">
+                          <tr className="border-t-2 border-green-300/50">
+                            <td colSpan={3} className="py-3 px-4 text-base font-bold text-green-900 dark:text-green-100">
+                              Tổng cộng
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center gap-1 px-4 py-1.5 bg-green-600 text-white rounded-full">
+                                <span className="text-xl font-bold">
+                                  {supplementaryConfirmData.shortageItems.reduce((sum, item) => sum + item.shortage, 0)}
+                                </span>
+                                <span className="text-sm">xe</span>
+                              </span>
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Info Notice */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-blue-50/70 to-cyan-50/70 dark:from-blue-950/70 dark:to-cyan-950/70 p-4 rounded-xl border border-blue-300/50">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-800 dark:text-blue-200">
+                      <p className="font-semibold mb-1">ℹ️ Lưu ý:</p>
+                      <ul className="list-disc list-inside space-y-1 text-xs">
+                        <li>Đơn bổ sung sẽ được tạo với số lượng còn thiếu từ đơn gốc</li>
+                        <li>Dealer sẽ nhận được thông báo về đơn bổ sung</li>
+                        <li>Đơn bổ sung sẽ tham chiếu đến đơn gốc <span className="font-mono font-semibold">{supplementaryConfirmData.parentCode}</span></li>
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -1571,7 +2393,7 @@ export default function EvmDistributionsPage() {
                   className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
                   <Check className="h-4 w-4 mr-2" />
-                  Xác nhận tạo
+                  Xác nhận tạo đơn bổ sung
                 </Button>
               </DialogFooter>
             </DialogContent>

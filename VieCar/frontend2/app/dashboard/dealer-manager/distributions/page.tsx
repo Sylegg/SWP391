@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth-guards';
 import DealerManagerLayout from '@/components/layout/dealer-manager-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import vnpayApi from '@/lib/vnpayApi';
 import {
   Package,
   CheckCircle2,
@@ -27,6 +29,11 @@ import {
   Trash2,
   Plus,
   Eye,
+  Car,
+  TrendingUp,
+  CheckCircle,
+  CreditCard,
+  DollarSign,
 } from 'lucide-react';
 import {
   getDistributionsByDealer,
@@ -50,6 +57,7 @@ import {
 export default function DealerDistributionsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [distributions, setDistributions] = useState<DistributionRes[]>([]);
   const [products, setProducts] = useState<ProductRes[]>([]);
@@ -64,6 +72,7 @@ export default function DealerDistributionsPage() {
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
+  const [isPaymentConfirmDialogOpen, setIsPaymentConfirmDialogOpen] = useState(false);
   const [isNewRequestDialogOpen, setIsNewRequestDialogOpen] = useState(false);
   
   // Form states
@@ -91,7 +100,7 @@ export default function DealerDistributionsPage() {
     receivedQuantity: 0,
   });
   const [receivedItems, setReceivedItems] = useState<
-    { id: number; name?: string; color?: string; ordered: number; received: number }[]
+    { id: number; name?: string; color?: string; ordered: number; received: number; price?: number }[]
   >([]);
   // Ngày nhập kho của đại lý (chọn khi xác nhận nhận hàng)
   const [receiptDate, setReceiptDate] = useState<string>('');
@@ -119,6 +128,7 @@ export default function DealerDistributionsPage() {
         title: '⚠️ Lỗi',
         description: 'Không tìm thấy thông tin đại lý',
         variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -159,6 +169,7 @@ export default function DealerDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể tải dữ liệu',
         variant: 'destructive',
+        duration: 3000,
       });
     } finally {
       setLoading(false);
@@ -184,6 +195,7 @@ export default function DealerDistributionsPage() {
         description: respondForm.accepted 
           ? 'Tạo đơn nhập hàng ngay'
           : 'Đã từ chối lời mời phân phối',
+        duration: 3000,
       });
       
       // If accepted, open order dialog immediately
@@ -200,6 +212,7 @@ export default function DealerDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể phản hồi',
         variant: 'destructive',
+        duration: 3000,
       });
     }
   };
@@ -211,6 +224,7 @@ export default function DealerDistributionsPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Không xác định được phân phối',
         variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -225,9 +239,66 @@ export default function DealerDistributionsPage() {
           title: '❌ Lỗi',
           description: err?.message || 'Không thể chấp nhận lời mời',
           variant: 'destructive',
+          duration: 3000,
         });
         return;
       }
+    }
+
+    // Validate all items have required fields (category, color, quantity)
+    const invalidItems = orderItems.filter((it, idx) => {
+      if (!it.categoryId) return true;
+      if (!it.color || it.color.trim() === '') return true;
+      if (!it.quantity || it.quantity <= 0) return true;
+      return false;
+    });
+
+    if (invalidItems.length > 0) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng chọn đầy đủ danh mục, màu sắc và số lượng cho tất cả các dòng',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate requested delivery date
+    if (!orderRequestedDeliveryDate) {
+      toast({
+        title: '⚠️ Thiếu ngày giao hàng',
+        description: 'Vui lòng chọn ngày giao hàng mong muốn',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Check if date is within 30 days
+    const selectedDate = new Date(orderRequestedDeliveryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDate = new Date(today);
+    maxDate.setDate(maxDate.getDate() + 30);
+
+    if (selectedDate < today) {
+      toast({
+        title: '⚠️ Ngày không hợp lệ',
+        description: 'Ngày giao hàng không thể là ngày trong quá khứ',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (selectedDate > maxDate) {
+      toast({
+        title: '⚠️ Ngày vượt quá giới hạn',
+        description: 'Ngày giao hàng phải trong vòng 30 ngày kể từ hôm nay',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
     }
 
     // ✅ SIMPLIFIED: Gửi trực tiếp categoryId cho backend, không cần resolve productId
@@ -238,6 +309,7 @@ export default function DealerDistributionsPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Vui lòng thêm ít nhất 1 dòng danh mục hợp lệ',
         variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -263,6 +335,7 @@ export default function DealerDistributionsPage() {
       toast({
         title: '✅ Gửi đơn thành công',
         description: 'Đơn nhập hàng đã được gửi đến EVM để duyệt',
+        duration: 3000,
       });
       setIsOrderDialogOpen(false);
       resetOrderForm();
@@ -272,6 +345,7 @@ export default function DealerDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể gửi đơn',
         variant: 'destructive',
+        duration: 3000,
       });
     }
     finally {
@@ -286,6 +360,25 @@ export default function DealerDistributionsPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Không tìm thấy thông tin đại lý',
         variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate all items have required fields
+    const invalidItems = newRequestItems.filter((it, idx) => {
+      if (!it.categoryId) return true;
+      if (!it.color || it.color.trim() === '') return true;
+      if (!it.quantity || it.quantity <= 0) return true;
+      return false;
+    });
+
+    if (invalidItems.length > 0) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng chọn đầy đủ danh mục, màu sắc và số lượng cho tất cả các dòng',
+        variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -297,6 +390,45 @@ export default function DealerDistributionsPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Vui lòng thêm ít nhất 1 dòng danh mục hợp lệ',
         variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate requested delivery date
+    if (!newRequestDeliveryDate) {
+      toast({
+        title: '⚠️ Thiếu ngày giao hàng',
+        description: 'Vui lòng chọn ngày giao hàng mong muốn',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Check if date is within 30 days
+    const selectedDate = new Date(newRequestDeliveryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDate = new Date(today);
+    maxDate.setDate(maxDate.getDate() + 30);
+
+    if (selectedDate < today) {
+      toast({
+        title: '⚠️ Ngày không hợp lệ',
+        description: 'Ngày giao hàng không thể là ngày trong quá khứ',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (selectedDate > maxDate) {
+      toast({
+        title: '⚠️ Ngày vượt quá giới hạn',
+        description: 'Ngày giao hàng phải trong vòng 30 ngày kể từ hôm nay',
+        variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -322,6 +454,7 @@ export default function DealerDistributionsPage() {
       toast({
         title: '✅ Tạo yêu cầu thành công',
         description: 'Yêu cầu phân phối đã được gửi đến EVM để duyệt',
+        duration: 3000,
       });
       setIsNewRequestDialogOpen(false);
       resetNewRequestForm();
@@ -331,6 +464,7 @@ export default function DealerDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể tạo yêu cầu',
         variant: 'destructive',
+        duration: 3000,
       });
     } finally {
       setIsSubmittingOrder(false);
@@ -344,6 +478,7 @@ export default function DealerDistributionsPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Không xác định được phân phối',
         variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -362,7 +497,8 @@ export default function DealerDistributionsPage() {
       toast({ 
         title: '⚠️ Không có dữ liệu', 
         description: 'Không tìm thấy thông tin số lượng đã giao', 
-        variant: 'destructive' 
+        variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -412,6 +548,57 @@ export default function DealerDistributionsPage() {
         title: '❌ Lỗi',
         description: error.message || 'Không thể xác nhận',
         variant: 'destructive',
+        duration: 3000,
+      });
+    }
+  };
+
+  // Handler: Xác nhận nhận hàng (sau khi thanh toán thành công)
+  const handleConfirmReceivedAfterPayment = async () => {
+    if (!selectedDistribution) return;
+
+    try {
+      const totalReceived = receivedItems.reduce((sum, item) => sum + (item.received || 0), 0);
+      const confirmMessage = `Xác nhận nhận ${totalReceived} xe cho phân phối ${selectedDistribution.code || selectedDistribution.id}`;
+
+      const actualDeliveryDate =
+        receiptDate ||
+        (() => {
+          const today = new Date();
+          const yyyy = today.getFullYear();
+          const mm = String(today.getMonth() + 1).padStart(2, '0');
+          const dd = String(today.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}T00:00:00`;
+        })();
+
+      const requestData = {
+        receivedQuantity: totalReceived,
+        actualDeliveryDate,
+        items: receivedItems.length > 0
+          ? receivedItems
+              .filter((it) => (Number(it.received) || 0) > 0)
+              .map((it) => ({ 
+                distributionItemId: it.id, 
+                receivedQuantity: Number(it.received) || 0
+              }))
+          : undefined,
+      };
+      
+      await confirmDistributionReceived(selectedDistribution.id, requestData);
+      toast({
+        title: '✅ Xác nhận thành công',
+        description: confirmMessage,
+        duration: 3000,
+      });
+      setIsCompleteDialogOpen(false);
+      resetCompleteForm();
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: '❌ Lỗi',
+        description: error.message || 'Không thể xác nhận',
+        variant: 'destructive',
+        duration: 3000,
       });
     }
   };
@@ -447,6 +634,7 @@ export default function DealerDistributionsPage() {
         toast({
           title: '✅ Đã chấp nhận',
           description: 'Tạo đơn nhập hàng ngay',
+          duration: 3000,
         });
         // Update selected distribution to ACCEPTED locally
         setSelectedDistribution({ ...distribution, status: DistributionStatus.ACCEPTED });
@@ -457,6 +645,7 @@ export default function DealerDistributionsPage() {
           title: '❌ Lỗi',
           description: error.message || 'Không thể chấp nhận',
           variant: 'destructive',
+          duration: 3000,
         });
       }
     } else {
@@ -480,13 +669,18 @@ export default function DealerDistributionsPage() {
     // Build per-item list if available; default received = ordered
     if (distribution.items && distribution.items.length > 0) {
       const list = distribution.items.map((it) => {
-        console.log(`   Item ${it.id}: quantity=${it.quantity}, product=${it.product?.name}, color=${it.color}`);
+        console.log(`   Item ${it.id}: quantity=${it.quantity}, dealerPrice=${it.dealerPrice}, product=${it.product?.name}, color=${it.color}`);
+        // Get product or category name and remove numbering like (1), (2), etc.
+        const rawName = it.product?.name || it.category?.name;
+        const cleanName = rawName ? rawName.replace(/\s*\(\d+\)\s*$/, '') : undefined;
+        
         return {
           id: it.id,
-          name: it.product?.name,
+          name: cleanName,
           color: it.color,
           ordered: it.quantity || 0, // Số lượng EVM đã duyệt (đã được cập nhật trong approveOrder)
           received: it.quantity || 0, // Mặc định = số đã duyệt
+          price: it.dealerPrice || 0, // Giá hãng bán cho dealer
         };
       });
       console.log('📋 Received items list:', list);
@@ -519,21 +713,81 @@ export default function DealerDistributionsPage() {
 
   const handleRespondToPrice = async (accepted: boolean) => {
     if (!selectedDistribution) return;
+    
+    if (!accepted) {
+      // Từ chối giá - xử lý trực tiếp
+      try {
+        const notes = 'Từ chối do không đủ số lượng yêu cầu';
+        await respondToManufacturerPrice(selectedDistribution.id, accepted, notes);
+        
+        toast({
+          title: '❌ Đã từ chối',
+          description: 'Đã từ chối do không đủ số lượng - Đơn hàng bị hủy',
+          duration: 3000,
+        });
+        setIsPriceDialogOpen(false);
+        loadData();
+      } catch (error: any) {
+        toast({
+          title: '❌ Lỗi',
+          description: error.message || 'Không thể phản hồi giá',
+          variant: 'destructive',
+          duration: 3000,
+        });
+      }
+      return;
+    }
+    
+    // Chấp nhận giá - hiển thị dialog xác nhận thanh toán
+    setIsPriceDialogOpen(false);
+    setIsPaymentConfirmDialogOpen(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedDistribution) return;
+    
     try {
-      const notes = accepted ? 'Đồng ý với giá hãng và số lượng đã duyệt' : 'Không đồng ý với giá hãng';
-      await respondToManufacturerPrice(selectedDistribution.id, accepted, notes);
+      // Bước 1: Chấp nhận giá để chuyển trạng thái sang PRICE_ACCEPTED
+      // Backend sẽ chuyển PRICE_ACCEPTED -> CONFIRMED sau khi thanh toán VNPay thành công
+      const notes = 'Đồng ý với giá hãng và số lượng đã duyệt';
+      await respondToManufacturerPrice(selectedDistribution.id, true, notes);
+      
+      // Tính tổng tiền cần thanh toán
+      const totalAmount = selectedDistribution.items?.reduce((sum, item) => {
+        const itemTotal = (item.quantity || 0) * (item.dealerPrice || 0);
+        return sum + itemTotal;
+      }, 0) || 0;
+
       toast({
-        title: accepted ? '✅ Đã chấp nhận giá' : '❌ Đã từ chối giá',
-        description: accepted ? 'EVM Staff sẽ lên kế hoạch giao hàng' : 'Đơn hàng đã bị hủy',
+        title: '🔄 Đang xử lý',
+        description: 'Đang chuyển đến thanh toán VNPay...',
+        duration: 2000,
       });
-      setIsPriceDialogOpen(false);
-      loadData();
+
+      setIsPaymentConfirmDialogOpen(false);
+
+      // Bước 2: Chuyển đến VNPay để thanh toán
+      // Sau khi thanh toán thành công, backend sẽ tự động chuyển PRICE_ACCEPTED -> CONFIRMED
+      const vnpayResponse = await vnpayApi.createDistributionPayment(
+        selectedDistribution.id,
+        totalAmount
+      );
+
+      // Chuyển hướng đến trang thanh toán VNPay
+      if (vnpayResponse.url) {
+        window.location.href = vnpayResponse.url;
+      } else {
+        throw new Error('Không nhận được URL thanh toán từ VNPay');
+      }
     } catch (error: any) {
+      console.error('Payment error:', error);
       toast({
-        title: '❌ Lỗi',
-        description: error.message || 'Không thể phản hồi giá',
+        title: '⚠️ Lỗi thanh toán',
+        description: error.message || 'Không thể tạo link thanh toán VNPay. Vui lòng thử lại.',
         variant: 'destructive',
+        duration: 5000,
       });
+      loadData();
     }
   };
 
@@ -781,26 +1035,15 @@ export default function DealerDistributionsPage() {
                         
                         {/* Status PRICE_SENT: EVM gửi giá hãng, chờ dealer phản hồi */}
                         {dist.status === DistributionStatus.PRICE_SENT && (
-                          <>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => openPriceDialog(dist)}
-                              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 hover:scale-105 transition-all duration-300"
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Xem giá & Chấp nhận
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => openPriceDialog(dist)}
-                              className="hover:scale-105 transition-all duration-300"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Từ chối giá
-                            </Button>
-                          </>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => openPriceDialog(dist)}
+                            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 hover:scale-105 transition-all duration-300"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1" />
+                            Xem giá & Chấp nhận
+                          </Button>
                         )}
                         
                         {/* Step 6: Confirm received button for PLANNED status */}
@@ -878,7 +1121,13 @@ export default function DealerDistributionsPage() {
                 <div className="space-y-2">
                   <Label>Chi tiết đơn hàng</Label>
                   <div className="space-y-3">
-                    {orderItems.map((item, idx) => (
+                    {orderItems.map((item, idx) => {
+                      // Get colors already selected for this category
+                      const selectedColorsForCategory = orderItems
+                        .filter((it, i) => i !== idx && it.categoryId === item.categoryId && it.color)
+                        .map(it => it.color);
+                      
+                      return (
                       <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border rounded-md p-3">
                         <div className="md:col-span-6">
                           <Label className="text-sm">Danh mục</Label>
@@ -887,6 +1136,8 @@ export default function DealerDistributionsPage() {
                             onValueChange={(value) => {
                               const next = [...orderItems];
                               next[idx].categoryId = parseInt(value);
+                              // Reset color when category changes
+                              next[idx].color = undefined;
                               setOrderItems(next);
                             }}
                           >
@@ -916,14 +1167,25 @@ export default function DealerDistributionsPage() {
                               next[idx].color = value;
                               setOrderItems(next);
                             }}
+                            disabled={!item.categoryId}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Màu" />
+                              <SelectValue placeholder={item.categoryId ? "Màu" : "Chọn danh mục trước"} />
                             </SelectTrigger>
                             <SelectContent>
-                              {COLOR_OPTIONS.map((c) => (
-                                <SelectItem key={c} value={c}>{c}</SelectItem>
-                              ))}
+                              {COLOR_OPTIONS.map((c) => {
+                                const isAlreadySelected = selectedColorsForCategory.includes(c);
+                                return (
+                                  <SelectItem 
+                                    key={c} 
+                                    value={c}
+                                    disabled={isAlreadySelected}
+                                    className={isAlreadySelected ? "opacity-50 cursor-not-allowed" : ""}
+                                  >
+                                    {c} {isAlreadySelected ? "(Đã chọn)" : ""}
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
@@ -952,7 +1214,7 @@ export default function DealerDistributionsPage() {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    )})}
                     <div>
                       <Button
                         type="button"
@@ -966,13 +1228,17 @@ export default function DealerDistributionsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="requestedDate">Ngày mong muốn nhận hàng</Label>
+                  <Label htmlFor="requestedDate">Ngày mong muốn nhận hàng <span className="text-red-500">*</span></Label>
                   <Input
                     id="requestedDate"
                     type="date"
                     value={orderRequestedDeliveryDate}
                     onChange={(e) => setOrderRequestedDeliveryDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    required
                   />
+                  <p className="text-xs text-muted-foreground">* Bắt buộc chọn ngày trong vòng 30 ngày kể từ hôm nay</p>
                 </div>
 
                 <div className="space-y-2">
@@ -999,95 +1265,178 @@ export default function DealerDistributionsPage() {
 
           {/* Dialog: Confirm Received */}
           <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-            <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+            <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
               <DialogHeader>
-                <DialogTitle>✅ Xác nhận đã nhận hàng</DialogTitle>
-                <DialogDescription>
-                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
+                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                  ✅ Xác nhận đã nhận hàng
+                </DialogTitle>
+                <DialogDescription className="text-base">
+                  Mã phân phối: <span className="font-mono font-semibold text-blue-600">{selectedDistribution?.code || `#${selectedDistribution?.id}`}</span>
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4 overflow-y-auto flex-1">
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
-                  <p className="text-sm text-blue-800">
-                    ℹ️ Số lượng xe đã giao tới từ hãng sẽ được ghi nhận tự động. Bạn chỉ cần xác nhận đã nhận hàng.
-                  </p>
-                  {selectedDistribution?.requestedQuantity && (
-                    <p className="text-xs text-blue-600 mt-2">
-                      📝 Bạn đã yêu cầu: <strong>{selectedDistribution.requestedQuantity}</strong> xe • 
-                      EVM đã duyệt: <strong>
-                        {selectedDistribution.approvedQuantity || receivedItems.reduce((sum, item) => sum + item.ordered, 0) || selectedDistribution.requestedQuantity}
-                      </strong> xe
-                    </p>
-                  )}
+              <div className="space-y-5 py-4 overflow-y-auto flex-1">
+                {/* Thông tin tổng quan */}
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <Package className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-900 mb-2">
+                        📦 Thông tin đơn hàng
+                      </p>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-blue-600">Yêu cầu:</span>
+                          <span className="ml-2 font-bold text-blue-900">{selectedDistribution?.requestedQuantity || 0} xe</span>
+                        </div>
+                        <div>
+                          <span className="text-green-600">EVM duyệt:</span>
+                          <span className="ml-2 font-bold text-green-900">
+                            {selectedDistribution?.approvedQuantity || receivedItems.reduce((sum, item) => sum + item.ordered, 0) || selectedDistribution?.requestedQuantity || 0} xe
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-purple-600">Giao tới:</span>
+                          <span className="ml-2 font-bold text-purple-900">
+                            {receivedItems.reduce((sum, item) => sum + item.received, 0) || selectedDistribution?.requestedQuantity || 0} xe
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {receivedItems.length > 0 && (
+                {/* Chi tiết từng dòng xe */}
+                {receivedItems.length > 0 ? (
                   <div>
-                    <Label className="text-muted-foreground font-semibold">Các xe đã giao tới</Label>
-                    <div className="mt-2 space-y-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-lg font-semibold text-gray-700">Chi tiết xe đã nhận</Label>
+                      <span className="text-sm text-gray-500">{receivedItems.length} dòng xe</span>
+                    </div>
+                    <div className="space-y-3">
                       {receivedItems.map((row, idx) => {
                         const isMatch = row.ordered === row.received;
+                        const totalPrice = (row.price || 0) * row.received;
                         return (
-                          <div key={row.id ?? idx} className={`p-3 border rounded-md ${isMatch ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
-                            <div className="font-medium text-lg">{row.name || 'Sản phẩm'}</div>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {row.color && <span>Màu sắc: <strong>{row.color}</strong></span>}
+                          <div key={row.id ?? idx} className={`p-4 border-2 rounded-xl transition-all ${
+                            isMatch 
+                              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
+                              : 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300'
+                          }`}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <Car className="h-5 w-5 text-gray-600" />
+                                  <div>
+                                    <div className="font-bold text-lg text-gray-900">{row.name || 'Sản phẩm'}</div>
+                                    {row.color && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <div className="w-4 h-4 rounded-full border-2 border-gray-300" style={{ backgroundColor: row.color.toLowerCase() }}></div>
+                                        <span className="text-sm text-gray-600">Màu: <strong>{row.color}</strong></span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              {(row.price ?? 0) > 0 && (
+                                <div className="text-right">
+                                  <div className="text-xs text-gray-500">Giá hãng / xe</div>
+                                  <div className="text-lg font-bold text-blue-600">
+                                    {(row.price ?? 0).toLocaleString()} đ
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            <div className="mt-3 grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <div className="text-xs text-muted-foreground">Số lượng đã duyệt (EVM)</div>
-                                <div className="text-2xl font-bold text-blue-600">{row.ordered} xe</div>
+
+                            <div className="mt-4 grid grid-cols-3 gap-4">
+                              <div className="bg-white/60 p-3 rounded-lg">
+                                <div className="text-xs text-blue-600 font-medium mb-1">EVM duyệt</div>
+                                <div className="text-2xl font-bold text-blue-700">{row.ordered}</div>
+                                <div className="text-xs text-gray-500">xe</div>
                               </div>
-                              <div className="space-y-1">
-                                <div className="text-xs text-muted-foreground">Số lượng giao tới</div>
-                                <div className="text-2xl font-bold text-green-600">{row.received} xe</div>
+                              <div className="bg-white/60 p-3 rounded-lg">
+                                <div className="text-xs text-green-600 font-medium mb-1">Giao tới</div>
+                                <div className="text-2xl font-bold text-green-700">{row.received}</div>
+                                <div className="text-xs text-gray-500">xe</div>
+                              </div>
+                              <div className="bg-white/60 p-3 rounded-lg">
+                                <div className="text-xs text-purple-600 font-medium mb-1">Dealer phải trả</div>
+                                <div className="text-xl font-bold text-purple-700">
+                                  {totalPrice.toLocaleString()}
+                                </div>
+                                <div className="text-xs text-gray-500">đồng</div>
                               </div>
                             </div>
-                            {!isMatch && (
-                              <div className="mt-2 p-2 bg-yellow-100 rounded text-sm text-yellow-800 flex items-center gap-2">
-                                <span>⚠️</span>
-                                <span>Chênh lệch: {row.received - row.ordered > 0 ? '+' : ''}{row.received - row.ordered} xe</span>
+
+                            {!isMatch ? (
+                              <div className="mt-3 p-2.5 bg-yellow-100 border border-yellow-300 rounded-lg flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-yellow-700" />
+                                <span className="text-sm font-medium text-yellow-800">
+                                  Chênh lệch: {row.received - row.ordered > 0 ? '+' : ''}{row.received - row.ordered} xe
+                                </span>
                               </div>
-                            )}
-                            {isMatch && (
-                              <div className="mt-2 p-2 bg-green-100 rounded text-sm text-green-800 flex items-center gap-2">
-                                <span>✅</span>
-                                <span>Khớp đúng số lượng đã đặt</span>
+                            ) : (
+                              <div className="mt-3 p-2.5 bg-green-100 border border-green-300 rounded-lg flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-green-700" />
+                                <span className="text-sm font-medium text-green-800">Khớp đúng số lượng đã đặt</span>
                               </div>
                             )}
                           </div>
                         );
                       })}
                     </div>
-                    <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-gray-200 rounded-md">
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Tổng đã duyệt (EVM)</div>
-                          <div className="text-2xl font-bold text-blue-600">
-                            {receivedItems.reduce((sum, item) => sum + item.ordered, 0)} xe
+
+                    {/* Tổng kết */}
+                    <div className="mt-4 p-5 bg-gradient-to-br from-blue-100 via-green-100 to-purple-100 border-2 border-blue-300 rounded-xl shadow-lg">
+                      <div className="flex items-center gap-2 mb-4">
+                        <TrendingUp className="h-5 w-5 text-blue-600" />
+                        <Label className="text-base font-bold text-gray-800">Tổng kết đơn hàng</Label>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-white/70 p-4 rounded-lg text-center border border-blue-200">
+                          <div className="text-xs text-blue-600 font-medium mb-1">Tổng EVM duyệt</div>
+                          <div className="text-3xl font-bold text-blue-700">
+                            {receivedItems.reduce((sum, item) => sum + item.ordered, 0)}
                           </div>
+                          <div className="text-xs text-gray-500 mt-1">xe</div>
                         </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Tổng giao tới</div>
-                          <div className="text-2xl font-bold text-green-600">
-                            {receivedItems.reduce((sum, item) => sum + item.received, 0)} xe
+                        <div className="bg-white/70 p-4 rounded-lg text-center border border-green-200">
+                          <div className="text-xs text-green-600 font-medium mb-1">Tổng giao tới</div>
+                          <div className="text-3xl font-bold text-green-700">
+                            {receivedItems.reduce((sum, item) => sum + item.received, 0)}
                           </div>
+                          <div className="text-xs text-gray-500 mt-1">xe</div>
+                        </div>
+                        <div className="bg-white/70 p-4 rounded-lg text-center border border-purple-200">
+                          <div className="text-xs text-purple-600 font-medium mb-1">Đã thanh toán</div>
+                          <div className="text-2xl font-bold text-purple-700">
+                            {receivedItems.reduce((sum, item) => sum + ((item.price || 0) * item.received), 0).toLocaleString()}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">VNĐ</div>
                         </div>
                       </div>
                       {receivedItems.reduce((sum, item) => sum + item.ordered, 0) === receivedItems.reduce((sum, item) => sum + item.received, 0) ? (
-                        <div className="mt-3 text-center text-sm font-semibold text-green-700">
-                          ✅ Số lượng khớp chính xác
+                        <div className="mt-4 p-3 bg-green-500 rounded-lg text-center">
+                          <div className="flex items-center justify-center gap-2 text-white font-bold">
+                            <CheckCircle className="h-5 w-5" />
+                            <span>Số lượng khớp chính xác - Sẵn sàng xác nhận</span>
+                          </div>
                         </div>
                       ) : (
-                        <div className="mt-3 text-center text-sm font-semibold text-yellow-700">
-                          ⚠️ Chênh lệch: {receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0) > 0 ? '+' : ''}{receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0)} xe
+                        <div className="mt-4 p-3 bg-yellow-500 rounded-lg text-center">
+                          <div className="flex items-center justify-center gap-2 text-white font-bold">
+                            <AlertCircle className="h-5 w-5" />
+                            <span>
+                              Chênh lệch: {receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0) > 0 ? '+' : ''}
+                              {receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0)} xe
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
-                )}
-
-                {receivedItems.length === 0 && (
+                ) : (
                   <div className="p-4 border rounded-md bg-gradient-to-r from-blue-50 to-green-50">
                     <div className="grid grid-cols-2 gap-6 text-center">
                       <div>
@@ -1126,114 +1475,454 @@ export default function DealerDistributionsPage() {
                 <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
                   Hủy
                 </Button>
-                <Button onClick={handleConfirmReceived}>
-                  Xác nhận
+                <Button 
+                  onClick={handleConfirmReceived}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Xác nhận nhận hàng
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          {/* Dialog: Distribution Detail */}
-          {/* Dialog: Detail View with Glass Effect */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-white/30">
+            <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  📋 Chi tiết - Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
-                </DialogTitle>
-                <DialogDescription>
-                  <Badge className={`${getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)} px-4 py-1`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="text-3xl bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent font-bold">
+                      📋 Chi tiết phân phối
+                    </DialogTitle>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Mã: <span className="font-mono font-semibold text-cyan-600">{selectedDistribution?.code || `#${selectedDistribution?.id}`}</span>
+                    </p>
+                  </div>
+                  <Badge className={`${getDistributionStatusColor(selectedDistribution?.status || DistributionStatus.INVITED)} px-4 py-2 text-base`}>
                     {getDistributionStatusLabel(selectedDistribution?.status || DistributionStatus.INVITED)}
                   </Badge>
-                </DialogDescription>
+                </div>
               </DialogHeader>
               {selectedDistribution && (
-                <div className="space-y-4 py-2">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="backdrop-blur-md bg-gradient-to-br from-blue-50/70 to-cyan-50/70 dark:from-blue-950/70 dark:to-cyan-950/70 p-4 rounded-xl border border-white/30">
-                      <Label className="text-sm text-blue-700 dark:text-blue-300 font-medium">📅 Ngày tạo</Label>
-                      <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
+                <div className="space-y-6 py-4">
+                  {/* Info Grid - 2 columns */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="backdrop-blur-md bg-gradient-to-br from-purple-400/10 to-pink-400/10 p-4 rounded-xl border border-purple-200/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="h-5 w-5 text-purple-600" />
+                        <Label className="text-xs text-purple-700 dark:text-purple-300 font-semibold uppercase">Ngày tạo</Label>
+                      </div>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">
                         {selectedDistribution.createdAt 
                           ? new Date(selectedDistribution.createdAt).toLocaleDateString('vi-VN')
                           : 'N/A'
                         }
                       </p>
+                      <p className="text-xs text-purple-600 mt-1">
+                        {selectedDistribution.createdAt 
+                          ? new Date(selectedDistribution.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                          : ''
+                        }
+                      </p>
                     </div>
-                    {selectedDistribution.deadline && (
-                      <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/70 to-orange-50/70 dark:from-amber-950/70 dark:to-orange-950/70 p-4 rounded-xl border border-white/30">
-                        <Label className="text-sm text-amber-700 dark:text-amber-300 font-medium">⏰ Hạn phản hồi</Label>
-                        <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
-                          {new Date(selectedDistribution.deadline).toLocaleDateString('vi-VN')}
-                        </p>
+                    
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-4 rounded-xl border border-green-200/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Package className="h-5 w-5 text-green-600" />
+                        <Label className="text-xs text-green-700 dark:text-green-300 font-semibold uppercase">Tổng số lượng</Label>
                       </div>
-                    )}
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-3xl font-bold text-green-600">
+                          {selectedDistribution.requestedQuantity || selectedDistribution.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0}
+                        </p>
+                        <span className="text-sm text-gray-600">xe</span>
+                      </div>
+                      {selectedDistribution.receivedQuantity && (
+                        <p className="text-xs text-green-600 mt-1">Đã nhận: {selectedDistribution.receivedQuantity} xe</p>
+                      )}
+                    </div>
                   </div>
                   
-                  {selectedDistribution.invitationMessage && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-purple-50/70 to-pink-50/70 dark:from-purple-950/70 dark:to-pink-950/70 p-4 rounded-xl border border-white/30">
-                      <Label className="text-sm text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4" />
-                        Lời mời từ EVM
-                      </Label>
-                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.invitationMessage}</p>
-                    </div>
-                  )}
-                  
-                  {selectedDistribution.dealerNotes && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-yellow-50/70 to-amber-50/70 dark:from-yellow-950/70 dark:to-amber-950/70 p-4 rounded-xl border border-white/30">
-                      <Label className="text-sm text-yellow-700 dark:text-yellow-300 font-semibold flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Ghi chú của bạn
-                      </Label>
-                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.dealerNotes}</p>
-                    </div>
-                  )}
-                  
-                  {selectedDistribution.evmNotes && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/70 to-emerald-50/70 dark:from-green-950/70 dark:to-emerald-950/70 p-4 rounded-xl border border-white/30">
-                      <Label className="text-sm text-green-700 dark:text-green-300 font-semibold flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4" />
-                        Ghi chú của EVM
-                      </Label>
-                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.evmNotes}</p>
-                    </div>
-                  )}
-                  
-                  {selectedDistribution.products && selectedDistribution.products.length > 0 && (
-                    <div>
-                      <Label className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
-                        <Package className="h-5 w-5 text-purple-600" />
-                        Sản phẩm ({selectedDistribution.products.length})
-                      </Label>
-                      <div className="space-y-3">
-                        {selectedDistribution.products.map((product, idx) => (
-                          <div key={idx} className="backdrop-blur-md bg-gradient-to-br from-gray-50/70 to-white/70 dark:from-gray-800/70 dark:to-gray-900/70 p-4 rounded-xl border border-white/30 hover:shadow-lg transition-all duration-300">
-                            <div className="font-bold text-lg text-gray-900 dark:text-white">{product.name}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              VIN: <span className="font-mono font-medium">{product.vinNum}</span> | Engine: <span className="font-mono font-medium">{product.engineNum}</span>
-                            </div>
-                            <div className="text-base font-bold text-green-600 dark:text-green-400 mt-2">
-                              💰 {product.price?.toLocaleString('vi-VN')}đ
-                            </div>
-                            {product.stockInDate && (
-                              <div className="text-sm text-muted-foreground mt-1">
-                                Ngày nhập kho: {new Date(product.stockInDate as any).toLocaleDateString('vi-VN')}
-                              </div>
-                            )}
+                  {/* Timeline - Horizontal */}
+                  {(selectedDistribution.deadline || selectedDistribution.requestedDeliveryDate || selectedDistribution.estimatedDeliveryDate || selectedDistribution.actualDeliveryDate) && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-indigo-50/80 to-purple-50/80 dark:from-indigo-950/80 dark:to-purple-950/80 p-5 rounded-xl border border-indigo-200/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Clock className="h-5 w-5 text-indigo-600" />
+                        <Label className="text-base font-bold text-indigo-800 dark:text-indigo-200">Timeline</Label>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {selectedDistribution.deadline && (
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">⏰ Hạn phản hồi</p>
+                            <p className="text-sm font-semibold text-orange-600">
+                              {new Date(selectedDistribution.deadline).toLocaleDateString('vi-VN')}
+                            </p>
                           </div>
-                        ))}
+                        )}
+                        {selectedDistribution.requestedDeliveryDate && (
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">📅 Bạn mong muốn</p>
+                            <p className="text-sm font-semibold text-blue-600">
+                              {new Date(selectedDistribution.requestedDeliveryDate).toLocaleDateString('vi-VN')}
+                            </p>
+                          </div>
+                        )}
+                        {selectedDistribution.estimatedDeliveryDate && (
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">🚚 EVM dự kiến</p>
+                            <p className="text-sm font-semibold text-purple-600">
+                              {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
+                            </p>
+                          </div>
+                        )}
+                        {selectedDistribution.actualDeliveryDate && (
+                          <div className="text-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">✅ Giao thực tế</p>
+                            <p className="text-sm font-semibold text-green-600">
+                              {new Date(selectedDistribution.actualDeliveryDate).toLocaleDateString('vi-VN')}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
+                  
+                  
+                  {/* Items Table - Enhanced */}
                   {selectedDistribution.items && selectedDistribution.items.length > 0 && (
-                    <div>
-                      <Label className="text-muted-foreground">Chi tiết đơn ({selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)} xe)</Label>
-                      <div className="mt-2 space-y-2">
-                        {selectedDistribution.items.map((it, idx) => (
-                          <div key={idx} className="p-3 border rounded-md">
-                            <div className="font-medium">{it.product?.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {it.color ? `Màu: ${it.color} • ` : ''}Số lượng: {it.quantity}
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/80 to-emerald-50/80 dark:from-green-950/80 dark:to-emerald-950/80 p-5 rounded-xl border border-green-200/30">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-5 w-5 text-green-600" />
+                          <Label className="text-base font-bold text-green-800 dark:text-green-200">Danh sách sản phẩm</Label>
+                        </div>
+                        <Badge variant="outline" className="text-green-700 border-green-400">
+                          {selectedDistribution.items.length} loại xe
+                        </Badge>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b-2 border-green-300/50">
+                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">#</th>
+                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Sản phẩm</th>
+                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Màu sắc</th>
+                              {selectedDistribution.items?.some(it => it.dealerPrice) && (
+                                <th className="text-right py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Giá hãng</th>
+                              )}
+                              <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Yêu cầu</th>
+                              {selectedDistribution.items.some(it => it.approvedQuantity) && (
+                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã duyệt</th>
+                              )}
+                              {selectedDistribution.items.some(it => it.receivedQuantity) && (
+                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã nhận</th>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedDistribution.items.map((it, idx) => (
+                              <tr key={idx} className="border-b border-green-200/30 hover:bg-green-100/30 dark:hover:bg-green-900/20 transition-colors">
+                                <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-400">{idx + 1}</td>
+                                <td className="py-3 px-3">
+                                  <div className="font-semibold text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
+                                  {it.product?.vinNum && <div className="text-xs text-gray-500 mt-0.5">{it.product.vinNum}</div>}
+                                </td>
+                                <td className="py-3 px-3">
+                                  {it.color && (
+                                    <Badge variant="outline" className="text-xs">
+                                      🎨 {it.color}
+                                    </Badge>
+                                  )}
+                                </td>
+                                {selectedDistribution.items?.some(item => item.dealerPrice) && (
+                                  <td className="py-3 px-3 text-right">
+                                    {it.dealerPrice ? (
+                                      <div className="font-semibold text-amber-700 dark:text-amber-400">
+                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} ₫
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                )}
+                                <td className="py-3 px-3 text-center">
+                                  <span className="font-bold text-blue-600">{it.quantity || 0}</span>
+                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                </td>
+                                {selectedDistribution.items?.some(item => item.approvedQuantity) && (
+                                  <td className="py-3 px-3 text-center">
+                                    {it.approvedQuantity ? (
+                                      <>
+                                        <span className="font-bold text-green-600">{it.approvedQuantity}</span>
+                                        <span className="text-xs text-gray-500 ml-1">xe</span>
+                                        {it.quantity && it.approvedQuantity < it.quantity && (
+                                          <div className="text-xs text-orange-600 mt-0.5">
+                                            Thiếu: {it.quantity - it.approvedQuantity}
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                )}
+                                {selectedDistribution.items?.some(item => item.receivedQuantity) && (
+                                  <td className="py-3 px-3 text-center">
+                                    {it.receivedQuantity ? (
+                                      <>
+                                        <span className="font-bold text-purple-600">{it.receivedQuantity}</span>
+                                        <span className="text-xs text-gray-500 ml-1">xe</span>
+                                      </>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t-2 border-green-300/50 bg-green-100/50 dark:bg-green-900/30">
+                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-3 px-3 text-sm font-bold text-green-800 dark:text-green-200">
+                                Tổng cộng
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className="font-bold text-blue-600 text-base">
+                                  {selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)}
+                                </span>
+                                <span className="text-xs text-gray-500 ml-1">xe</span>
+                              </td>
+                              {selectedDistribution.items.some(it => it.approvedQuantity) && (
+                                <td className="py-3 px-3 text-center">
+                                  <span className="font-bold text-green-600 text-base">
+                                    {selectedDistribution.items.reduce((s, it) => s + (it.approvedQuantity || 0), 0)}
+                                  </span>
+                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                </td>
+                              )}
+                              {selectedDistribution.items.some(it => it.receivedQuantity) && (
+                                <td className="py-3 px-3 text-center">
+                                  <span className="font-bold text-purple-600 text-base">
+                                    {selectedDistribution.items.reduce((s, it) => s + (it.receivedQuantity || 0), 0)}
+                                  </span>
+                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                </td>
+                              )}
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Information */}
+                  {selectedDistribution.paidAmount && selectedDistribution.paidAmount > 0 && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-emerald-50/80 to-teal-50/80 dark:from-emerald-950/80 dark:to-teal-950/80 p-5 rounded-xl border-2 border-emerald-300/50">
+                      <div className="flex items-center gap-2 mb-4">
+                        <CheckCircle className="h-5 w-5 text-emerald-600" />
+                        <Label className="text-base font-bold text-emerald-800 dark:text-emerald-200">Thông tin thanh toán</Label>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">💰 Số tiền đã chuyển</p>
+                          <p className="text-lg font-bold text-emerald-600">
+                            {selectedDistribution.paidAmount.toLocaleString('vi-VN')} VND
+                          </p>
+                        </div>
+                        {selectedDistribution.transactionNo && (
+                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">🔖 Mã giao dịch</p>
+                            <p className="text-sm font-mono font-semibold text-gray-800 dark:text-gray-200">
+                              {selectedDistribution.transactionNo}
+                            </p>
+                          </div>
+                        )}
+                        {selectedDistribution.paidAt && (
+                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">⏰ Thời gian thanh toán</p>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                              {new Date(selectedDistribution.paidAt).toLocaleDateString('vi-VN')}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {new Date(selectedDistribution.paidAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Messages Section - Combined */}
+                  {(selectedDistribution.invitationMessage || selectedDistribution.dealerNotes || selectedDistribution.evmNotes) && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-yellow-50/80 dark:from-amber-950/80 dark:to-yellow-950/80 p-5 rounded-xl border border-amber-200/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <MessageSquare className="h-5 w-5 text-amber-600" />
+                        <Label className="text-base font-bold text-amber-800 dark:text-amber-200">Ghi chú & Tin nhắn</Label>
+                      </div>
+                      <div className="space-y-3">
+                        {selectedDistribution.invitationMessage && (
+                          <div className="bg-blue-50/50 dark:bg-blue-900/20 p-3 rounded-lg border-l-4 border-blue-400">
+                            <Label className="text-xs text-blue-700 dark:text-blue-300 font-semibold">📨 Lời mời từ EVM</Label>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">{selectedDistribution.invitationMessage}</p>
+                          </div>
+                        )}
+                        {selectedDistribution.dealerNotes && (
+                          <div className="bg-green-50/50 dark:bg-green-900/20 p-3 rounded-lg border-l-4 border-green-400">
+                            <Label className="text-xs text-green-700 dark:text-green-300 font-semibold">💼 Ghi chú của bạn</Label>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">{selectedDistribution.dealerNotes}</p>
+                          </div>
+                        )}
+                        {selectedDistribution.evmNotes && (
+                          <div className="bg-purple-50/50 dark:bg-purple-900/20 p-3 rounded-lg border-l-4 border-purple-400">
+                            <Label className="text-xs text-purple-700 dark:text-purple-300 font-semibold">🏢 Ghi chú từ EVM</Label>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap font-mono text-xs">{selectedDistribution.evmNotes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Shortage Summary Section - Table Style */}
+                  {selectedDistribution.items && selectedDistribution.items.some(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity) && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/90 to-emerald-50/90 dark:from-green-950/90 dark:to-emerald-950/90 p-5 rounded-xl border-2 border-green-300/50 shadow-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-5 w-5 text-green-600" />
+                          <Label className="text-lg font-bold text-green-800 dark:text-green-200">
+                            📋 Danh sách sản phẩm
+                          </Label>
+                        </div>
+                        <Badge className="bg-green-600 text-white px-3 py-1">
+                          {selectedDistribution.items.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity).length} loại xe
+                        </Badge>
+                      </div>
+                      
+                      <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl border border-green-200/50 overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-green-100/80 dark:bg-green-900/40">
+                            <tr className="border-b-2 border-green-300/50">
+                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">#</th>
+                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Sản phẩm</th>
+                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Màu sắc</th>
+                              <th className="text-center py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Yêu cầu</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedDistribution.items
+                              .filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
+                              .map((it, idx) => {
+                                const shortage = (it.quantity || 0) - (it.approvedQuantity || 0);
+                                return (
+                                  <tr 
+                                    key={idx} 
+                                    className="border-b border-green-200/30 hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-colors"
+                                  >
+                                    <td className="py-4 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
+                                      {idx + 1}
+                                    </td>
+                                    <td className="py-4 px-4">
+                                      <div className="font-semibold text-base text-gray-900 dark:text-white">
+                                        {it.product?.name || it.category?.name || 'Sản phẩm'}
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-4">
+                                      {it.color && (
+                                        <div className="flex items-center gap-2">
+                                          <div 
+                                            className="w-4 h-4 rounded-full border-2 border-gray-300"
+                                            style={{ 
+                                              backgroundColor: it.color === 'Đỏ' ? '#ef4444' : 
+                                                             it.color === 'Xanh dương' || it.color === 'Xanh duong' ? '#3b82f6' :
+                                                             it.color === 'Đen' ? '#000000' :
+                                                             it.color === 'Trắng' ? '#ffffff' :
+                                                             it.color === 'Xám' ? '#6b7280' : '#9ca3af'
+                                            }}
+                                          ></div>
+                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            {it.color}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="py-4 px-4 text-center">
+                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-full">
+                                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                          {shortage}
+                                        </span>
+                                        <span className="text-xs text-blue-600 dark:text-blue-400">xe</span>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                          <tfoot className="bg-green-100/80 dark:bg-green-900/40">
+                            <tr className="border-t-2 border-green-300/50">
+                              <td colSpan={3} className="py-3 px-4 text-base font-bold text-green-900 dark:text-green-100">
+                                Tổng cộng
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="inline-flex items-center gap-1 px-4 py-1.5 bg-green-600 text-white rounded-full">
+                                  <span className="text-xl font-bold">
+                                    {selectedDistribution.items
+                                      .filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
+                                      .reduce((sum, it) => sum + ((it.quantity || 0) - (it.approvedQuantity || 0)), 0)
+                                    }
+                                  </span>
+                                  <span className="text-sm">xe</span>
+                                </span>
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Products List - Enhanced */}
+                  {selectedDistribution.products && selectedDistribution.products.length > 0 && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-pink-50/80 to-rose-50/80 dark:from-pink-950/80 dark:to-rose-950/80 p-5 rounded-xl border border-pink-200/30">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-5 w-5 text-pink-600" />
+                          <Label className="text-base font-bold text-pink-800 dark:text-pink-200">Sản phẩm phân phối</Label>
+                        </div>
+                        <Badge variant="outline" className="text-pink-700 border-pink-400">
+                          {selectedDistribution.products.length} xe
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {selectedDistribution.products.map((product, idx) => (
+                          <div key={idx} className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg border border-pink-200/40 hover:shadow-lg hover:border-pink-300 transition-all">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="font-bold text-gray-900 dark:text-white">{product.name}</div>
+                              <Badge className="bg-pink-500 text-white text-xs">{idx + 1}</Badge>
+                            </div>
+                            <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              {product.vinNum && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-pink-600">VIN:</span>
+                                  <span className="font-mono text-xs">{product.vinNum}</span>
+                                </div>
+                              )}
+                              {product.engineNum && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-pink-600">Engine:</span>
+                                  <span className="font-mono text-xs">{product.engineNum}</span>
+                                </div>
+                              )}
+                              {product.price && (
+                                <div className="flex items-center gap-2 pt-1 border-t border-pink-100">
+                                  <span className="text-xs font-semibold text-pink-600">Giá:</span>
+                                  <span className="font-bold text-pink-600">{product.price.toLocaleString('vi-VN')} VND</span>
+                                </div>
+                              )}
+                              {product.stockInDate && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-pink-600">Nhập kho:</span>
+                                  <span>{new Date(product.stockInDate as any).toLocaleDateString('vi-VN')}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1241,37 +1930,85 @@ export default function DealerDistributionsPage() {
                     </div>
                   )}
                   
-                  {selectedDistribution.estimatedDeliveryDate && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-cyan-50/70 to-blue-50/70 dark:from-cyan-950/70 dark:to-blue-950/70 p-4 rounded-xl border border-white/30">
-                      <Label className="text-sm text-cyan-700 dark:text-cyan-300 font-semibold flex items-center gap-2">
-                        <Truck className="h-4 w-4" />
-                        Ngày giao dự kiến
-                      </Label>
-                      <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
-                        {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {selectedDistribution.actualDeliveryDate && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/70 to-emerald-50/70 dark:from-green-950/70 dark:to-emerald-950/70 p-4 rounded-xl border border-white/30">
-                      <Label className="text-sm text-green-700 dark:text-green-300 font-semibold flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Ngày giao thực tế
-                      </Label>
-                      <p className="font-bold text-lg text-gray-900 dark:text-white mt-1">
-                        {new Date(selectedDistribution.actualDeliveryDate).toLocaleDateString('vi-VN')}
-                      </p>
-                    </div>
-                  )}
-                  
+                  {/* Feedback */}
                   {selectedDistribution.feedback && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-pink-50/70 to-rose-50/70 dark:from-pink-950/70 dark:to-rose-950/70 p-4 rounded-xl border border-white/30">
-                      <Label className="text-sm text-pink-700 dark:text-pink-300 font-semibold flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4" />
-                        Đánh giá
-                      </Label>
-                      <p className="mt-2 text-gray-800 dark:text-gray-200">{selectedDistribution.feedback}</p>
+                    <div className="backdrop-blur-md bg-gradient-to-br from-purple-50/80 to-violet-50/80 dark:from-purple-950/80 dark:to-violet-950/80 p-5 rounded-xl border border-purple-200/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <MessageSquare className="h-5 w-5 text-purple-600" />
+                        <Label className="text-base font-bold text-purple-800 dark:text-purple-200">Đánh giá</Label>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-200">{selectedDistribution.feedback}</p>
+                    </div>
+                  )}
+                  
+                  {/* Supplementary Distribution Info */}
+                  {selectedDistribution.isSupplementary && selectedDistribution.parentDistributionId && (
+                    <div className="backdrop-blur-md bg-gradient-to-br from-orange-50/80 to-amber-50/80 dark:from-orange-950/80 dark:to-amber-950/80 p-5 rounded-xl border-2 border-orange-300/50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                        <Label className="text-base font-bold text-orange-800 dark:text-orange-200">
+                          ⚠️ Đơn hàng bổ sung
+                        </Label>
+                      </div>
+                      <div className="bg-orange-100/50 dark:bg-orange-900/20 p-4 rounded-lg">
+                        <p className="text-sm text-orange-800 dark:text-orange-200 mb-2">
+                          Đây là đơn hàng bổ sung cho đơn phân phối gốc:
+                        </p>
+                        {selectedDistribution.parentDistributionId && (
+                          <div className="flex items-center gap-3">
+                            <Badge className="bg-orange-500 text-white text-sm">
+                              Mã đơn gốc: #{selectedDistribution.parentDistributionId}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-orange-600 border-orange-400 hover:bg-orange-100"
+                              onClick={async () => {
+                                const parentDist = distributions.find(d => d.id === selectedDistribution.parentDistributionId);
+                                if (parentDist) {
+                                  setSelectedDistribution(parentDist);
+                                } else {
+                                  toast({
+                                    title: "Không tìm thấy đơn gốc",
+                                    description: "Đơn phân phối gốc không có trong danh sách hiện tại.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              Xem đơn gốc →
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Delivery Dates Grid - Moved to bottom */}
+                  {(selectedDistribution.estimatedDeliveryDate || selectedDistribution.actualDeliveryDate) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedDistribution.estimatedDeliveryDate && (
+                        <div className="backdrop-blur-md bg-gradient-to-br from-purple-50/80 to-violet-50/80 dark:from-purple-950/80 dark:to-violet-950/80 p-5 rounded-xl border border-purple-200/30">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Calendar className="h-5 w-5 text-purple-600" />
+                            <Label className="text-base font-bold text-purple-800 dark:text-purple-200">Ngày giao dự kiến</Label>
+                          </div>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {new Date(selectedDistribution.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
+                      )}
+                      {selectedDistribution.actualDeliveryDate && (
+                        <div className="backdrop-blur-md bg-gradient-to-br from-green-50/80 to-emerald-50/80 dark:from-green-950/80 dark:to-emerald-950/80 p-5 rounded-xl border border-green-200/30">
+                          <div className="flex items-center gap-2 mb-3">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <Label className="text-base font-bold text-green-800 dark:text-green-200">Ngày giao thực tế</Label>
+                          </div>
+                          <p className="text-2xl font-bold text-green-600">
+                            {new Date(selectedDistribution.actualDeliveryDate).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1290,7 +2027,7 @@ export default function DealerDistributionsPage() {
 
           {/* Dialog: Price Negotiation (chấp nhận hoặc từ chối giá hãng) */}
           <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>💰 Xác nhận Giá Hãng</DialogTitle>
                 <DialogDescription>
@@ -1339,14 +2076,15 @@ export default function DealerDistributionsPage() {
                     return (
                       <div>
                         <Label className="text-sm font-medium mb-2 block">Chi tiết xe hãng nhập:</Label>
-                        <div className="space-y-2">
+                        <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
                           {selectedDistribution.items.map((item) => {
-                            // Backend đã update item.quantity = approved quantity
-                            const approvedQty = item.quantity || 0;
+                            // Backend đã update item.quantity = approved quantity cho đơn đã duyệt
+                            // Nhưng với đơn bổ sung, item.quantity chính là số lượng yêu cầu bổ sung
+                            const approvedQty = item.approvedQuantity || item.quantity || 0;
                             
-                            // Lấy requested quantity từ evmNotes, fallback về distribution total nếu không parse được
+                            // Lấy requested quantity: ưu tiên từ evmNotes, sau đó từ item.quantity
                             const itemKey = `${item.product?.name || item.category?.name || 'Unknown'}${item.color ? ' ('+item.color+')' : ''}`;
-                            const requestedQty = itemRequestedMap.get(itemKey) || (selectedDistribution.requestedQuantity || 0);
+                            const requestedQty = itemRequestedMap.get(itemKey) || item.quantity || 0;
                             const isMissing = approvedQty < requestedQty;
                             
                             return (
@@ -1408,7 +2146,7 @@ export default function DealerDistributionsPage() {
                   )}
                   
                   <div className="text-sm text-muted-foreground">
-                    Nếu bạn chấp nhận, EVM Staff sẽ tiếp tục lên kế hoạch giao hàng. Nếu từ chối, đơn hàng sẽ bị hủy.
+                    Nếu bạn chấp nhận, EVM Staff sẽ tiếp tục lên kế hoạch giao hàng. Nếu từ chối do không đủ số lượng, đơn hàng sẽ bị hủy.
                   </div>
                 </div>
               )}
@@ -1420,7 +2158,7 @@ export default function DealerDistributionsPage() {
                   variant="destructive"
                   onClick={() => handleRespondToPrice(false)}
                 >
-                  Từ chối
+                  Từ chối do không đủ số lượng
                 </Button>
                 <Button
                   variant="default"
@@ -1428,6 +2166,102 @@ export default function DealerDistributionsPage() {
                   className="bg-green-600 hover:bg-green-700"
                 >
                   Chấp nhận
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Payment Confirmation Dialog */}
+          <Dialog open={isPaymentConfirmDialogOpen} onOpenChange={setIsPaymentConfirmDialogOpen}>
+            <DialogContent className="max-w-2xl backdrop-blur-xl bg-gradient-to-br from-emerald-50/95 to-teal-50/95 dark:from-emerald-950/95 dark:to-teal-950/95 border-2 border-emerald-300/50 shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-bold">
+                  💳 Xác nhận thanh toán
+                </DialogTitle>
+                <DialogDescription>
+                  Vui lòng kiểm tra thông tin trước khi thanh toán
+                </DialogDescription>
+              </DialogHeader>
+              {selectedDistribution && (
+                <div className="space-y-4 py-4">
+                  <div className="bg-white/60 dark:bg-gray-800/60 p-5 rounded-xl border-2 border-emerald-300/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Package className="h-5 w-5 text-emerald-600" />
+                      <Label className="text-base font-bold text-emerald-800">Thông tin đơn hàng</Label>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Mã phân phối:</span>
+                        <span className="font-semibold">{selectedDistribution.code || `#${selectedDistribution.id}`}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Số lượng xe:</span>
+                        <span className="font-semibold">{selectedDistribution.items?.reduce((sum, it) => sum + (it.quantity || 0), 0) || 0} xe</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 p-5 rounded-xl border-2 border-emerald-400/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign className="h-6 w-6 text-emerald-700" />
+                      <Label className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Chi tiết thanh toán</Label>
+                    </div>
+                    <div className="space-y-3">
+                      {selectedDistribution.items?.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-2 border-b border-emerald-300/30 last:border-0">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 dark:text-white">
+                              {item.product?.name || item.category?.name}
+                              {item.color && <span className="text-gray-600 ml-1">({item.color})</span>}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {item.quantity} xe × {(item.dealerPrice || 0).toLocaleString('vi-VN')} VND
+                            </p>
+                          </div>
+                          <p className="font-bold text-emerald-700">
+                            {((item.quantity || 0) * (item.dealerPrice || 0)).toLocaleString('vi-VN')} VND
+                          </p>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center pt-3 border-t-2 border-emerald-400">
+                        <span className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Tổng cộng:</span>
+                        <span className="text-2xl font-bold text-emerald-700">
+                          {(selectedDistribution.items?.reduce((sum, item) => {
+                            return sum + ((item.quantity || 0) * (item.dealerPrice || 0));
+                          }, 0) || 0).toLocaleString('vi-VN')} VND
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50/50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200/50">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="text-sm text-blue-800 dark:text-blue-200">
+                        <p className="font-semibold mb-1">Lưu ý:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>Bạn sẽ được chuyển đến trang thanh toán VNPay</li>
+                          <li>Vui lòng hoàn tất thanh toán trong 15 phút</li>
+                          <li>Sau khi thanh toán thành công, đơn hàng sẽ được xác nhận</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsPaymentConfirmDialogOpen(false)}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleConfirmPayment}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Thanh toán VNPay
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1486,7 +2320,13 @@ export default function DealerDistributionsPage() {
                   </p>
                   
                   <div className="space-y-3">
-                  {newRequestItems.map((item, idx) => (
+                  {newRequestItems.map((item, idx) => {
+                    // Get colors already selected for this category
+                    const selectedColorsForCategory = newRequestItems
+                      .filter((it, i) => i !== idx && it.categoryId === item.categoryId && it.color)
+                      .map(it => it.color);
+                    
+                    return (
                     <div key={idx} className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 p-4 rounded-xl border border-white/30 hover:shadow-md transition-all duration-300">
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
                         {/* Category Select - takes more space */}
@@ -1497,6 +2337,8 @@ export default function DealerDistributionsPage() {
                             onValueChange={(val) => {
                               const updated = [...newRequestItems];
                               updated[idx].categoryId = val ? parseInt(val) : undefined;
+                              // Reset color when category changes
+                              updated[idx].color = undefined;
                               setNewRequestItems(updated);
                             }}
                           >
@@ -1529,16 +2371,25 @@ export default function DealerDistributionsPage() {
                               updated[idx].color = val || undefined;
                               setNewRequestItems(updated);
                             }}
+                            disabled={!item.categoryId}
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Màu..." />
+                              <SelectValue placeholder={item.categoryId ? "Màu..." : "Chọn danh mục trước"} />
                             </SelectTrigger>
                             <SelectContent>
-                              {COLOR_OPTIONS.map((color) => (
-                                <SelectItem key={color} value={color}>
-                                  {color}
-                                </SelectItem>
-                              ))}
+                              {COLOR_OPTIONS.map((color) => {
+                                const isAlreadySelected = selectedColorsForCategory.includes(color);
+                                return (
+                                  <SelectItem 
+                                    key={color} 
+                                    value={color}
+                                    disabled={isAlreadySelected}
+                                    className={isAlreadySelected ? "opacity-50 cursor-not-allowed" : ""}
+                                  >
+                                    {color} {isAlreadySelected ? "(Đã chọn)" : ""}
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1578,7 +2429,7 @@ export default function DealerDistributionsPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                   
                   <Button
                     variant="outline"
@@ -1604,7 +2455,7 @@ export default function DealerDistributionsPage() {
                 <div className="backdrop-blur-md bg-gradient-to-br from-cyan-50/60 to-blue-50/60 dark:from-cyan-950/60 dark:to-blue-950/60 p-5 rounded-2xl border border-white/30">
                   <Label htmlFor="newRequestDeliveryDate" className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
                     <Calendar className="h-5 w-5 text-cyan-600" />
-                    📅 Ngày giao hàng mong muốn
+                    📅 Ngày giao hàng mong muốn <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="newRequestDeliveryDate"
@@ -1613,7 +2464,10 @@ export default function DealerDistributionsPage() {
                     onChange={(e) => setNewRequestDeliveryDate(e.target.value)}
                     className="bg-white/70 dark:bg-gray-800/70 border-white/40 focus:border-cyan-400"
                     min={new Date().toISOString().split('T')[0]}
+                    max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    required
                   />
+                  <p className="text-xs text-muted-foreground mt-2">* Bắt buộc chọn ngày trong vòng 30 ngày kể từ hôm nay</p>
                 </div>
 
                 {/* Notes */}

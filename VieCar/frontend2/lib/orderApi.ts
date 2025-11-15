@@ -8,6 +8,8 @@ export interface OrderRes {
   contracts: any[];
   totalPrice: number;
   status: string;
+  orderDate?: string;
+  deliveryDate?: string;
 }
 
 export interface OrderReq {
@@ -21,6 +23,7 @@ export interface OrderReq {
 export interface UpdateOrderReq {
   status?: string;
   notes?: string;
+  deliveryDate?: string; // ISO date string YYYY-MM-DD
 }
 
 // Get all orders
@@ -53,6 +56,7 @@ export async function getOrderById(id: number): Promise<OrderRes> {
 
 // Create order
 export async function createOrder(data: OrderReq): Promise<OrderRes> {
+  console.log('🚀 Sending order data to backend:', data);
   const response = await fetch(`${API_BASE_URL}/api/orders/createOrder`, {
     method: 'POST',
     headers: {
@@ -60,8 +64,25 @@ export async function createOrder(data: OrderReq): Promise<OrderRes> {
     },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Failed to create order');
-  return response.json();
+  
+  console.log('📡 Response status:', response.status);
+  
+  if (!response.ok) {
+    let errorText = 'Unknown error';
+    try {
+      const errorData = await response.json();
+      errorText = JSON.stringify(errorData);
+      console.error('❌ Error response JSON:', errorData);
+    } catch {
+      errorText = await response.text();
+      console.error('❌ Error response text:', errorText);
+    }
+    throw new Error(`Failed to create order: ${errorText}`);
+  }
+  
+  const result = await response.json();
+  console.log('✅ Order created successfully:', result);
+  return result;
 }
 
 // Update order
@@ -130,5 +151,38 @@ export async function confirmDepositAndRequestVehicle(id: number, notes?: string
     }),
   });
   if (!response.ok) throw new Error('Failed to confirm deposit and request vehicle');
+  return response.json();
+}
+
+// Confirm vehicle ready (Xác nhận xe đã sẵn sàng, yêu cầu khách hàng đến nhận và thanh toán)
+export async function confirmVehicleReady(id: number, deliveryDate?: string, notes?: string): Promise<OrderRes> {
+  const response = await fetch(`${API_BASE_URL}/api/orders/updateOrder/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      status: 'Sẵn sàng giao xe',
+      deliveryDate: deliveryDate, // Send as YYYY-MM-DD string
+      notes: notes || 'Xe đã được chuẩn bị xong. Vui lòng đến đại lý để nhận xe và thanh toán 70% còn lại.'
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to confirm vehicle ready');
+  return response.json();
+}
+
+// Confirm customer picked up vehicle (Xác nhận khách hàng đã lấy xe và thanh toán)
+export async function confirmVehiclePickedUp(id: number, notes?: string): Promise<OrderRes> {
+  const response = await fetch(`${API_BASE_URL}/api/orders/updateOrder/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      status: 'Đã giao',
+      notes: notes || 'Khách hàng đã nhận xe và hoàn tất thanh toán 70% còn lại.'
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to confirm vehicle picked up');
   return response.json();
 }

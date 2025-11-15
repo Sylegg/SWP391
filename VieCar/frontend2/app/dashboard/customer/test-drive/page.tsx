@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '@/components/auth-guards';
 import CustomerLayout from '@/components/layout/customer-layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllCategories, Category } from '@/lib/categoryApi';
+import { getAllCategories, Category, getCategoriesByDealerId } from '@/lib/categoryApi';
 import {
   createTestDrive,
   getTestDrivesByUserId,
   cancelTestDrive,
+  startTestDrive,
   TestDriveRes,
   TestDriveStatus,
 } from '@/lib/testDriveApi';
@@ -83,6 +84,7 @@ function TestDrivePage() {
   const [selectedTestDriveId, setSelectedTestDriveId] = useState<number | null>(null);
   const [selectedTestDriveForDetail, setSelectedTestDriveForDetail] = useState<TestDriveRes | null>(null);
   const [hasActiveTestDrive, setHasActiveTestDrive] = useState(false);
+  const [completedCategoryIds, setCompletedCategoryIds] = useState<Set<number>>(new Set());
 
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -95,8 +97,14 @@ function TestDrivePage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Chỉ lấy danh mục của đại lý mà customer đang thuộc về
+        const categoriesPromise = user?.dealerId 
+          ? getCategoriesByDealerId(typeof user.dealerId === 'string' ? parseInt(user.dealerId) : user.dealerId)
+          : Promise.resolve([]);
+        
         const [categoriesData, testDrivesData] = await Promise.all([
-          getAllCategories(),
+          categoriesPromise,
           user?.id && user.id !== 'guest' ? getTestDrivesByUserId(parseInt(user.id)) : Promise.resolve([]),
         ]);
         
@@ -110,6 +118,14 @@ function TestDrivePage() {
           td.status !== TestDriveStatus.CANCELLED
         );
         setHasActiveTestDrive(!!activeTestDrive);
+        
+        // Get list of completed category IDs
+        const completedIds = new Set(
+          testDrivesData
+            .filter((td) => td.status === TestDriveStatus.DONE && td.categoryId)
+            .map((td) => td.categoryId as number)
+        );
+        setCompletedCategoryIds(completedIds);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
@@ -253,6 +269,14 @@ function TestDrivePage() {
           td.status !== TestDriveStatus.CANCELLED
         );
         setHasActiveTestDrive(!!activeTestDrive);
+        
+        // Update completed categories
+        const completedIds = new Set(
+          updatedTestDrives
+            .filter((td) => td.status === TestDriveStatus.DONE && td.categoryId)
+            .map((td) => td.categoryId as number)
+        );
+        setCompletedCategoryIds(completedIds);
       }
     } catch (error: any) {
       console.error('Error creating test drive:', error);
@@ -377,26 +401,61 @@ function TestDrivePage() {
                 Đặt lịch lái thử các dòng xe điện VinFast
               </p>
             </div>
-            <Button
-              onClick={() => {
-                if (hasActiveTestDrive) {
-                  toast({
-                    title: 'Thông báo',
-                    description: 'Bạn đã có yêu cầu lái thử đang chờ xử lý. Vui lòng hoàn thành hoặc hủy yêu cầu hiện tại trước khi tạo yêu cầu mới.',
-                    variant: 'destructive',
-                  });
-                } else {
-                  setShowNewRequestDialog(true);
-                }
-              }}
-              size="lg"
-              className="gap-2"
-              disabled={hasActiveTestDrive}
-            >
-              <Plus className="h-5 w-5" />
-              {hasActiveTestDrive ? 'Đã có yêu cầu đang xử lý' : 'Yêu cầu lái thử mới'}
-            </Button>
+
+            {user?.dealerId && (
+              <Button
+                onClick={() => {
+                  if (hasActiveTestDrive) {
+                    toast({
+                      title: 'Thông báo',
+                      description: 'Bạn đã có yêu cầu lái thử đang chờ xử lý. Vui lòng hoàn thành hoặc hủy yêu cầu hiện tại trước khi tạo yêu cầu mới.',
+                      variant: 'destructive',
+                      duration: 3000,
+                    });
+                  } else {
+                    setShowNewRequestDialog(true);
+                  }
+                }}
+                size="lg"
+                className="gap-2"
+                disabled={hasActiveTestDrive}
+              >
+                <Plus className="h-5 w-5" />
+                {hasActiveTestDrive ? 'Đã có yêu cầu đang xử lý' : 'Yêu cầu lái thử mới'}
+              </Button>
+            )}
           </div>
+
+          {/* ⭐ Thông báo chưa chọn đại lý */}
+          {!user?.dealerId && (
+            <Card className="border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 mb-6">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-amber-500/20">
+                    <Car className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg text-amber-900 mb-2">
+                      Vui lòng chọn đại lý trước
+                    </h3>
+                    <p className="text-amber-700 mb-4">
+                      Bạn cần chọn đại lý để đặt lịch lái thử xe tại đại lý đó
+                    </p>
+                    <Button 
+                      onClick={() => window.location.href = '/dashboard/customer'}
+                      className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      Chọn đại lý ngay
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {user?.dealerId && (
+            <>
 
           {/* Test Drives List */}
           <div className="space-y-4">
@@ -416,41 +475,54 @@ function TestDrivePage() {
               </Card>
             ) : (
               testDrives.map((testDrive) => (
-                <Card key={testDrive.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
+                <Card key={testDrive.id} className="hover:shadow-lg transition-all border-2">
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
                     <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <CardTitle className="flex items-center gap-2">
-                          <Car className="h-5 w-5" />
+                      <div className="space-y-2">
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                            <Car className="h-5 w-5 text-blue-600" />
+                          </div>
                           {testDrive.status === TestDriveStatus.PENDING 
                             ? testDrive.categoryName 
                             : (testDrive.productName || testDrive.categoryName)
                           }
                         </CardTitle>
-                        <CardDescription>
-                          Mã yêu cầu: #{testDrive.id}
-                        </CardDescription>
                       </div>
                       {getStatusBadge(testDrive.status)}
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 pt-6">
+                    {/* Info Grid - More detailed */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">Đại lý</p>
-                          <p className="text-sm text-muted-foreground">
+                      {/* Dealer Info */}
+                      <div className="flex items-start gap-3 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
+                        <MapPin className="h-5 w-5 mt-0.5 text-orange-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">Đại lý</p>
+                          <p className="text-sm text-orange-700 dark:text-orange-300 font-medium">
                             {testDrive.dealer.name}
                           </p>
+                          {testDrive.dealer.address && (
+                            <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                              📍 {testDrive.dealer.address}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <Clock className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">Thời gian</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(testDrive.scheduleDate), 'dd/MM/yyyy HH:mm', {
+
+                      {/* Schedule Info */}
+                      <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <Clock className="h-5 w-5 mt-0.5 text-blue-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">Thời gian</p>
+                          <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                            {format(new Date(testDrive.scheduleDate), 'EEEE, dd/MM/yyyy', {
+                              locale: vi,
+                            })}
+                          </p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                            🕐 {format(new Date(testDrive.scheduleDate), 'HH:mm', {
                               locale: vi,
                             })}
                           </p>
@@ -458,51 +530,68 @@ function TestDrivePage() {
                       </div>
                     </div>
 
-                    {/* Vehicle Assignment Info - Shown when APPROVED or later */}
-                    {(testDrive.status === TestDriveStatus.APPROVED || 
-                      testDrive.status === TestDriveStatus.IN_PROGRESS || 
-                      testDrive.status === TestDriveStatus.DONE) && testDrive.productName && (
-                      <div className="pt-4 border-t bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 -mx-6 px-6 py-5">
-                        {/* Success Header */}
-                        <div className="flex items-start gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border-2 border-green-500 shadow-sm">
-                          <CheckCircle2 className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-base font-bold text-green-800 dark:text-green-200">
-                              🎉 Đơn đã được duyệt - Yêu cầu đến đại lý để lái thử!
+                    {/* Product Info - Show if assigned */}
+                    {testDrive.productName && testDrive.status !== TestDriveStatus.PENDING && (
+                      <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
+                        <Car className="h-5 w-5 mt-0.5 text-purple-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">Xe được phân công</p>
+                          <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">
+                            {testDrive.productName}
+                          </p>
+                          {testDrive.specificVIN && (
+                            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 font-mono">
+                              VIN: {testDrive.specificVIN}
                             </p>
-                            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                              Lịch hẹn của bạn đã được xác nhận. Vui lòng đến đại lý đúng giờ để trải nghiệm xe.
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Detail Button */}
-                        <div className="mt-4">
-                          <Button
-                            onClick={() => {
-                              console.log('🔍 Test Drive Detail Data:', testDrive);
-                              console.log('👤 Escort Staff:', testDrive.escortStaff);
-                              setSelectedTestDriveForDetail(testDrive);
-                              setDetailDialogOpen(true);
-                            }}
-                            className="w-full bg-green-600 hover:bg-green-700"
-                          >
-                            <Car className="h-4 w-4 mr-2" />
-                            Xem chi tiết lịch hẹn
-                          </Button>
+                          )}
                         </div>
                       </div>
                     )}
 
                     {testDrive.notes && (
                       <div className="pt-2 border-t">
-                        <p className="text-sm font-medium">Ghi chú</p>
-                        <p className="text-sm text-muted-foreground">{testDrive.notes}</p>
+                        <p className="text-sm font-medium mb-1">Ghi chú của bạn</p>
+                        <p className="text-sm text-muted-foreground bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+                          {testDrive.notes}
+                        </p>
                       </div>
                     )}
 
-                    {testDrive.status === TestDriveStatus.PENDING && (
-                      <div className="pt-2 border-t">
+                    {/* Action Buttons Based on Status */}
+                    <div className="pt-4 border-t space-y-2">
+                      {/* APPROVED Status - Show detail button only */}
+                      {testDrive.status === TestDriveStatus.APPROVED && (
+                        <Button
+                          onClick={() => {
+                            setSelectedTestDriveForDetail(testDrive);
+                            setDetailDialogOpen(true);
+                          }}
+                          variant="default"
+                          className="w-full"
+                        >
+                          <Car className="h-4 w-4 mr-2" />
+                          Xem chi tiết lịch hẹn
+                        </Button>
+                      )}
+
+                      {/* IN_PROGRESS or DONE Status - Show detail button only */}
+                      {(testDrive.status === TestDriveStatus.IN_PROGRESS || 
+                        testDrive.status === TestDriveStatus.DONE) && (
+                        <Button
+                          onClick={() => {
+                            setSelectedTestDriveForDetail(testDrive);
+                            setDetailDialogOpen(true);
+                          }}
+                          variant="default"
+                          className="w-full"
+                        >
+                          <Car className="h-4 w-4 mr-2" />
+                          Xem chi tiết lịch hẹn
+                        </Button>
+                      )}
+
+                      {/* PENDING Status - Show cancel button */}
+                      {testDrive.status === TestDriveStatus.PENDING && (
                         <Button
                           variant="destructive"
                           size="sm"
@@ -510,13 +599,30 @@ function TestDrivePage() {
                             setSelectedTestDriveId(testDrive.id);
                             setCancelDialogOpen(true);
                           }}
-                          className="gap-2"
+                          className="w-full"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-4 w-4 mr-2" />
                           Hủy yêu cầu
                         </Button>
-                      </div>
-                    )}
+                      )}
+
+                      {/* APPROVED Status - Show cancel if past schedule time */}
+                      {testDrive.status === TestDriveStatus.APPROVED && 
+                       new Date(testDrive.scheduleDate) < new Date() && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTestDriveId(testDrive.id);
+                            setCancelDialogOpen(true);
+                          }}
+                          className="w-full"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Hủy lịch (Quá giờ hẹn)
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))
@@ -560,16 +666,37 @@ function TestDrivePage() {
                           Hiện tại không có loại xe nào
                         </div>
                       ) : (
-                        categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.name}
-                          </SelectItem>
-                        ))
+                        categories.map((category) => {
+                          const isCompleted = completedCategoryIds.has(category.id);
+                          return (
+                            <SelectItem 
+                              key={category.id} 
+                              value={category.id.toString()}
+                              disabled={isCompleted}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className={isCompleted ? 'text-muted-foreground line-through' : ''}>
+                                  {category.name}
+                                </span>
+                                {isCompleted && (
+                                  <Badge variant="secondary" className="ml-2 text-xs">
+                                    Đã lái thử
+                                  </Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          );
+                        })
                       )}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Chọn loại xe, nhân viên sẽ chọn xe cụ thể và người đi cùng cho bạn
+                    Chọn loại xe, nhân viên sẽ chọn xe cụ thể và người đi cùng cho bạn. 
+                    {completedCategoryIds.size > 0 && (
+                      <span className="text-amber-600 font-medium">
+                        Các xe đã lái thử thành công không thể chọn lại.
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -722,7 +849,7 @@ function TestDrivePage() {
                         </div>
                         <div className="space-y-2">
                           <p className="text-base font-bold text-gray-900 dark:text-gray-100">
-                            {selectedTestDriveForDetail.escortStaff.fullName}
+                            {selectedTestDriveForDetail.escortStaff.name}
                           </p>
                           {selectedTestDriveForDetail.escortStaff.phone && (
                             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -823,6 +950,8 @@ function TestDrivePage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          </>
+          )}
         </div>
       </CustomerLayout>
     </ProtectedRoute>

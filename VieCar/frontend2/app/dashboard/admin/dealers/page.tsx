@@ -203,6 +203,42 @@ export default function AdminDealersPage() {
         title: '⚠️ Thiếu thông tin',
         description: 'Vui lòng điền đầy đủ thông tin',
         variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate email must contain @gmail.com
+    if (!formData.email.includes('@gmail.com')) {
+      toast({
+        title: '⚠️ Email không hợp lệ',
+        description: 'Email phải có định dạng @gmail.com',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate phone number: must be digits only, start with 0, and exactly 10 digits
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      toast({
+        title: '⚠️ Số điện thoại không hợp lệ',
+        description: 'Số điện thoại phải bắt đầu bằng số 0 và có đúng 10 chữ số',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Check duplicate email
+    const emailExists = dealers.some(dealer => dealer.email?.toLowerCase() === formData.email.toLowerCase());
+    if (emailExists) {
+      toast({
+        title: '⚠️ Email đã tồn tại',
+        description: 'Email này đã được sử dụng bởi đại lý khác',
+        variant: 'destructive',
+        duration: 3000,
       });
       return;
     }
@@ -220,6 +256,7 @@ export default function AdminDealersPage() {
       toast({
         title: '✅ Tạo thành công',
         description: `Đã tạo đại lý ${formData.name}${managerInfo}`,
+        duration: 3000,
       });
       setIsCreateOpen(false);
       resetForm();
@@ -245,7 +282,7 @@ export default function AdminDealersPage() {
         title: '❌ Lỗi tạo đại lý',
         description: errorMessage,
         variant: 'destructive',
-        duration: 5000, // Hiển thị 5 giây
+        duration: 3000,
       });
     }
   };

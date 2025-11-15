@@ -113,6 +113,8 @@ export interface DistributionRes {
     color?: string;
     quantity: number;
     dealerPrice?: number;    // Giá hãng cho item này (EVM set)
+    approvedQuantity?: number; // Số lượng được duyệt cho item này
+    receivedQuantity?: number; // Số lượng đã nhận cho item này
   }[];
   
   // Timeline
@@ -142,6 +144,11 @@ export interface DistributionRes {
   // Supplementary order fields
   parentDistributionId?: number;      // ID của đơn gốc nếu đây là đơn bổ sung
   isSupplementary?: boolean;          // True nếu đây là đơn bổ sung số lượng thiếu
+  
+  // Payment information
+  paidAmount?: number;                // Số tiền đã thanh toán
+  transactionNo?: string;             // Mã giao dịch VNPay
+  paidAt?: string;                    // Thời gian thanh toán (ISO string)
 }
 
 /**
@@ -170,11 +177,11 @@ export const getDistributionStatusLabel = (status: DistributionStatus): string =
     [DistributionStatus.ACCEPTED]: 'Đã chấp nhận',
     [DistributionStatus.DECLINED]: 'Đã từ chối',
     [DistributionStatus.PENDING]: 'Chờ duyệt',
-    [DistributionStatus.CONFIRMED]: 'Đã duyệt',
+    [DistributionStatus.CONFIRMED]: 'Đã thanh toán',
     [DistributionStatus.CANCELED]: 'Đã hủy',
     [DistributionStatus.PRICE_SENT]: 'Chờ xác nhận giá',
     [DistributionStatus.PRICE_ACCEPTED]: 'Đã chấp nhận giá',
-    [DistributionStatus.PRICE_REJECTED]: 'Đã từ chối giá',
+    [DistributionStatus.PRICE_REJECTED]: 'Từ chối do không đủ số lượng',
     [DistributionStatus.PLANNED]: 'Đã lên kế hoạch',
     [DistributionStatus.COMPLETED]: 'Hoàn thành',
   };

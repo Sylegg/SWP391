@@ -20,7 +20,7 @@ export interface UserRes {
   email?: string;
   phone?: string;
   address?: string;
-  role?: string;  // Backend uses "role", not "roleName"
+  role?: string | { name: string };  // Support both string and object format
   roleName?: string;  // Keep for backward compatibility
   status?: string;
   dealerId?: number;
@@ -66,6 +66,23 @@ export async function getUsersByRole(roleName: string): Promise<UserRes[]> {
   const filtered = allUsers.filter(u => (u.role === roleName || u.roleName === roleName));
   console.log('📋 Filtered users:', filtered);
   return filtered;
+}
+
+// Get all users
+export async function getAllUsers(): Promise<UserRes[]> {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE_URL}/api/user/listUser`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch all users');
+  }
+  
+  return response.json();
 }
 
 // Get user by ID
@@ -118,6 +135,8 @@ export async function createUser(user: UserReq): Promise<UserRes> {
     dealerId: user.dealerId || null, // Include dealerId in registration
   };
   
+  console.log('🚀 Creating user with data:', registerReq);
+  
   const registerResponse = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: {
@@ -127,8 +146,18 @@ export async function createUser(user: UserReq): Promise<UserRes> {
     body: JSON.stringify(registerReq),
   });
   
+  console.log('📡 Register response status:', registerResponse.status);
+  
   if (!registerResponse.ok) {
-    const errorText = await registerResponse.text();
+    let errorText = 'Unknown error';
+    try {
+      const errorData = await registerResponse.json();
+      errorText = JSON.stringify(errorData);
+      console.error('❌ Register error JSON:', errorData);
+    } catch {
+      errorText = await registerResponse.text();
+      console.error('❌ Register error text:', errorText);
+    }
     throw new Error(errorText || 'Failed to create user');
   }
   

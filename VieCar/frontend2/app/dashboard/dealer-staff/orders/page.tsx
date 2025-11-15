@@ -8,14 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, Package, Truck, CheckCircle, Filter, Search, Check, X, AlertCircle, Clock } from "lucide-react";
-import { getOrdersByDealerId, OrderRes, approveOrder, rejectOrder, confirmDepositAndRequestVehicle } from "@/lib/orderApi";
+import { Eye, Package, Truck, CheckCircle, Filter, Search, Check, X, AlertCircle, Clock, Plus } from "lucide-react";
+import { getOrdersByDealerId, OrderRes, approveOrder, rejectOrder, confirmDepositAndRequestVehicle, confirmVehicleReady, confirmVehiclePickedUp } from "@/lib/orderApi";
+import { vnpayApi } from "@/lib/vnpayApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { CreateOfflineOrderDialog } from "@/components/create-offline-order-dialog";
 
 export default function DealerStaffOrdersPage() {
   const { user } = useAuth();
@@ -28,13 +30,22 @@ export default function DealerStaffOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
+  // Create offline order dialog
+  const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
+  
   // Approve/Reject/Confirm dialogs
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isConfirmDepositDialogOpen, setIsConfirmDepositDialogOpen] = useState(false);
+  const [isOfflineDepositDialogOpen, setIsOfflineDepositDialogOpen] = useState(false);
+  const [isVehicleReadyDialogOpen, setIsVehicleReadyDialogOpen] = useState(false);
+  const [isVehiclePickedUpDialogOpen, setIsVehiclePickedUpDialogOpen] = useState(false);
   const [orderToProcess, setOrderToProcess] = useState<OrderRes | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [confirmNotes, setConfirmNotes] = useState("");
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
+  const [finalPaymentMethod, setFinalPaymentMethod] = useState<'offline' | 'online'>('offline');
+  const [depositPaymentMethod, setDepositPaymentMethod] = useState<'offline' | 'online'>('offline');
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch orders on mount
@@ -168,7 +179,7 @@ export default function DealerStaffOrdersPage() {
       setIsProcessing(true);
       await confirmDepositAndRequestVehicle(
         orderToProcess.orderId, 
-        confirmNotes || 'Đã xác nhận đặt cọc thành công. Yêu cầu đã được gửi đến đại lý để chuẩn bị xe.'
+        confirmNotes || 'Đã xác nhận đặt cọc thành công. Đại lý đang chuẩn bị xe.'
       );
       
       toast({
@@ -192,16 +203,173 @@ export default function DealerStaffOrdersPage() {
     }
   };
 
+  // Xử lý đặt cọc (offline tại cửa hàng hoặc online qua VNPay)
+  const handleOfflineDeposit = async () => {
+    if (!orderToProcess) return;
+    
+    try {
+      setIsProcessing(true);
+      
+      if (depositPaymentMethod === 'online') {
+        // Thanh toán online qua VNPay cho đặt cọc 30%
+        const paymentUrl = await vnpayApi.createPayment(orderToProcess.orderId.toString(), 'deposit', undefined, 'dealer-staff');
+        
+        toast({
+          title: "Chuyển đến VNPay",
+          description: "Đang chuyển khách hàng đến trang thanh toán đặt cọc...",
+        });
+        
+        // Đóng dialog trước
+        setIsOfflineDepositDialogOpen(false);
+        setOrderToProcess(null);
+        setDepositPaymentMethod('offline');
+        setIsProcessing(false);
+        
+        // Chuyển hướng đến VNPay trong cùng tab
+        setTimeout(() => {
+          window.location.href = paymentUrl.url;
+        }, 1000);
+        
+      } else {
+        // Thanh toán offline tại cửa hàng
+        await confirmDepositAndRequestVehicle(
+          orderToProcess.orderId, 
+          'Khách hàng đã đặt cọc 30% tại cửa hàng. Đại lý đang chuẩn bị xe.'
+        );
+        
+        toast({
+          title: "Đặt cọc thành công",
+          description: "Đã xác nhận khách hàng đặt cọc tại cửa hàng. Đơn hàng chuyển sang trạng thái đang chuẩn bị xe.",
+        });
+        
+        // Refresh orders
+        await fetchOrders();
+        setIsOfflineDepositDialogOpen(false);
+        setOrderToProcess(null);
+        setDepositPaymentMethod('offline');
+      }
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xác nhận đặt cọc",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Xác nhận xe đã sẵn sàng để giao
+  const handleVehicleReady = async () => {
+    if (!orderToProcess) return;
+    
+    if (!expectedDeliveryDate) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn ngày giao dự kiến",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setIsProcessing(true);
+      // Send deliveryDate as a separate parameter instead of in notes
+      await confirmVehicleReady(
+        orderToProcess.orderId,
+        expectedDeliveryDate, // Send as YYYY-MM-DD format
+        `Xe đã được chuẩn bị xong. Vui lòng thông báo khách hàng đến đại lý để nhận xe và thanh toán 70% còn lại.`
+      );
+      
+      toast({
+        title: "Xác nhận thành công",
+        description: `Đã xác nhận xe sẵn sàng. Khách hàng sẽ được thông báo đến nhận xe vào ${expectedDeliveryDate}.`,
+      });
+      
+      // Refresh orders
+      await fetchOrders();
+      setIsVehicleReadyDialogOpen(false);
+      setOrderToProcess(null);
+      setExpectedDeliveryDate("");
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xác nhận xe sẵn sàng",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Xác nhận khách hàng đã lấy xe
+  const handleVehiclePickedUp = async () => {
+    if (!orderToProcess) return;
+    
+    try {
+      setIsProcessing(true);
+      
+      if (finalPaymentMethod === 'online') {
+        // Thanh toán online qua VNPay cho 70% còn lại
+        const paymentUrl = await vnpayApi.createPayment(orderToProcess.orderId.toString(), 'final', undefined, 'dealer-staff');
+        
+        toast({
+          title: "Chuyển đến VNPay",
+          description: "Đang chuyển khách hàng đến trang thanh toán...",
+        });
+        
+        // Đóng dialog trước
+        setIsVehiclePickedUpDialogOpen(false);
+        setOrderToProcess(null);
+        setFinalPaymentMethod('offline');
+        setIsProcessing(false);
+        
+        // Chuyển hướng đến VNPay trong cùng tab
+        setTimeout(() => {
+          window.location.href = paymentUrl.url;
+        }, 1000);
+        
+      } else {
+        // Thanh toán offline tại cửa hàng
+        await confirmVehiclePickedUp(
+          orderToProcess.orderId, 
+          'Khách hàng đã nhận xe và thanh toán 70% còn lại tại cửa hàng. Đơn hàng hoàn tất.'
+        );
+        
+        toast({
+          title: "Giao xe thành công",
+          description: "Đã xác nhận khách hàng nhận xe và hoàn tất thanh toán tại cửa hàng.",
+        });
+        
+        // Refresh orders
+        await fetchOrders();
+        setIsVehiclePickedUpDialogOpen(false);
+        setOrderToProcess(null);
+        setFinalPaymentMethod('offline');
+      }
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xử lý giao xe",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", color: string, label: string }> = {
       // Tiếng Việt status
       'Chờ xử lý': { variant: 'outline', color: 'text-yellow-600 bg-yellow-50', label: 'Chờ xử lý' },
       'Chưa đặt cọc': { variant: 'outline', color: 'text-orange-600 bg-orange-50', label: 'Chưa đặt cọc' },
       'Đã đặt cọc': { variant: 'default', color: 'text-blue-600 bg-blue-50', label: 'Đã đặt cọc' },
-      'Đã yêu cầu đại lý': { variant: 'default', color: 'text-indigo-600 bg-indigo-50', label: 'Đã yêu cầu đại lý' },
+      'Đang chuẩn bị xe': { variant: 'default', color: 'text-cyan-600 bg-cyan-50', label: 'Đang chuẩn bị xe' },
+      'Đã yêu cầu đại lý': { variant: 'default', color: 'text-indigo-600 bg-indigo-50', label: 'Đang chuẩn bị xe' },
+      'Sẵn sàng giao xe': { variant: 'default', color: 'text-purple-600 bg-purple-50', label: 'Sẵn sàng giao xe' },
       'Đã duyệt': { variant: 'default', color: 'text-green-600 bg-green-50', label: 'Đã duyệt' },
       'Đã từ chối': { variant: 'destructive', color: 'text-red-600 bg-red-50', label: 'Đã từ chối' },
-      'Đã giao': { variant: 'default', color: 'text-purple-600 bg-purple-50', label: 'Đã giao' },
+      'Đã giao': { variant: 'default', color: 'text-green-600 bg-green-50', label: 'Đã giao' },
       'Đã hủy': { variant: 'outline', color: 'text-gray-600 bg-gray-50', label: 'Đã hủy' },
       // English status (backward compatibility)
       'PENDING_APPROVAL': { variant: 'outline', color: 'text-yellow-600 bg-yellow-50', label: 'Chờ xử lý' },
@@ -260,11 +428,20 @@ export default function DealerStaffOrdersPage() {
       <DealerStaffLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý đơn hàng</h1>
-            <p className="text-gray-500 mt-2">
-              Xem và quản lý tất cả đơn hàng của đại lý {user?.dealerName || 'VieCar'}
-            </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Quản lý đơn hàng</h1>
+              <p className="text-gray-500 mt-2">
+                Xem và quản lý tất cả đơn hàng của đại lý {user?.dealerName || 'VieCar'}
+              </p>
+            </div>
+            <Button 
+              onClick={() => setIsCreateOrderDialogOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Tạo đơn offline
+            </Button>
           </div>
 
           {/* Filters */}
@@ -299,6 +476,7 @@ export default function DealerStaffOrdersPage() {
                       <SelectItem value="Chưa đặt cọc">Chưa đặt cọc</SelectItem>
                       <SelectItem value="Đã đặt cọc">Đã đặt cọc</SelectItem>
                       <SelectItem value="Đã yêu cầu đại lý">Đã yêu cầu đại lý</SelectItem>
+                      <SelectItem value="Sẵn sàng giao xe">Sẵn sàng giao xe</SelectItem>
                       <SelectItem value="Đã duyệt">Đã duyệt</SelectItem>
                       <SelectItem value="Đã từ chối">Đã từ chối</SelectItem>
                       <SelectItem value="Đã giao">Đã giao</SelectItem>
@@ -343,6 +521,7 @@ export default function DealerStaffOrdersPage() {
                         <TableHead>Tổng tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
                         <TableHead>Ngày đặt</TableHead>
+                        <TableHead>Ngày giao dự kiến</TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -359,62 +538,127 @@ export default function DealerStaffOrdersPage() {
                             {formatCurrency(order.totalPrice)}
                           </TableCell>
                           <TableCell>{getStatusBadge(order.status)}</TableCell>
-                          <TableCell>Chưa xác định</TableCell>
+                          <TableCell>
+                            {order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}
+                          </TableCell>
+                          <TableCell>
+                            {order.deliveryDate ? (
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-green-100 dark:bg-green-900 rounded-full">
+                                  <Truck className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                                </div>
+                                <span className="font-semibold text-green-700 dark:text-green-400">
+                                  {new Date(order.deliveryDate).toLocaleDateString('vi-VN')}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span className="text-sm italic">Chưa xác định</span>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
-                              {(order.status === 'Chờ xử lý' || order.status === 'PENDING_APPROVAL' || order.status === 'Processing') && (
+                              {/* Hiển thị badge "Đã hoàn tất" nếu đơn hàng đã giao */}
+                              {order.status === 'Đã giao' && (
+                                <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Đã hoàn tất
+                                </Badge>
+                              )}
+                              
+                              {/* Các nút action chỉ hiển thị khi đơn hàng chưa giao */}
+                              {order.status !== 'Đã giao' && (
                                 <>
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    className="bg-green-600 hover:bg-green-700"
-                                    onClick={() => {
-                                      setOrderToProcess(order);
-                                      setIsApproveDialogOpen(true);
-                                    }}
-                                  >
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Duyệt
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => {
-                                      setOrderToProcess(order);
-                                      setIsRejectDialogOpen(true);
-                                    }}
-                                  >
-                                    <X className="h-4 w-4 mr-1" />
-                                    Từ chối
-                                  </Button>
+                                  {(order.status === 'Chờ xử lý' || order.status === 'PENDING_APPROVAL' || order.status === 'Processing') && (
+                                    <>
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700"
+                                        onClick={() => {
+                                          setOrderToProcess(order);
+                                          setIsApproveDialogOpen(true);
+                                        }}
+                                      >
+                                        <Check className="h-4 w-4 mr-1" />
+                                        Duyệt
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => {
+                                          setOrderToProcess(order);
+                                          setIsRejectDialogOpen(true);
+                                        }}
+                                      >
+                                        <X className="h-4 w-4 mr-1" />
+                                        Từ chối
+                                      </Button>
+                                    </>
+                                  )}
+                                  {order.status === 'Chưa đặt cọc' && (
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="bg-orange-600 hover:bg-orange-700"
+                                        onClick={() => {
+                                          setOrderToProcess(order);
+                                          setIsOfflineDepositDialogOpen(true);
+                                        }}
+                                      >
+                                        <Check className="h-4 w-4 mr-1" />
+                                        Đặt cọc tại cửa hàng
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {order.status === 'Đã đặt cọc' && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="bg-indigo-600 hover:bg-indigo-700"
+                                      onClick={() => {
+                                        setOrderToProcess(order);
+                                        setIsConfirmDepositDialogOpen(true);
+                                      }}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Xác nhận cọc
+                                    </Button>
+                                  )}
+                                  {(order.status === 'Đã yêu cầu đại lý' || order.status === 'Đang chuẩn bị xe') && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="bg-purple-600 hover:bg-purple-700"
+                                      onClick={() => {
+                                        setOrderToProcess(order);
+                                        setIsVehicleReadyDialogOpen(true);
+                                      }}
+                                    >
+                                      <Truck className="h-4 w-4 mr-1" />
+                                      Xác nhận xe sẵn sàng
+                                    </Button>
+                                  )}
+                                  {order.status === 'Sẵn sàng giao xe' && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => {
+                                        setOrderToProcess(order);
+                                        setIsVehiclePickedUpDialogOpen(true);
+                                      }}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Xác nhận khách lấy xe
+                                    </Button>
+                                  )}
                                 </>
                               )}
-                              {order.status === 'Chưa đặt cọc' && (
-                                <div className="flex items-center gap-2 text-orange-600">
-                                  <Clock className="h-4 w-4" />
-                                  <span className="text-sm font-medium">Chờ KH đặt cọc</span>
-                                </div>
-                              )}
-                              {order.status === 'Đã đặt cọc' && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="bg-indigo-600 hover:bg-indigo-700"
-                                  onClick={() => {
-                                    setOrderToProcess(order);
-                                    setIsConfirmDepositDialogOpen(true);
-                                  }}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Xác nhận & Gửi đại lý
-                                </Button>
-                              )}
-                              {order.status === 'Đã yêu cầu đại lý' && (
-                                <div className="flex items-center gap-2 text-indigo-600">
-                                  <Truck className="h-4 w-4" />
-                                  <span className="text-sm font-medium">Đang chuẩn bị xe</span>
-                                </div>
-                              )}
+                              
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -436,53 +680,147 @@ export default function DealerStaffOrdersPage() {
 
           {/* Detail Dialog */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Chi tiết đơn hàng #{selectedOrder?.orderId}</DialogTitle>
-                <DialogDescription>
-                  Thông tin chi tiết về đơn hàng
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 -m-6 p-6 mb-4 rounded-t-lg border-b-2 border-blue-200 dark:border-blue-800">
+                <DialogTitle className="text-2xl flex items-center gap-2">
+                  <Package className="h-6 w-6 text-blue-600" />
+                  Chi tiết đơn hàng #{selectedOrder?.orderId}
+                </DialogTitle>
+                <DialogDescription className="text-base mt-1">
+                  Thông tin chi tiết về đơn hàng và khách hàng
                 </DialogDescription>
               </DialogHeader>
 
               {selectedOrder && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Khách hàng</p>
-                      <p className="font-medium">{selectedOrder.customerName || 'N/A'}</p>
+                <div className="space-y-6 pt-2">
+                  {/* Customer and Status Info */}
+                  <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300 text-lg">
+                        <Eye className="h-5 w-5" />
+                        Thông tin đơn hàng
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                        <Eye className="h-3 w-3" />
+                        Khách hàng
+                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedOrder.customerName || 'N/A'}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Trạng thái</p>
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Trạng thái</p>
                       <div className="mt-1">{getStatusBadge(selectedOrder.status)}</div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Sản phẩm</p>
-                      <p className="font-medium">{selectedOrder.productName || 'N/A'}</p>
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                        <Package className="h-3 w-3" />
+                        Sản phẩm
+                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedOrder.productName || 'N/A'}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Số lượng</p>
-                      <p className="font-medium">1</p>
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Số lượng</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">1</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Ngày đặt hàng</p>
-                      <p className="font-medium">Chưa xác định</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Địa chỉ giao hàng</p>
-                      <p className="font-medium">Chưa xác định</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-sm text-gray-500">Hợp đồng</p>
-                      <p className="font-medium">{selectedOrder.contracts?.length || 0} hợp đồng</p>
+                    <div className="col-span-2 bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Hợp đồng
+                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedOrder.contracts?.length || 0} hợp đồng</p>
                     </div>
                   </div>
+                    </CardContent>
+                  </Card>
 
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between items-center text-lg font-semibold">
-                      <span>Tổng tiền:</span>
-                      <span className="text-blue-600">{formatCurrency(selectedOrder.totalPrice)}</span>
-                    </div>
-                  </div>
+                  {/* Payment Info */}
+                  <Card className="border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-950">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-300 text-lg">
+                        <CheckCircle className="h-5 w-5" />
+                        Thông tin thanh toán
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex justify-between items-center pb-3 border-b border-orange-200">
+                        <span className="text-sm font-medium">Tổng giá trị xe:</span>
+                        <span className="font-bold text-lg">
+                          {formatCurrency(selectedOrder.totalPrice)}
+                        </span>
+                      </div>
+                      
+                      {/* Đặt cọc 30% */}
+                      <div className="flex justify-between items-center pb-3 border-b border-orange-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Đặt cọc (30%):</span>
+                          {(selectedOrder.status === 'DEPOSIT_PAID' || 
+                            selectedOrder.status === 'VEHICLE_READY' || 
+                            selectedOrder.status === 'DELIVERED' ||
+                            selectedOrder.status === 'Đã đặt cọc' ||
+                            selectedOrder.status === 'Đang chuẩn bị xe' ||
+                            selectedOrder.status === 'Sẵn sàng giao xe' ||
+                            selectedOrder.status === 'Đã giao') && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs">
+                              ✓ Đã thanh toán
+                            </Badge>
+                          )}
+                        </div>
+                        <span className={`font-bold text-lg ${
+                          (selectedOrder.status === 'DEPOSIT_PAID' || 
+                           selectedOrder.status === 'VEHICLE_READY' || 
+                           selectedOrder.status === 'DELIVERED' ||
+                           selectedOrder.status === 'Đã đặt cọc' ||
+                           selectedOrder.status === 'Đang chuẩn bị xe' ||
+                           selectedOrder.status === 'Sẵn sàng giao xe' ||
+                           selectedOrder.status === 'Đã giao')
+                            ? 'text-green-600'
+                            : 'text-orange-600'
+                        }`}>
+                          {formatCurrency(selectedOrder.totalPrice * 0.3)}
+                        </span>
+                      </div>
+                      
+                      {/* Thanh toán còn lại 70% */}
+                      <div className="flex justify-between items-center pb-3 border-b border-orange-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Còn lại (70%):</span>
+                          {(selectedOrder.status === 'DELIVERED' || selectedOrder.status === 'Đã giao') && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs">
+                              ✓ Đã thanh toán
+                            </Badge>
+                          )}
+                        </div>
+                        <span className={`font-bold text-lg ${
+                          (selectedOrder.status === 'DELIVERED' || selectedOrder.status === 'Đã giao')
+                            ? 'text-green-600'
+                            : 'text-orange-600'
+                        }`}>
+                          {formatCurrency(selectedOrder.totalPrice * 0.7)}
+                        </span>
+                      </div>
+                      
+                      {/* Tổng đã thanh toán */}
+                      <div className="flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-lg p-3">
+                        <span className="font-bold text-gray-900 dark:text-gray-100">Đã thanh toán:</span>
+                        <span className="font-bold text-xl text-blue-600 dark:text-blue-400">
+                          {formatCurrency(
+                            (selectedOrder.status === 'DELIVERED' || selectedOrder.status === 'Đã giao')
+                              ? selectedOrder.totalPrice
+                              : (selectedOrder.status === 'DEPOSIT_PAID' || 
+                                 selectedOrder.status === 'VEHICLE_READY' ||
+                                 selectedOrder.status === 'Đã đặt cọc' ||
+                                 selectedOrder.status === 'Đang chuẩn bị xe' ||
+                                 selectedOrder.status === 'Sẵn sàng giao xe')
+                                ? selectedOrder.totalPrice * 0.3
+                                : 0
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
@@ -502,19 +840,21 @@ export default function DealerStaffOrdersPage() {
                   <Check className="h-5 w-5 text-green-600" />
                   Xác nhận duyệt đơn hàng
                 </AlertDialogTitle>
-                <AlertDialogDescription className="space-y-3">
-                  <p>
-                    Bạn có chắc chắn muốn duyệt đơn hàng <strong>#{orderToProcess?.orderId}</strong> không?
-                  </p>
-                  <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
-                      📋 Sau khi duyệt:
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3">
+                    <p>
+                      Bạn có chắc chắn muốn duyệt đơn hàng <strong>#{orderToProcess?.orderId}</strong> không?
                     </p>
-                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
-                      <li>• Khách hàng sẽ nhận được thông báo</li>
-                      <li>• Yêu cầu đặt cọc <strong>30%</strong> giá trị xe ({orderToProcess && formatCurrency(orderToProcess.totalPrice * 0.3)})</li>
-                      <li>• Đơn hàng chuyển sang trạng thái <strong>"Chưa đặt cọc"</strong></li>
-                    </ul>
+                    <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                      <div className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
+                        📋 Sau khi duyệt:
+                      </div>
+                      <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
+                        <li>• Khách hàng sẽ nhận được thông báo</li>
+                        <li>• Yêu cầu đặt cọc <strong>30%</strong> giá trị xe ({orderToProcess && formatCurrency(orderToProcess.totalPrice * 0.3)})</li>
+                        <li>• Đơn hàng chuyển sang trạng thái <strong>"Chưa đặt cọc"</strong></li>
+                      </ul>
+                    </div>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -655,24 +995,13 @@ export default function DealerStaffOrdersPage() {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Ghi chú cho đại lý (tùy chọn)</label>
-                  <Textarea
-                    placeholder="Ví dụ: Khách hàng cần xe màu trắng, Giao trước ngày 15/11..."
-                    value={confirmNotes}
-                    onChange={(e) => setConfirmNotes(e.target.value)}
-                    rows={3}
-                    className="resize-none"
-                  />
-                </div>
-
                 <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm text-blue-900 dark:text-blue-100 font-semibold mb-2">
+                  <div className="text-sm text-blue-900 dark:text-blue-100 font-semibold mb-2">
                     📋 Sau khi xác nhận:
-                  </p>
+                  </div>
                   <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
                     <li>✓ Đại lý sẽ nhận được yêu cầu chuẩn bị xe</li>
-                    <li>✓ Trạng thái đơn hàng: "Đã yêu cầu đại lý"</li>
+                    <li>✓ Trạng thái đơn hàng: "Đang chuẩn bị xe"</li>
                     <li>✓ Khách hàng sẽ thanh toán 70% còn lại khi nhận xe</li>
                   </ul>
                 </div>
@@ -710,6 +1039,424 @@ export default function DealerStaffOrdersPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Offline Deposit Dialog - Đặt cọc tại cửa hàng */}
+          <AlertDialog open={isOfflineDepositDialogOpen} onOpenChange={setIsOfflineDepositDialogOpen}>
+            <AlertDialogContent className="max-w-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
+                  <Check className="h-5 w-5" />
+                  Xác nhận đặt cọc tại cửa hàng
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-4">
+                    <p className="text-base">
+                      Xác nhận khách hàng đã thanh toán <strong>đặt cọc 30%</strong> cho đơn hàng <strong>#{orderToProcess?.orderId}</strong>
+                    </p>
+                    {orderToProcess && (
+                      <div className="bg-orange-50 dark:bg-orange-950 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-orange-900 dark:text-orange-100">Khách hàng:</span>
+                            <span className="font-semibold text-orange-900 dark:text-orange-100">{orderToProcess.customerName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-orange-900 dark:text-orange-100">Sản phẩm:</span>
+                            <span className="font-semibold text-orange-900 dark:text-orange-100">{orderToProcess.productName}</span>
+                          </div>
+                          <div className="flex justify-between border-t border-orange-300 dark:border-orange-700 pt-2">
+                            <span className="text-orange-900 dark:text-orange-100">Tổng giá trị:</span>
+                            <span className="font-bold text-orange-900 dark:text-orange-100">
+                              {new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
+                                currency: 'VND'
+                              }).format(orderToProcess.totalPrice)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-green-600 dark:text-green-400">
+                            <span className="font-semibold">Số tiền đặt cọc (30%):</span>
+                            <span className="font-bold text-lg">
+                              {new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
+                                currency: 'VND'
+                              }).format(orderToProcess.totalPrice * 0.3)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Payment Method Selection for Deposit */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-foreground">Phương thức thanh toán đặt cọc 30%:</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setDepositPaymentMethod('offline')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            depositPaymentMethod === 'offline'
+                              ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <div className={`p-2 rounded-full ${depositPaymentMethod === 'offline' ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                              <CheckCircle className={`h-5 w-5 ${depositPaymentMethod === 'offline' ? 'text-green-600' : 'text-gray-500'}`} />
+                            </div>
+                            <span className={`font-semibold text-sm ${depositPaymentMethod === 'offline' ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                              Tiền mặt tại cửa hàng
+                            </span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDepositPaymentMethod('online')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            depositPaymentMethod === 'online'
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <div className={`p-2 rounded-full ${depositPaymentMethod === 'online' ? 'bg-blue-100 dark:bg-blue-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                              <svg className={`h-5 w-5 ${depositPaymentMethod === 'online' ? 'text-blue-600' : 'text-gray-500'}`} fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                              </svg>
+                            </div>
+                            <span className={`font-semibold text-sm ${depositPaymentMethod === 'online' ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                              VNPay (Online)
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                      <div className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
+                        📋 Sau khi xác nhận:
+                      </div>
+                      <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
+                        {depositPaymentMethod === 'offline' ? (
+                          <>
+                            <li>✓ Khách hàng đã thanh toán tiền mặt tại cửa hàng</li>
+                            <li>✓ Đại lý sẽ nhận được yêu cầu chuẩn bị xe</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>✓ Khách hàng sẽ được chuyển đến trang VNPay để thanh toán</li>
+                            <li>✓ Sau khi thanh toán thành công, đơn hàng tự động chuyển trạng thái</li>
+                          </>
+                        )}
+                        <li>✓ Trạng thái đơn hàng: "Đã yêu cầu đại lý"</li>
+                        <li>✓ Khách hàng sẽ thanh toán 70% còn lại khi nhận xe</li>
+                      </ul>
+                    </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={() => {
+                    setIsOfflineDepositDialogOpen(false);
+                    setOrderToProcess(null);
+                    setDepositPaymentMethod('offline');
+                  }}
+                  disabled={isProcessing}
+                >
+                  Hủy
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleOfflineDeposit}
+                  disabled={isProcessing}
+                  className={depositPaymentMethod === 'offline' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      {depositPaymentMethod === 'offline' ? 'Xác nhận đã nhận tiền' : 'Chuyển đến VNPay'}
+                    </>
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Create Offline Order Dialog */}
+          <CreateOfflineOrderDialog 
+            open={isCreateOrderDialogOpen}
+            onOpenChange={setIsCreateOrderDialogOpen}
+            onSuccess={fetchOrders}
+          />
+
+          {/* Vehicle Ready Confirmation Dialog */}
+          <AlertDialog open={isVehicleReadyDialogOpen} onOpenChange={setIsVehicleReadyDialogOpen}>
+            <AlertDialogContent className="max-w-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
+                  <Truck className="h-5 w-5" />
+                  Xác nhận xe đã sẵn sàng
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-4">
+                    <p className="text-base">
+                      Xác nhận rằng xe đã được <strong>chuẩn bị xong</strong> cho đơn hàng <strong>#{orderToProcess?.orderId}</strong>?
+                    </p>
+                    
+                    {/* Expected Delivery Date Input */}
+                    <div className="bg-yellow-50 dark:bg-yellow-950 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
+                      <label className="block text-sm font-medium text-yellow-900 dark:text-yellow-100 mb-2">
+                        📅 Ngày giao dự kiến <span className="text-red-600">*</span>
+                      </label>
+                      <Input
+                        type="date"
+                        value={expectedDeliveryDate}
+                        onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="bg-white dark:bg-gray-800"
+                        required
+                      />
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                        Khách hàng sẽ nhận được thông báo về ngày này qua email
+                      </p>
+                    </div>
+                    
+                    {orderToProcess && (
+                    <div className="bg-purple-50 dark:bg-purple-950 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-purple-900 dark:text-purple-100">Khách hàng:</span>
+                          <span className="font-semibold text-purple-900 dark:text-purple-100">{orderToProcess.customerName}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-purple-900 dark:text-purple-100">Sản phẩm:</span>
+                          <span className="font-semibold text-purple-900 dark:text-purple-100">{orderToProcess.productName}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-purple-300 dark:border-purple-700 pt-2">
+                          <span className="text-purple-900 dark:text-purple-100">Tổng giá trị:</span>
+                          <span className="font-bold text-purple-900 dark:text-purple-100">
+                            {new Intl.NumberFormat('vi-VN', {
+                              style: 'currency',
+                              currency: 'VND'
+                            }).format(orderToProcess.totalPrice)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-orange-600 dark:text-orange-400 border-t border-purple-300 dark:border-purple-700 pt-2">
+                          <span className="font-semibold">Đã đặt cọc (30%):</span>
+                          <span className="font-bold">
+                            {new Intl.NumberFormat('vi-VN', {
+                              style: 'currency',
+                              currency: 'VND'
+                            }).format(orderToProcess.totalPrice * 0.3)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-red-600 dark:text-red-400">
+                          <span className="font-semibold">Còn lại phải thanh toán (70%):</span>
+                          <span className="font-bold">
+                            {new Intl.NumberFormat('vi-VN', {
+                              style: 'currency',
+                              currency: 'VND'
+                            }).format(orderToProcess.totalPrice * 0.7)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-green-50 dark:bg-green-950 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                    <div className="text-sm text-green-900 dark:text-green-100 font-medium mb-2">
+                      📋 Sau khi xác nhận:
+                    </div>
+                    <ul className="text-sm text-green-800 dark:text-green-200 space-y-1 ml-4">
+                      <li>✓ Khách hàng sẽ nhận email thông báo với ngày giao dự kiến</li>
+                      <li>✓ Trạng thái đơn hàng: "Sẵn sàng giao xe"</li>
+                      <li>✓ Khách hàng cần thanh toán 70% còn lại khi nhận xe</li>
+                    </ul>
+                  </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isProcessing}>Hủy</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleVehicleReady}
+                  disabled={isProcessing}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      <Truck className="h-4 w-4 mr-2" />
+                      Xác nhận xe sẵn sàng
+                    </>
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Vehicle Picked Up Confirmation Dialog */}
+          <AlertDialog open={isVehiclePickedUpDialogOpen} onOpenChange={setIsVehiclePickedUpDialogOpen}>
+            <AlertDialogContent className="max-w-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                  <CheckCircle className="h-5 w-5" />
+                  Xác nhận khách hàng đã lấy xe
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-4">
+                    <p className="text-base">
+                      Xác nhận rằng khách hàng đã <strong>nhận xe</strong> cho đơn hàng <strong>#{orderToProcess?.orderId}</strong>
+                    </p>
+                    {orderToProcess && (
+                      <div className="bg-green-50 dark:bg-green-950 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-green-900 dark:text-green-100">Khách hàng:</span>
+                            <span className="font-semibold text-green-900 dark:text-green-100">{orderToProcess.customerName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-green-900 dark:text-green-100">Sản phẩm:</span>
+                            <span className="font-semibold text-green-900 dark:text-green-100">{orderToProcess.productName}</span>
+                          </div>
+                          <div className="flex justify-between border-t border-green-300 dark:border-green-700 pt-2">
+                            <span className="text-green-900 dark:text-green-100">Tổng giá trị:</span>
+                            <span className="font-bold text-green-900 dark:text-green-100">
+                              {new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
+                                currency: 'VND'
+                              }).format(orderToProcess.totalPrice)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-blue-600 dark:text-blue-400 border-t border-green-300 dark:border-green-700 pt-2">
+                            <span className="font-semibold">Đã đặt cọc (30%):</span>
+                            <span className="font-bold">
+                              {new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
+                                currency: 'VND'
+                              }).format(orderToProcess.totalPrice * 0.3)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-orange-600 dark:text-orange-400">
+                            <span className="font-semibold">Còn phải thanh toán (70%):</span>
+                            <span className="font-bold text-lg">
+                              {new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
+                                currency: 'VND'
+                              }).format(orderToProcess.totalPrice * 0.7)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Payment Method Selection */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-foreground">Phương thức thanh toán 70% còn lại:</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFinalPaymentMethod('offline')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            finalPaymentMethod === 'offline'
+                              ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <div className={`p-2 rounded-full ${finalPaymentMethod === 'offline' ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                              <CheckCircle className={`h-5 w-5 ${finalPaymentMethod === 'offline' ? 'text-green-600' : 'text-gray-500'}`} />
+                            </div>
+                            <span className={`font-semibold ${finalPaymentMethod === 'offline' ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                              Tiền mặt tại cửa hàng
+                            </span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFinalPaymentMethod('online')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            finalPaymentMethod === 'online'
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <div className={`p-2 rounded-full ${finalPaymentMethod === 'online' ? 'bg-blue-100 dark:bg-blue-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                              <svg className={`h-5 w-5 ${finalPaymentMethod === 'online' ? 'text-blue-600' : 'text-gray-500'}`} fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                              </svg>
+                            </div>
+                            <span className={`font-semibold ${finalPaymentMethod === 'online' ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                              VNPay (Online)
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                      <div className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
+                        📋 Sau khi xác nhận:
+                      </div>
+                      <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
+                        {finalPaymentMethod === 'offline' ? (
+                          <>
+                            <li>✓ Khách hàng thanh toán tiền mặt tại cửa hàng</li>
+                            <li>✓ Đơn hàng chuyển sang trạng thái "Đã giao"</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>✓ Khách hàng sẽ được chuyển đến trang VNPay</li>
+                            <li>✓ Sau khi thanh toán thành công, trạng thái tự động cập nhật</li>
+                          </>
+                        )}
+                        <li>✓ Hoàn tất đơn hàng</li>
+                      </ul>
+                    </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={() => {
+                    setIsVehiclePickedUpDialogOpen(false);
+                    setOrderToProcess(null);
+                    setFinalPaymentMethod('offline');
+                  }}
+                  disabled={isProcessing}
+                >
+                  Hủy
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleVehiclePickedUp}
+                  disabled={isProcessing}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {finalPaymentMethod === 'offline' ? 'Xác nhận đã nhận tiền' : 'Chuyển đến VNPay'}
+                    </>
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </DealerStaffLayout>
     </ProtectedRoute>

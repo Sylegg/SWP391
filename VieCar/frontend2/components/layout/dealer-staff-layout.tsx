@@ -82,17 +82,6 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/dealer-staff/orders",
     icon: ShoppingCart,
     section: "sales"
-  },
-  {
-    title: "👥 KHÁCH HÀNG",
-    isHeader: true,
-    section: "customers"
-  },
-  {
-    title: "Quản lý khách hàng",
-    href: "/dashboard/dealer-staff/customers",
-    icon: Users,
-    section: "customers"
   }
 ];
 

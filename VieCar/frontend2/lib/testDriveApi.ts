@@ -35,7 +35,7 @@ export interface TestDriveRes {
   productName?: string;        // Nullable - chỉ có sau khi staff assign
   escortStaff?: {              // NEW: Nhân viên đi cùng
     id: number;
-    fullName: string;
+    name: string;              // Changed from fullName to match backend UserRes
     email: string;
     phone: string;
   };

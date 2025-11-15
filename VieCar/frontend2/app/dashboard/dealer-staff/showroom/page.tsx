@@ -41,9 +41,10 @@ export default function DealerStaffShowroomPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [categories, setCategories] = useState<CategoryRes[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryRes | null>(null);
   const [products, setProducts] = useState<ProductRes[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductRes | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -59,7 +60,7 @@ export default function DealerStaffShowroomPage() {
 
   useEffect(() => {
     if (user?.dealerId) {
-      loadAllProducts();
+      loadCategories();
     }
     
     // Suppress third-party errors from browser extensions
@@ -126,7 +127,7 @@ export default function DealerStaffShowroomPage() {
     };
   }, [user?.dealerId]);
 
-  const loadAllProducts = async () => {
+  const loadCategories = async () => {
     if (!user?.dealerId) {
       console.log("No dealerId found");
       return;
@@ -137,48 +138,54 @@ export default function DealerStaffShowroomPage() {
       const dealerCategories = await getCategoriesByDealerId(user.dealerId);
       console.log("Categories loaded:", dealerCategories);
       setCategories(dealerCategories);
-      
-      if (dealerCategories.length === 0) {
-        console.log("No categories found");
-        setProducts([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Load products from all categories
-      let allProducts: ProductRes[] = [];
-      for (const cat of dealerCategories) {
-        try {
-          console.log("Loading products for category:", cat.id);
-          const productList = await getProductsByCategory(cat.id);
-          allProducts = [...allProducts, ...productList];
-        } catch (catError) {
-          console.error(`Error loading products for category ${cat.id}:`, catError);
-          // Continue with other categories
-        }
-      }
-      console.log("Total products loaded:", allProducts.length);
-      setProducts(allProducts);
-      
-      // Set first category as selected for adding new products
-      if (categories.length > 0) {
-        setSelectedCategory(categories[0].id);
-        console.log("Selected category:", categories[0].id);
-      }
     } catch (error: any) {
-      console.error("Error loading products:", error);
-      console.error("Error details:", error.response?.data || error.message);
+      console.error("Error loading categories:", error);
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: error.response?.data?.message || error.message || "Không thể tải danh sách xe",
+        description: error.response?.data?.message || error.message || "Không thể tải danh sách danh mục",
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const loadProductsByCategory = async (category: CategoryRes) => {
+    setLoadingProducts(true);
+    setSelectedCategory(category);
+    try {
+      console.log("Loading products for category:", category.id);
+      const productList = await getProductsByCategory(category.id);
+      console.log("Products loaded:", productList.length);
+      setProducts(productList);
+    } catch (error: any) {
+      console.error("Error loading products:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.response?.data?.message || error.message || "Không thể tải danh sách xe",
+      });
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+    setProducts([]);
+  };
+
   const handleEditClick = (product: ProductRes) => {
+    // Không cho phép chỉnh sửa xe đã bán
+    if (product.status === 'SOLDOUT') {
+      toast({
+        variant: "destructive",
+        title: "Không thể chỉnh sửa",
+        description: "Xe đã bán không thể cập nhật thông tin",
+      });
+      return;
+    }
+    
     setSelectedProduct(product);
     setImagePreview(product.image || "");
     setImageFile(null);
@@ -274,7 +281,7 @@ export default function DealerStaffShowroomPage() {
         description: "Cập nhật thông tin xe thành công",
       });
       setIsEditDialogOpen(false);
-      loadAllProducts();
+      loadProductsByCategory(selectedCategory!);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -306,42 +313,50 @@ export default function DealerStaffShowroomPage() {
                     <div className="p-2 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
                       <Car className="h-8 w-8 text-blue-600" />
                     </div>
-                    Quản lý Showroom
+                    {selectedCategory ? `${selectedCategory.name}` : 'Quản lý Showroom'}
                   </h1>
                   <p className="text-muted-foreground mb-3">
-                    Đăng xe lên bán cho khách hàng - Cập nhật giá, hình ảnh và trạng thái
+                    {selectedCategory 
+                      ? `${selectedCategory.brand || ''} - Quản lý xe trong danh mục này`
+                      : 'Chọn danh mục để xem và quản lý xe trong showroom'
+                    }
                   </p>
-                  <div className="flex gap-4 text-sm flex-wrap">
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 backdrop-blur-sm border border-green-500/20">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50"></div>
-                      <span className="font-medium">{products.filter(p => p.status === 'ACTIVE').length} xe sẵn bán</span>
+                  {selectedCategory && (
+                    <div className="flex gap-4 text-sm flex-wrap">
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 backdrop-blur-sm border border-green-500/20">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50"></div>
+                        <span className="font-medium">{products.filter(p => p.status === 'ACTIVE').length} xe sẵn bán</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 backdrop-blur-sm border border-yellow-500/20">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse shadow-lg shadow-yellow-500/50"></div>
+                        <span className="font-medium">{products.filter(p => p.status === 'RESERVED').length} đã đặt cọc</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 backdrop-blur-sm border border-red-500/20">
+                        <div className="w-2 h-2 bg-red-500 rounded-full shadow-lg shadow-red-500/50"></div>
+                        <span className="font-medium">{products.filter(p => p.status === 'SOLDOUT').length} đã bán</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 backdrop-blur-sm border border-yellow-500/20">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse shadow-lg shadow-yellow-500/50"></div>
-                      <span className="font-medium">{products.filter(p => p.status === 'RESERVED').length} đã đặt cọc</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 backdrop-blur-sm border border-red-500/20">
-                      <div className="w-2 h-2 bg-red-500 rounded-full shadow-lg shadow-red-500/50"></div>
-                      <span className="font-medium">{products.filter(p => p.status === 'SOLDOUT').length} đã bán</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <Button
-                    onClick={() => router.push("/dashboard/dealer-staff/showroom/add")}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Thêm xe mới
-                  </Button>
+                  {selectedCategory && (
+                    <Button
+                      variant="outline"
+                      onClick={handleBackToCategories}
+                      className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-800/80 hover:scale-105 transition-all duration-300"
+                    >
+                      <Car className="mr-2 h-4 w-4" />
+                      Quay lại danh mục
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => loadAllProducts()}
-                    disabled={loading}
+                    onClick={() => selectedCategory ? loadProductsByCategory(selectedCategory) : loadCategories()}
+                    disabled={loading || loadingProducts}
                     className="backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-800/80 hover:scale-105 transition-all duration-300"
                   >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`mr-2 h-4 w-4 ${(loading || loadingProducts) ? 'animate-spin' : ''}`} />
                     Làm mới
                   </Button>
                 </div>
@@ -350,35 +365,119 @@ export default function DealerStaffShowroomPage() {
 
             {/* Main Content */}
             <div>
-              {/* Product Grid */}
-              {loading ? (
-                <div className="text-center py-16">
-                  <div className="relative inline-block">
-                    <RefreshCw className="h-12 w-12 animate-spin text-purple-600" />
-                    <div className="absolute inset-0 h-12 w-12 animate-ping text-purple-400 opacity-20">
-                      <RefreshCw className="h-12 w-12" />
+              {/* Show Categories when no category is selected */}
+              {!selectedCategory && (
+                <>
+                  {loading ? (
+                    <div className="text-center py-16">
+                      <div className="relative inline-block">
+                        <RefreshCw className="h-12 w-12 animate-spin text-purple-600" />
+                        <div className="absolute inset-0 h-12 w-12 animate-ping text-purple-400 opacity-20">
+                          <RefreshCw className="h-12 w-12" />
+                        </div>
+                      </div>
+                      <p className="mt-6 text-lg font-medium text-muted-foreground">Đang tải danh mục...</p>
                     </div>
-                  </div>
-                  <p className="mt-6 text-lg font-medium text-muted-foreground">Đang tải xe...</p>
-                </div>
-              ) : products.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="mx-auto w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mb-6">
-                    <Car className="h-12 w-12 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Chưa có xe trong showroom</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Bắt đầu thêm xe vào showroom để hiển thị cho khách hàng
-                  </p>
-                  <Button
-                    onClick={() => router.push("/dashboard/dealer-staff/showroom/add")}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Thêm xe đầu tiên
-                  </Button>
-                </div>
-              ) : (
+                  ) : categories.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="mx-auto w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mb-6">
+                        <Car className="h-12 w-12 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">Chưa có danh mục nào</h3>
+                      <p className="text-muted-foreground mb-6">
+                        Liên hệ quản lý để thêm danh mục xe vào showroom
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-6">
+                        <h2 className="text-2xl font-bold mb-2">Danh mục xe</h2>
+                        <p className="text-muted-foreground">Chọn một danh mục để xem và quản lý xe</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {categories.map((category, index) => (
+                          <Card
+                            key={category.id}
+                            className="overflow-hidden hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 group relative backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border border-white/20 dark:border-gray-700/30 hover:border-primary/50 hover:scale-[1.02] hover:-translate-y-1 cursor-pointer"
+                            onClick={() => loadProductsByCategory(category)}
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+                              backdropFilter: 'blur(20px)',
+                              WebkitBackdropFilter: 'blur(20px)',
+                              animationDelay: `${index * 50}ms`,
+                              animation: 'fadeInUp 0.5s ease-out forwards',
+                            }}
+                          >
+                            {/* Liquid Glass Shine Effect */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                            
+                            {/* Animated Border Gradient */}
+                            <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 blur-sm" />
+                            </div>
+
+                            <CardHeader className="pb-3 bg-gradient-to-br from-primary/10 via-blue-500/5 to-purple-500/10 dark:from-primary/20 dark:via-blue-500/10 dark:to-purple-500/20 backdrop-blur-sm relative z-10">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm">
+                                    <Car className="w-8 h-8 text-blue-600" />
+                                  </div>
+                                  <div>
+                                    <CardTitle className="text-xl">{category.name}</CardTitle>
+                                    {category.brand && (
+                                      <CardDescription className="text-sm mt-1">{category.brand}</CardDescription>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardHeader>
+
+                            <CardContent className="pt-4 relative z-10">
+                              <div className="space-y-3">
+                                <div className="text-center py-4">
+                                  <div className="text-sm text-muted-foreground mb-2">Nhấn để xem xe</div>
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                                  >
+                                    <Car className="mr-2 h-4 w-4" />
+                                    Xem xe trong danh mục
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Show Products when a category is selected */}
+              {selectedCategory && (
+                <>
+                  {loadingProducts ? (
+                    <div className="text-center py-16">
+                      <div className="relative inline-block">
+                        <RefreshCw className="h-12 w-12 animate-spin text-purple-600" />
+                        <div className="absolute inset-0 h-12 w-12 animate-ping text-purple-400 opacity-20">
+                          <RefreshCw className="h-12 w-12" />
+                        </div>
+                      </div>
+                      <p className="mt-6 text-lg font-medium text-muted-foreground">Đang tải xe...</p>
+                    </div>
+                  ) : products.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="mx-auto w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mb-6">
+                        <Car className="h-12 w-12 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">Chưa có xe trong danh mục này</h3>
+                      <p className="text-muted-foreground">
+                        Liên hệ Dealer Manager để thêm xe vào danh mục này
+                      </p>
+                    </div>
+                  ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {products.map((product, index) => (
                     <Card 
@@ -490,17 +589,26 @@ export default function DealerStaffShowroomPage() {
                         </div>
 
                         {/* Action Button */}
-                        <Button
-                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all duration-300"
-                          onClick={() => handleEditClick(product)}
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Cập nhật thông tin
-                        </Button>
+                        {product.status === 'SOLDOUT' ? (
+                          <Badge variant="default" className="w-full justify-center py-3 bg-red-600 hover:bg-red-700 cursor-not-allowed">
+                            <Car className="mr-2 h-4 w-4" />
+                            Đã bán - Không thể chỉnh sửa
+                          </Badge>
+                        ) : (
+                          <Button
+                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all duration-300"
+                            onClick={() => handleEditClick(product)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Cập nhật thông tin
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
                 </div>
+              )}
+                </>
               )}
             </div>
 
@@ -612,12 +720,23 @@ export default function DealerStaffShowroomPage() {
                         <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500"></div>
                         <Label className="text-base font-semibold">Màu sắc xe</Label>
                       </div>
-                      <Input
+                      <Select
                         value={formData.color}
-                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                        placeholder="Vd: Đỏ Ruby, Trắng Ngọc Trai, Xanh Dương..."
-                        className="h-12 border-2 focus:border-purple-500 transition-colors"
-                      />
+                        onValueChange={(value) => setFormData({ ...formData, color: value })}
+                      >
+                        <SelectTrigger className="h-12 border-2 focus:border-purple-500 transition-colors">
+                          <SelectValue placeholder="Chọn màu sắc xe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Đỏ">Đỏ</SelectItem>
+                          <SelectItem value="Xanh dương">Xanh dương</SelectItem>
+                          <SelectItem value="Trắng">Trắng</SelectItem>
+                          <SelectItem value="Đen">Đen</SelectItem>
+                          <SelectItem value="Xám">Xám</SelectItem>
+                          <SelectItem value="Bạc">Bạc</SelectItem>
+                          <SelectItem value="Xanh lá">Xanh lá</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Image Upload */}

@@ -65,7 +65,7 @@ export default function CategoryInventoryPage() {
 
   const load = async () => {
     if (!categoryId || Number.isNaN(categoryId)) {
-      toast({ title: "❌ Lỗi", description: "Thiếu mã danh mục", variant: "destructive" });
+      toast({ title: "❌ Lỗi", description: "Thiếu mã danh mục", variant: "destructive", duration: 3000 });
       return;
     }
     try {
@@ -85,7 +85,7 @@ export default function CategoryInventoryPage() {
       setCategory(cat);
       setProducts(prods || []);
     } catch (e: any) {
-      toast({ title: "❌ Lỗi", description: e.message || "Không thể tải dữ liệu", variant: "destructive" });
+      toast({ title: "❌ Lỗi", description: e.message || "Không thể tải dữ liệu", variant: "destructive", duration: 3000 });
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ export default function CategoryInventoryPage() {
       vinNum: `VIN-${uniqueCode}`,
       engineNum: `ENG-${uniqueCode}`,
     });
-    toast({ title: "✅ Đã tạo mã tự động", description: `VIN/Engine: ${uniqueCode}` });
+    toast({ title: "✅ Đã tạo mã tự động", description: `VIN/Engine: ${uniqueCode}`, duration: 3000 });
   };
 
   const resetForm = () => {
@@ -204,19 +204,19 @@ export default function CategoryInventoryPage() {
   // Create product (category fixed)
   const handleCreate = async () => {
     if (!formData.name.trim() || !formData.vinNum.trim() || !formData.engineNum.trim()) {
-      toast({ variant: "destructive", title: "Lỗi", description: "Tên, VIN, Engine bắt buộc" });
+      toast({ variant: "destructive", title: "Lỗi", description: "Tên, VIN, Engine bắt buộc", duration: 3000 });
       return;
     }
     try {
       const payload = buildProductPayload(formData, categoryId);
       await createProduct(payload);
-      toast({ title: "Thành công", description: "Đã thêm sản phẩm vào danh mục" });
+      toast({ title: "Thành công", description: "Đã thêm sản phẩm vào danh mục", duration: 3000 });
       setIsCreateDialogOpen(false);
       resetForm();
       load();
     } catch (error: any) {
       const msg = error?.response?.data?.message || error?.message || "Không thể tạo sản phẩm";
-      toast({ variant: "destructive", title: "❌ Lỗi tạo sản phẩm", description: msg });
+      toast({ variant: "destructive", title: "❌ Lỗi tạo sản phẩm", description: msg, duration: 3000 });
     }
   };
 
@@ -263,11 +263,11 @@ export default function CategoryInventoryPage() {
       // Optimistically update local list and selected product
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       setSelectedProduct((prev) => (prev && prev.id === updated.id ? updated : prev));
-      toast({ title: "Thành công", description: "Cập nhật sản phẩm thành công" });
+      toast({ title: "Thành công", description: "Cập nhật sản phẩm thành công", duration: 3000 });
       setIsEditDialogOpen(false);
       resetForm();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Lỗi", description: error?.message || "Không thể cập nhật" });
+      toast({ variant: "destructive", title: "Lỗi", description: error?.message || "Không thể cập nhật", duration: 3000 });
     }
   };
 
@@ -300,13 +300,14 @@ export default function CategoryInventoryPage() {
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       toast({ 
         title: "✅ Đã vô hiệu hóa", 
-        description: `Sản phẩm "${selectedProduct.name}" đã chuyển sang trạng thái không hoạt động` 
+        description: `Sản phẩm "${selectedProduct.name}" đã chuyển sang trạng thái không hoạt động`,
+        duration: 3000,
       });
       setIsDeleteDialogOpen(false);
       setSelectedProduct(null);
       load();
     } catch (e: any) {
-      toast({ title: "❌ Lỗi", description: e.message || "Không thể thay đổi trạng thái", variant: "destructive" });
+      toast({ title: "❌ Lỗi", description: e.message || "Không thể thay đổi trạng thái", variant: "destructive", duration: 3000 });
     }
   };
 
@@ -604,7 +605,7 @@ export default function CategoryInventoryPage() {
                   <div>
                     <DialogTitle className="text-2xl">Thêm sản phẩm vào danh mục</DialogTitle>
                     <DialogDescription className="text-base">
-                      Danh mục: <span className="font-semibold">#{categoryId} - {category?.name}</span>
+                      Danh mục: <span className="font-semibold">{category?.name}</span>
                     </DialogDescription>
                   </div>
                 </div>
@@ -789,7 +790,7 @@ export default function CategoryInventoryPage() {
                     <div className="space-y-2 p-4 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/20">
                       <Label className="text-xs uppercase tracking-wider text-muted-foreground">Danh mục</Label>
                       <Input 
-                        value={`#${categoryId} - ${category?.name || ''}`} 
+                        value={category?.name || ''}
                         disabled
                         className="bg-gray-50 dark:bg-gray-900/50 cursor-not-allowed"
                       />
@@ -854,7 +855,7 @@ export default function CategoryInventoryPage() {
                   <div>
                     <DialogTitle className="text-2xl">Chỉnh sửa sản phẩm</DialogTitle>
                     <DialogDescription className="text-base">
-                      Danh mục: <span className="font-semibold">#{categoryId} - {category?.name}</span>
+                      Danh mục: <span className="font-semibold">{category?.name}</span>
                     </DialogDescription>
                   </div>
                 </div>
@@ -1059,7 +1060,7 @@ export default function CategoryInventoryPage() {
                     <div className="space-y-2 p-4 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/20">
                       <Label className="text-xs uppercase tracking-wider text-muted-foreground">Danh mục</Label>
                       <Input 
-                        value={`#${categoryId} - ${category?.name || ''}`} 
+                        value={category?.name || ''}
                         disabled
                         className="bg-gray-50 dark:bg-gray-900/50 cursor-not-allowed"
                       />

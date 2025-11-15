@@ -23,7 +23,7 @@ public class Order {
     @Column(name = "Id", columnDefinition = "BIGINT")
     private int id;
 
-    @Column(name = "Status", columnDefinition = "VARCHAR(20)")
+    @Column(name = "Status", columnDefinition = "NVARCHAR(50)")
     private String status;
 
     @Column(name = "Total", columnDefinition = "DECIMAL(18,2)")
@@ -50,6 +50,10 @@ public class Order {
     @Column(insertable = false, updatable = false, name = "OrderDate", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
     private Date orderDate;
+
+    @Column(name = "DeliveryDate", columnDefinition = "DATETIME2")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date deliveryDate;
 
     @PrePersist
     protected void onCreate() {
@@ -177,5 +181,13 @@ public class Order {
 
     public void setDealer(Dealer dealer) {
         this.dealer = dealer;
+    }
+
+    public Date getDeliveryDate() {
+        return deliveryDate;
+    }
+
+    public void setDeliveryDate(Date deliveryDate) {
+        this.deliveryDate = deliveryDate;
     }
 }

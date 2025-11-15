@@ -34,7 +34,7 @@ export default function StaffManagementPage() {
 
   const loadStaff = async () => {
     if (!user?.dealerId) {
-      toast({ variant: "destructive", title: "Lỗi", description: "Không tìm thấy thông tin đại lý" });
+      toast({ variant: "destructive", title: "Lỗi", description: "Không tìm thấy thông tin đại lý", duration: 3000 });
       return;
     }
     
@@ -46,19 +46,58 @@ export default function StaffManagementPage() {
       setStaff(data);
     } catch (error) {
       console.error('❌ Load staff error:', error);
-      toast({ variant: "destructive", title: "Lỗi", description: "Không thể tải danh sách nhân viên" });
+      toast({ variant: "destructive", title: "Lỗi", description: "Không thể tải danh sách nhân viên", duration: 3000 });
     } finally {
       setLoading(false);
     }
   };
 
+  const validatePhone = (phone: string) => {
+    const phoneRegex = /^0\d{9}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const validateEmail = (email: string) => {
+    return email.endsWith('@gmail.com');
+  };
+
+  const validateUsername = (username: string) => {
+    // Chỉ cho phép chữ cái (kể cả tiếng Việt có dấu) và khoảng trắng
+    const usernameRegex = /^[a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s]+$/;
+    return usernameRegex.test(username);
+  };
+
   const handleCreate = async () => {
     if (!formData.username.trim()) {
-      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập tên đăng nhập" });
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập tên đăng nhập", duration: 3000 });
+      return;
+    }
+    if (!validateUsername(formData.username)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Tên đăng nhập chỉ được chứa chữ cái và khoảng trắng", duration: 3000 });
       return;
     }
     if (!formData.password.trim()) {
-      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập mật khẩu" });
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập mật khẩu", duration: 3000 });
+      return;
+    }
+    if (!formData.email.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập email", duration: 3000 });
+      return;
+    }
+    if (!validateEmail(formData.email)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Email phải có định dạng @gmail.com", duration: 3000 });
+      return;
+    }
+    if (!formData.phone.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập số điện thoại", duration: 3000 });
+      return;
+    }
+    if (!validatePhone(formData.phone)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Số điện thoại phải có 10 số và bắt đầu bằng số 0", duration: 3000 });
+      return;
+    }
+    if (!formData.address.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập địa chỉ", duration: 3000 });
       return;
     }
     try {
@@ -70,13 +109,13 @@ export default function StaffManagementPage() {
       const result = await createUser(newUserData);
       console.log('✅ User created:', result);
       
-      toast({ title: "Thành công", description: "Tạo tài khoản nhân viên thành công" });
+      toast({ title: "Thành công", description: "Tạo tài khoản nhân viên thành công", duration: 3000 });
       setIsCreateDialogOpen(false);
       setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
       loadStaff();
     } catch (error: any) {
       console.error('❌ Create user error:', error);
-      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể tạo tài khoản" });
+      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể tạo tài khoản", duration: 3000 });
     } finally {
       setLoading(false);
     }
@@ -84,6 +123,16 @@ export default function StaffManagementPage() {
 
   const handleEdit = async () => {
     if (!selectedStaff) return;
+    
+    if (formData.phone && !validatePhone(formData.phone)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Số điện thoại phải có 10 số và bắt đầu bằng số 0", duration: 3000 });
+      return;
+    }
+    if (formData.email && !validateEmail(formData.email)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Email phải có định dạng @gmail.com", duration: 3000 });
+      return;
+    }
+    
     try {
       setLoading(true);
       const updates: any = { 
@@ -102,14 +151,14 @@ export default function StaffManagementPage() {
       console.log('📤 Update data:', updates);
       
       await updateUser(selectedStaff.id, updates);
-      toast({ title: "Thành công", description: "Cập nhật thông tin nhân viên thành công" });
+      toast({ title: "Thành công", description: "Cập nhật thông tin nhân viên thành công", duration: 3000 });
       setIsEditDialogOpen(false);
       setSelectedStaff(null);
       setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
       loadStaff();
     } catch (error: any) {
       console.error('❌ Update error:', error);
-      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể cập nhật thông tin" });
+      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể cập nhật thông tin", duration: 3000 });
     } finally {
       setLoading(false);
     }
@@ -120,10 +169,10 @@ export default function StaffManagementPage() {
     try {
       setLoading(true);
       await deleteUser(staffId);
-      toast({ title: "Thành công", description: "Xóa nhân viên thành công" });
+      toast({ title: "Thành công", description: "Xóa nhân viên thành công", duration: 3000 });
       loadStaff();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể xóa nhân viên" });
+      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể xóa nhân viên", duration: 3000 });
     } finally {
       setLoading(false);
     }
@@ -308,11 +357,15 @@ export default function StaffManagementPage() {
                     <div className="space-y-2">
                       <Label className="text-blue-600 dark:text-blue-400 font-medium">Tên đăng nhập *</Label>
                       <Input 
-                        placeholder="Nhập tên đăng nhập" 
+                        placeholder="Nhập họ tên (VD: Nguyễn Văn A)" 
                         value={formData.username} 
-                        onChange={e => setFormData({ ...formData, username: e.target.value })}
+                        onChange={e => {
+                          const value = e.target.value.replace(/[^a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s]/g, '');
+                          setFormData({ ...formData, username: value });
+                        }}
                         className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-blue-200 dark:border-blue-800 focus:border-blue-500 focus:ring-blue-500"
                       />
+                      <p className="text-xs text-gray-500">Chỉ chữ cái (có dấu) và khoảng trắng, không chứa số hay ký tự</p>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-purple-600 dark:text-purple-400 font-medium">Mật khẩu *</Label>
@@ -336,28 +389,42 @@ export default function StaffManagementPage() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-green-600 dark:text-green-400 font-medium">Email</Label>
+                      <Label className="text-green-600 dark:text-green-400 font-medium">Email *</Label>
                       <Input 
                         type="email" 
-                        placeholder="Nhập email" 
+                        placeholder="example@gmail.com" 
                         value={formData.email} 
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                         className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-green-200 dark:border-green-800 focus:border-green-500 focus:ring-green-500"
                       />
+                      <p className="text-xs text-gray-500">Phải có định dạng @gmail.com</p>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-emerald-600 dark:text-emerald-400 font-medium">Số điện thoại</Label>
+                      <Label className="text-emerald-600 dark:text-emerald-400 font-medium">Số điện thoại *</Label>
                       <Input 
-                        placeholder="Nhập số điện thoại" 
+                        placeholder="0xxxxxxxxx (10 số)" 
                         value={formData.phone} 
-                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                        maxLength={10}
+                        onChange={e => {
+                          let value = e.target.value.replace(/[^0-9]/g, '');
+                          // Tự động thêm số 0 ở đầu nếu người dùng nhập số khác
+                          if (value.length > 0 && !value.startsWith('0')) {
+                            value = '0' + value;
+                          }
+                          // Giới hạn 10 số
+                          if (value.length > 10) {
+                            value = value.substring(0, 10);
+                          }
+                          setFormData({ ...formData, phone: value });
+                        }}
                         className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 focus:ring-emerald-500"
                       />
+                      <p className="text-xs text-gray-500">10 số, tự động bắt đầu bằng số 0</p>
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label className="text-teal-600 dark:text-teal-400 font-medium">Địa chỉ</Label>
+                    <Label className="text-teal-600 dark:text-teal-400 font-medium">Địa chỉ *</Label>
                     <Input 
                       placeholder="Nhập địa chỉ" 
                       value={formData.address} 
@@ -442,20 +509,34 @@ export default function StaffManagementPage() {
                       <Label className="text-blue-600 dark:text-blue-400 font-medium">Email</Label>
                       <Input 
                         type="email" 
-                        placeholder="Nhập email" 
+                        placeholder="example@gmail.com" 
                         value={formData.email} 
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                         className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-blue-200 dark:border-blue-800 focus:border-blue-500 focus:ring-blue-500"
                       />
+                      <p className="text-xs text-gray-500">Phải có định dạng @gmail.com</p>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-cyan-600 dark:text-cyan-400 font-medium">Số điện thoại</Label>
                       <Input 
-                        placeholder="Nhập số điện thoại" 
+                        placeholder="0xxxxxxxxx (10 số)" 
                         value={formData.phone} 
-                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                        maxLength={10}
+                        onChange={e => {
+                          let value = e.target.value.replace(/[^0-9]/g, '');
+                          // Tự động thêm số 0 ở đầu nếu người dùng nhập số khác
+                          if (value.length > 0 && !value.startsWith('0')) {
+                            value = '0' + value;
+                          }
+                          // Giới hạn 10 số
+                          if (value.length > 10) {
+                            value = value.substring(0, 10);
+                          }
+                          setFormData({ ...formData, phone: value });
+                        }}
                         className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-cyan-200 dark:border-cyan-800 focus:border-cyan-500 focus:ring-cyan-500"
                       />
+                      <p className="text-xs text-gray-500">10 số, tự động bắt đầu bằng số 0</p>
                     </div>
                   </div>
                   

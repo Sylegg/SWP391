@@ -57,9 +57,16 @@ public class ProductService {
     public ProductRes updateProduct (int id, ProductReq productReq) {
         Optional<Product> existingProductOpt = productRepo.findById(id);
         if (existingProductOpt.isPresent()) {
-            Product existingProduct = convertReqToEntity(existingProductOpt.get(), productReq);
-            productRepo.save(existingProduct);
-            return convertToRes(existingProduct);
+            Product existingProduct = existingProductOpt.get();
+            
+            // Prevent updating products that have been sold
+            if (ProductStatus.SOLDOUT.equals(existingProduct.getStatus())) {
+                throw new IllegalStateException("Không thể cập nhật thông tin xe đã bán");
+            }
+            
+            Product updatedProduct = convertReqToEntity(existingProduct, productReq);
+            productRepo.save(updatedProduct);
+            return convertToRes(updatedProduct);
         }
         return null;
     }

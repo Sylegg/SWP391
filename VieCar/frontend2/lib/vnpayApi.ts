@@ -23,6 +23,7 @@ export interface VnpayPaymentResult {
   orderId?: string;
   transactionNo?: string;
   responseCode?: string;
+  amount?: number;
 }
 
 /**
@@ -30,16 +31,21 @@ export interface VnpayPaymentResult {
  */
 export const vnpayApi = {
   /**
-   * Tạo URL thanh toán VNPay
+   * Tạo URL thanh toán VNPay cho đơn hàng
    * @param orderId - ID của đơn hàng
+   * @param paymentType - Loại thanh toán: "deposit" (30%) hoặc "final" (70%)
    * @param bankCode - Mã ngân hàng (optional)
+   * @param userType - Loại người dùng: "customer" hoặc "dealer-staff" (optional, default: "customer")
    * @returns Promise<VnpayResponse>
    */
-  createPayment: async (orderId: string, bankCode?: string): Promise<VnpayResponse> => {
+  createPayment: async (orderId: string, paymentType: 'deposit' | 'final' = 'deposit', bankCode?: string, userType?: 'customer' | 'dealer-staff'): Promise<VnpayResponse> => {
     try {
-      const params: any = { orderId };
+      const params: any = { orderId, paymentType };
       if (bankCode) {
         params.bankCode = bankCode;
+      }
+      if (userType) {
+        params.userType = userType;
       }
 
       const response = await api.post<VnpayResponse>(
@@ -50,6 +56,39 @@ export const vnpayApi = {
       return response.data;
     } catch (error) {
       console.error('Error creating VNPay payment:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo URL thanh toán VNPay cho phân phối
+   * @param distributionId - ID của phân phối
+   * @param totalAmount - Tổng tiền cần thanh toán (VNĐ)
+   * @param bankCode - Mã ngân hàng (optional)
+   * @returns Promise<VnpayResponse>
+   */
+  createDistributionPayment: async (
+    distributionId: number, 
+    totalAmount: number, 
+    bankCode?: string
+  ): Promise<VnpayResponse> => {
+    try {
+      const params: any = { 
+        distributionId,
+        totalAmount 
+      };
+      if (bankCode) {
+        params.bankCode = bankCode;
+      }
+
+      const response = await api.post<VnpayResponse>(
+        `${VNPAY_BASE_URL}/create-distribution-payment`,
+        null,
+        { params }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error creating VNPay distribution payment:', error);
       throw error;
     }
   },

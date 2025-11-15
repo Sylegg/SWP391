@@ -20,6 +20,9 @@ public class DistributionItem {
     @JoinColumn(name = "ProductId")
     private Product product;
 
+    @Column(name = "CategoryId")
+    private Integer categoryId; // Lưu categoryId khi đặt theo category (product = null)
+
     @Column(name = "Color", columnDefinition = "NVARCHAR(20)")
     private String color;
 
@@ -78,5 +81,13 @@ public class DistributionItem {
 
     public void setDealerPrice(BigDecimal dealerPrice) {
         this.dealerPrice = dealerPrice;
+    }
+
+    public Integer getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Integer categoryId) {
+        this.categoryId = categoryId;
     }
 }

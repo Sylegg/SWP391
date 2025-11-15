@@ -81,6 +81,20 @@ export const approveDistributionOrder = async (
 };
 
 /**
+ * Step 4b: EVM Staff gửi lại báo giá (khi dealer từ chối giá)
+ */
+export const resendPrice = async (
+  id: number,
+  data: DistributionApprovalReq
+): Promise<DistributionRes> => {
+  const response = await api.put<DistributionRes>(
+    `${DISTRIBUTION_BASE}/${id}/resend-price`,
+    data
+  );
+  return response.data;
+};
+
+/**
  * Step 5: EVM Staff lên kế hoạch giao hàng
  */
 export const planDistributionDelivery = async (
@@ -296,7 +310,14 @@ export const createSupplementaryDistribution = async (
     );
     return response.data;
   } catch (err: any) {
-    const msg = err?.response?.data?.message || err?.message || 'Failed to create supplementary distribution';
-    throw new Error(msg);
+    // Extract detailed error message from backend
+    const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create supplementary distribution';
+    console.error('❌ Create Supplementary Error:', {
+      status: err?.response?.status,
+      message: errorMsg,
+      data: err?.response?.data,
+      parentDistributionId
+    });
+    throw new Error(errorMsg);
   }
 };

@@ -2,6 +2,7 @@ package com.lemon.supershop.swp391fa25evdm.order.model.dto.response;
 
 import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
 
+import java.util.Date;
 import java.util.List;
 
 public class OrderRes {
@@ -12,6 +13,8 @@ public class OrderRes {
     private List<Contract> contracts;
     private double totalPrice;
     private String status;
+    private Date orderDate;
+    private Date deliveryDate;
 
     public OrderRes(){}
 
@@ -35,7 +38,7 @@ public class OrderRes {
         this.productName = productName;
     }
 
-    public void setContracts(List<Contract> contractId) {
+    public void setContracts(List<Contract> contracts) {
         this.contracts = contracts;
     }
 
@@ -69,5 +72,21 @@ public class OrderRes {
 
     public String getStatus() {
         return status;
+    }
+
+    public Date getOrderDate() {
+        return orderDate;
+    }
+
+    public void setOrderDate(Date orderDate) {
+        this.orderDate = orderDate;
+    }
+
+    public Date getDeliveryDate() {
+        return deliveryDate;
+    }
+
+    public void setDeliveryDate(Date deliveryDate) {
+        this.deliveryDate = deliveryDate;
     }
 }

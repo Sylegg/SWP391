@@ -28,9 +28,9 @@ public class DealerService {
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$", Pattern.CASE_INSENSITIVE);
 
-    // Chỉ cho phép 10 chữ số, bắt đầu bằng số 0
+    // Hợp lệ cho VN: 10-digit bắt đầu 03|05|07|08|09 OR old 11-digit 01(2|6|8|9)
     private static final Pattern PHONE_PATTERN =
-            Pattern.compile("^0\\d{9}$");
+            Pattern.compile("^(?:(?:03|05|07|08|09)\\d{8}|01(?:2|6|8|9)\\d{8})$");
 
     public List<DealerRes> getAllDealers() {
         return dealerRepo.findAll().stream().map(dealer -> {
@@ -60,38 +60,6 @@ public class DealerService {
     }
 
     public DealerRes registerDealer(DealerReq dto) {
-        // Kiểm tra trùng email của Dealer
-        if (dto.getEmail() != null && !dto.getEmail().isEmpty()) {
-            if (EMAIL_PATTERN.matcher(dto.getEmail()).matches()) {
-                if (dealerRepo.existsByEmail(dto.getEmail())) {
-                    throw new RuntimeException("Email đại lý đã được sử dụng: " + dto.getEmail());
-                }
-            }
-        }
-        
-        // Kiểm tra trùng email của Quản lý Đại lý
-        if (dto.getUserId() != null && dto.getUserId() > 0) {
-            Optional<User> user = userRepo.findById(dto.getUserId());
-            if (user.isPresent()) {
-                User dealerManager = user.get();
-                // Kiểm tra nếu email đã tồn tại và thuộc về user khác
-                if (dealerManager.getEmail() != null && !dealerManager.getEmail().isEmpty()) {
-                    // Kiểm tra xem có dealer manager nào khác đã dùng email này chưa
-                    Optional<User> existingUser = userRepo.findByEmail(dealerManager.getEmail());
-                    if (existingUser.isPresent() && existingUser.get().getId() != dealerManager.getId()) {
-                        throw new RuntimeException("Email của Quản lý Đại lý đã được sử dụng: " + dealerManager.getEmail());
-                    }
-                }
-                
-                // Kiểm tra nếu user đã được gán cho dealer khác
-                if (dealerManager.getDealer() != null) {
-                    throw new RuntimeException("Quản lý Đại lý này đã được gán cho đại lý khác");
-                }
-            } else {
-                throw new RuntimeException("Không tìm thấy Quản lý Đại lý với ID: " + dto.getUserId());
-            }
-        }
-        
         Dealer dealer = new Dealer();
         if (dto.getName() !=  null){
             dealer.setName(dto.getName());
@@ -133,20 +101,6 @@ public class DealerService {
     public DealerRes updateDealer(int id, DealerReq dto) {
         Dealer dealer = dealerRepo.findById(id).get();
         if (dealer != null) {
-            // Kiểm tra trùng email khi update (nếu email thay đổi)
-            if (dto.getEmail() != null && !dto.getEmail().isEmpty()) {
-                if (EMAIL_PATTERN.matcher(dto.getEmail()).matches()) {
-                    // Chỉ kiểm tra nếu email khác với email hiện tại
-                    if (!dto.getEmail().equals(dealer.getEmail())) {
-                        Optional<Dealer> existingDealer = dealerRepo.findByEmail(dto.getEmail());
-                        if (existingDealer.isPresent() && existingDealer.get().getId() != id) {
-                            throw new RuntimeException("Email đại lý đã được sử dụng: " + dto.getEmail());
-                        }
-                    }
-                    dealer.setEmail(dto.getEmail());
-                }
-            }
-            
             if (dto.getName() !=  null){
                 dealer.setName(dto.getName());
             }
@@ -161,6 +115,9 @@ public class DealerService {
             }
             if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()) {
                 dealer.setPhone(dto.getPhone());
+            }
+            if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()) {
+                dealer.setEmail(dto.getEmail());
             }
 
             dealerRepo.save(dealer);

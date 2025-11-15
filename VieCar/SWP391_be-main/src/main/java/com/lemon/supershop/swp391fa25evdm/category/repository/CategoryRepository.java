@@ -15,6 +15,9 @@ public interface CategoryRepository extends JpaRepository<Category, Integer> {
 
     // Find by name (exact match)
     Optional<Category> findByNameIgnoreCase(String name);
+    
+    // Find by name and dealerId
+    Optional<Category> findByNameIgnoreCaseAndDealerId(String name, Integer dealerId);
 
     // Find by name containing (partial match)
     List<Category> findByNameContainingIgnoreCase(String name);
@@ -36,6 +39,9 @@ public interface CategoryRepository extends JpaRepository<Category, Integer> {
 
     //Check existence by name
     boolean existsByNameIgnoreCase(String name);
+    
+    // Check existence by name and dealerId (for dealer-specific categories)
+    boolean existsByNameIgnoreCaseAndDealerId(String name, Integer dealerId);
 
     // Find active categories
         @Query("SELECT c FROM Category c WHERE c.status = 'ACTIVE' OR c.status = 'AVAILABLE'")

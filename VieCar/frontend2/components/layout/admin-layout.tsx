@@ -43,6 +43,12 @@ const navigationItems: NavigationItem[] = [
 		href: "/dashboard/admin/dealers",
 		icon: Store,
 		roles: ["Admin", "EVM Staff"]
+	},
+	{
+		title: "Quản lý người dùng",
+		href: "/dashboard/admin/users",
+		icon: Users,
+		roles: ["Admin"]
 	}
 ];
 
