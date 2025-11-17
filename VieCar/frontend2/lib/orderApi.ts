@@ -4,12 +4,23 @@ export interface OrderRes {
   orderId: number;
   dealerId: number;
   customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerAddress?: string;
   productName: string;
+  productVin?: string;
+  productEngine?: string;
+  productBattery?: number;
+  productRange?: number;
+  productHP?: number;
+  productTorque?: number;
+  productColor?: string;
   contracts: any[];
   totalPrice: number;
   status: string;
   orderDate?: string;
   deliveryDate?: string;
+  notes?: string;
 }
 
 export interface OrderReq {

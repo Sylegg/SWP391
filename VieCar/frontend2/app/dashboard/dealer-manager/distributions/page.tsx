@@ -14,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import vnpayApi from '@/lib/vnpayApi';
 import {
   Package,
   CheckCircle2,
@@ -72,7 +71,6 @@ export default function DealerDistributionsPage() {
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
-  const [isPaymentConfirmDialogOpen, setIsPaymentConfirmDialogOpen] = useState(false);
   const [isNewRequestDialogOpen, setIsNewRequestDialogOpen] = useState(false);
   
   // Form states
@@ -738,56 +736,31 @@ export default function DealerDistributionsPage() {
       return;
     }
     
-    // Chấp nhận giá - hiển thị dialog xác nhận thanh toán
+    // Chấp nhận giá - tự động xác nhận thanh toán luôn
     setIsPriceDialogOpen(false);
-    setIsPaymentConfirmDialogOpen(true);
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!selectedDistribution) return;
     
     try {
-      // Bước 1: Chấp nhận giá để chuyển trạng thái sang PRICE_ACCEPTED
-      // Backend sẽ chuyển PRICE_ACCEPTED -> CONFIRMED sau khi thanh toán VNPay thành công
-      const notes = 'Đồng ý với giá hãng và số lượng đã duyệt';
+      // Chấp nhận giá và chuyển trạng thái sang CONFIRMED (Xác nhận)
+      const notes = 'Đồng ý với giá hãng và xác nhận';
       await respondToManufacturerPrice(selectedDistribution.id, true, notes);
-      
-      // Tính tổng tiền cần thanh toán
-      const totalAmount = selectedDistribution.items?.reduce((sum, item) => {
-        const itemTotal = (item.quantity || 0) * (item.dealerPrice || 0);
-        return sum + itemTotal;
-      }, 0) || 0;
 
       toast({
-        title: '🔄 Đang xử lý',
-        description: 'Đang chuyển đến thanh toán VNPay...',
-        duration: 2000,
+        title: '✅ Xác nhận thành công',
+        description: 'Đã xác nhận và chuyển trạng thái thành "Xác nhận"',
+        duration: 3000,
       });
-
-      setIsPaymentConfirmDialogOpen(false);
-
-      // Bước 2: Chuyển đến VNPay để thanh toán
-      // Sau khi thanh toán thành công, backend sẽ tự động chuyển PRICE_ACCEPTED -> CONFIRMED
-      const vnpayResponse = await vnpayApi.createDistributionPayment(
-        selectedDistribution.id,
-        totalAmount
-      );
-
-      // Chuyển hướng đến trang thanh toán VNPay
-      if (vnpayResponse.url) {
-        window.location.href = vnpayResponse.url;
-      } else {
-        throw new Error('Không nhận được URL thanh toán từ VNPay');
-      }
+      
+      // Reload data để cập nhật trạng thái mới
+      await loadData();
+      
     } catch (error: any) {
-      console.error('Payment error:', error);
+      console.error('Payment confirmation error:', error);
       toast({
-        title: '⚠️ Lỗi thanh toán',
-        description: error.message || 'Không thể tạo link thanh toán VNPay. Vui lòng thử lại.',
+        title: '⚠️ Lỗi xác nhận',
+        description: error.message || 'Không thể xác nhận thanh toán. Vui lòng thử lại.',
         variant: 'destructive',
         duration: 5000,
       });
-      loadData();
     }
   };
 
@@ -1409,7 +1382,7 @@ export default function DealerDistributionsPage() {
                           <div className="text-xs text-gray-500 mt-1">xe</div>
                         </div>
                         <div className="bg-white/70 p-4 rounded-lg text-center border border-purple-200">
-                          <div className="text-xs text-purple-600 font-medium mb-1">Đã thanh toán</div>
+                          <div className="text-xs text-purple-600 font-medium mb-1">Xác nhận</div>
                           <div className="text-2xl font-bold text-purple-700">
                             {receivedItems.reduce((sum, item) => sum + ((item.price || 0) * item.received), 0).toLocaleString()}
                           </div>
@@ -2166,102 +2139,6 @@ export default function DealerDistributionsPage() {
                   className="bg-green-600 hover:bg-green-700"
                 >
                   Chấp nhận
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Payment Confirmation Dialog */}
-          <Dialog open={isPaymentConfirmDialogOpen} onOpenChange={setIsPaymentConfirmDialogOpen}>
-            <DialogContent className="max-w-2xl backdrop-blur-xl bg-gradient-to-br from-emerald-50/95 to-teal-50/95 dark:from-emerald-950/95 dark:to-teal-950/95 border-2 border-emerald-300/50 shadow-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-bold">
-                  💳 Xác nhận thanh toán
-                </DialogTitle>
-                <DialogDescription>
-                  Vui lòng kiểm tra thông tin trước khi thanh toán
-                </DialogDescription>
-              </DialogHeader>
-              {selectedDistribution && (
-                <div className="space-y-4 py-4">
-                  <div className="bg-white/60 dark:bg-gray-800/60 p-5 rounded-xl border-2 border-emerald-300/50">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Package className="h-5 w-5 text-emerald-600" />
-                      <Label className="text-base font-bold text-emerald-800">Thông tin đơn hàng</Label>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Mã phân phối:</span>
-                        <span className="font-semibold">{selectedDistribution.code || `#${selectedDistribution.id}`}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Số lượng xe:</span>
-                        <span className="font-semibold">{selectedDistribution.items?.reduce((sum, it) => sum + (it.quantity || 0), 0) || 0} xe</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 p-5 rounded-xl border-2 border-emerald-400/50">
-                    <div className="flex items-center gap-2 mb-3">
-                      <DollarSign className="h-6 w-6 text-emerald-700" />
-                      <Label className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Chi tiết thanh toán</Label>
-                    </div>
-                    <div className="space-y-3">
-                      {selectedDistribution.items?.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2 border-b border-emerald-300/30 last:border-0">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900 dark:text-white">
-                              {item.product?.name || item.category?.name}
-                              {item.color && <span className="text-gray-600 ml-1">({item.color})</span>}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {item.quantity} xe × {(item.dealerPrice || 0).toLocaleString('vi-VN')} VND
-                            </p>
-                          </div>
-                          <p className="font-bold text-emerald-700">
-                            {((item.quantity || 0) * (item.dealerPrice || 0)).toLocaleString('vi-VN')} VND
-                          </p>
-                        </div>
-                      ))}
-                      <div className="flex justify-between items-center pt-3 border-t-2 border-emerald-400">
-                        <span className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Tổng cộng:</span>
-                        <span className="text-2xl font-bold text-emerald-700">
-                          {(selectedDistribution.items?.reduce((sum, item) => {
-                            return sum + ((item.quantity || 0) * (item.dealerPrice || 0));
-                          }, 0) || 0).toLocaleString('vi-VN')} VND
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-50/50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200/50">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div className="text-sm text-blue-800 dark:text-blue-200">
-                        <p className="font-semibold mb-1">Lưu ý:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                          <li>Bạn sẽ được chuyển đến trang thanh toán VNPay</li>
-                          <li>Vui lòng hoàn tất thanh toán trong 15 phút</li>
-                          <li>Sau khi thanh toán thành công, đơn hàng sẽ được xác nhận</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <DialogFooter className="gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsPaymentConfirmDialogOpen(false)}
-                >
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleConfirmPayment}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Thanh toán VNPay
                 </Button>
               </DialogFooter>
             </DialogContent>

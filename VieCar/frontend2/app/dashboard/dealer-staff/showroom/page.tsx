@@ -630,13 +630,11 @@ export default function DealerStaffShowroomPage() {
                         Cập nhật thông tin xe
                       </DialogTitle>
                     </div>
-                    <DialogDescription className="text-white/90 text-base">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{selectedProduct?.name}</span>
-                        <span className="text-white/60">•</span>
-                        <span className="font-mono text-sm">VIN: {selectedProduct?.vinNum}</span>
-                      </div>
-                    </DialogDescription>
+                    <div className="text-white/90 text-base flex items-center gap-2">
+                      <span className="font-semibold">{selectedProduct?.name}</span>
+                      <span className="text-white/60">•</span>
+                      <span className="font-mono text-sm">VIN: {selectedProduct?.vinNum}</span>
+                    </div>
                   </DialogHeader>
                 </div>
 

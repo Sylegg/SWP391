@@ -177,7 +177,7 @@ export const getDistributionStatusLabel = (status: DistributionStatus): string =
     [DistributionStatus.ACCEPTED]: 'Đã chấp nhận',
     [DistributionStatus.DECLINED]: 'Đã từ chối',
     [DistributionStatus.PENDING]: 'Chờ duyệt',
-    [DistributionStatus.CONFIRMED]: 'Đã thanh toán',
+    [DistributionStatus.CONFIRMED]: 'Xác nhận',
     [DistributionStatus.CANCELED]: 'Đã hủy',
     [DistributionStatus.PRICE_SENT]: 'Chờ xác nhận giá',
     [DistributionStatus.PRICE_ACCEPTED]: 'Đã chấp nhận giá',
