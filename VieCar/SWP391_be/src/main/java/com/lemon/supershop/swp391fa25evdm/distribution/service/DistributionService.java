@@ -7,26 +7,34 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
-import com.lemon.supershop.swp391fa25evdm.category.service.CategoryService;
-import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
-import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
-import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.*;
-import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.response.DistributionItemRes;
-import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.response.DistributionRes;
-import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
-import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
-import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
-import com.lemon.supershop.swp391fa25evdm.product.service.ProductService;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepo;
+import com.lemon.supershop.swp391fa25evdm.category.service.CategoryService;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionApprovalReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionCompletionReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionInvitationReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionItemPriceReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionOrderItemReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionOrderReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionPlanningReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionReceivedItemReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.request.DistributionResponseReq;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.response.DistributionItemRes;
+import com.lemon.supershop.swp391fa25evdm.distribution.model.dto.response.DistributionRes;
 import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.Distribution;
 import com.lemon.supershop.swp391fa25evdm.distribution.model.entity.DistributionItem;
 import com.lemon.supershop.swp391fa25evdm.distribution.repository.DistributionRepo;
+import com.lemon.supershop.swp391fa25evdm.product.model.dto.ProductRes;
+import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
+import com.lemon.supershop.swp391fa25evdm.product.service.ProductService;
 
 @Service
 public class DistributionService {
@@ -784,8 +792,26 @@ public class DistributionService {
 
     // ===== EXISTING METHODS (updated) =====
     public List<DistributionRes> getAllDistributions() {
-        List<Distribution> distributions = distributionRepo.findAll();
-        return distributions.stream().map(this::convertToRes).toList();
+        try {
+            List<Distribution> distributions = distributionRepo.findAll();
+            return distributions.stream()
+                    .map(dist -> {
+                        try {
+                            return convertToRes(dist);
+                        } catch (Exception e) {
+                            System.err.println("❌ Error converting distribution ID " + dist.getId() + ": " + e.getMessage());
+                            e.printStackTrace();
+                            // Return null để skip distribution này
+                            return null;
+                        }
+                    })
+                    .filter(res -> res != null) // Lọc bỏ các null
+                    .toList();
+        } catch (Exception e) {
+            System.err.println("❌ Error in getAllDistributions: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error fetching distributions: " + e.getMessage(), e);
+        }
     }
 
     public DistributionRes getDistributionById(int id) {

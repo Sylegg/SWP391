@@ -287,18 +287,21 @@ public class TestDriveService {
                 Optional<Category> category = categoryRepo.findById(req.getCategoryId());
                 if (category.isPresent()) {
                     testDrive.setCategory(category.get());
+                } else {
+                    throw new IllegalArgumentException("Danh mục xe không tồn tại");
                 }
             } else {
                 throw new IllegalArgumentException("Vui lòng chọn mẫu xe muốn lái thử");
             }
 
-            if (req.getProductModelName() != null){
+            // productModelName is optional - customer can provide specific model name
+            if (req.getProductModelName() != null && !req.getProductModelName().trim().isEmpty()){
                 boolean product = productRepo.existsProductByNameContainingIgnoreCase(req.getProductModelName());
                 if (product) {
                     testDrive.setProductModelName(req.getProductModelName());
+                } else {
+                    System.out.println("⚠️ Product model name not found: " + req.getProductModelName());
                 }
-            } else {
-                throw new IllegalArgumentException("Vui lòng chọn mẫu xe muốn lái thử");
             }
 
             if (req.getScheduleDate() != null) {

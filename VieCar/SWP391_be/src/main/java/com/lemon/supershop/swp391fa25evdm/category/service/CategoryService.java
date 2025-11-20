@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +12,8 @@ import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryReq;
 import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepo;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 
 @Service
 @Transactional
@@ -90,7 +91,7 @@ public class CategoryService {
         category.setWarranty(dto.getWarranty());
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus());
-        category.setSpecial(dto.isSpecial());
+        category.setSpecial(dto.isSpecial() != null ? dto.isSpecial() : false);
         Category updatedCategory = categoryRepo.save(category);
         return convertToRes(updatedCategory);
     }
@@ -146,12 +147,19 @@ public class CategoryService {
         category.setBrand(dto.getBrand());
 //        category.setVersion(dto.getVersion());
 //        category.setType(dto.getType());
-        category.setSpecial(dto.isSpecial());
+        category.setSpecial(dto.isSpecial() != null ? dto.isSpecial() : false);
         category.setBasePrice(dto.getBasePrice());
         category.setWarranty(dto.getWarranty());
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus());
-        category.setSpecial(dto.isSpecial());
+        
+        // Set dealer if dealerId is provided (for Dealer Manager categories)
+        if (dto.getDealerId() != null) {
+            Dealer dealer = dealerRepo.findById(dto.getDealerId())
+                .orElseThrow(() -> new RuntimeException("Dealer not found with id: " + dto.getDealerId()));
+            category.setDealer(dealer);
+        }
+        
         return category;
     }
 

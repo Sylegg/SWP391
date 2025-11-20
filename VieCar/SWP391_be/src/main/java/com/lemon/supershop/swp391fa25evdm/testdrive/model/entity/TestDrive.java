@@ -8,7 +8,19 @@ import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
 @Entity
 @Table(name = "testdrive")
@@ -21,8 +33,10 @@ public class TestDrive {
     @Column(name = "schedule_date", columnDefinition = "DATETIME2")
     private LocalDateTime scheduleDate;
 
-    @Column(name = "location", columnDefinition = "NVARCHAR(255)")
-    private String location;
+    // ⚠️ COMMENTED OUT: Database column 'location' does not exist
+    // Uncomment after running migration to add this column
+    // @Column(name = "location", columnDefinition = "NVARCHAR(255)")
+    // private String location;
 
     @Column(name = "status", columnDefinition = "VARCHAR(20)")
     private String status; // PENDING, ASSIGNING, APPROVED, IN_PROGRESS, DONE, REJECTED, CANCELLED
@@ -89,13 +103,14 @@ public class TestDrive {
         this.scheduleDate = scheduleDate;
     }
 
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
+    // ⚠️ COMMENTED OUT: Getter/Setter for location (column not in database)
+    // public String getLocation() {
+    //     return location;
+    // }
+    //
+    // public void setLocation(String location) {
+    //     this.location = location;
+    // }
 
     public String getStatus() {
         return status;

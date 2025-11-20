@@ -1,12 +1,8 @@
 import api from './api';
 
-<<<<<<< HEAD
-const VNPAY_BASE_URL = '/api/vnpay';
-=======
 import { API_BASE_URL } from './config';
 
 const VNPAY_BASE_URL = '/vnpay';
->>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
 /**
  * VNPay Response từ backend
@@ -22,22 +18,12 @@ export interface VnpayResponse {
  * VNPay Payment Result (từ callback)
  */
 export interface VnpayPaymentResult {
-<<<<<<< HEAD
-  orderId: string;
-  transactionNo: string;
-  bankCode: string;
-  amount: number;
-  responseCode: string;
-  success: boolean;
-  message: string;
-=======
   status: string;
   message: string;
   orderId?: string;
   transactionNo?: string;
   responseCode?: string;
   amount?: number;
->>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 }
 
 /**
@@ -45,19 +31,6 @@ export interface VnpayPaymentResult {
  */
 export const vnpayApi = {
   /**
-<<<<<<< HEAD
-   * Tạo URL thanh toán VNPay
-   * @param orderId - ID của đơn hàng
-   * @param bankCode - Mã ngân hàng (optional)
-   * @returns Promise<VnpayResponse>
-   */
-  createPayment: async (orderId: string, bankCode?: string): Promise<VnpayResponse> => {
-    try {
-      const params: any = { orderId };
-      if (bankCode) {
-        params.bankCode = bankCode;
-      }
-=======
    * Tạo URL thanh toán VNPay cho đơn hàng
    * @param orderId - ID của đơn hàng
    * @param paymentType - Loại thanh toán: "deposit" (30%) hoặc "final" (70%)
@@ -74,7 +47,6 @@ export const vnpayApi = {
       if (userType) {
         params.userType = userType;
       }
->>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
       const response = await api.post<VnpayResponse>(
         `${VNPAY_BASE_URL}/create-payment`,
@@ -89,8 +61,6 @@ export const vnpayApi = {
   },
 
   /**
-<<<<<<< HEAD
-=======
    * Tạo URL thanh toán VNPay cho phân phối
    * @param distributionId - ID của phân phối
    * @param totalAmount - Tổng tiền cần thanh toán (VNĐ)
@@ -124,7 +94,6 @@ export const vnpayApi = {
   },
 
   /**
->>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
    * Xác thực kết quả thanh toán từ VNPay (khi có Frontend)
    * @param params - Query parameters từ VNPay
    * @returns Promise<VnpayPaymentResult>

@@ -84,6 +84,18 @@ public class VnpayService {
     @Value("${vnpay.return_url}")
     private String returnUrl;
 
+     /**
+     * URL để VNPay redirect sau khi dealer staff thanh toán đặt cọc
+     */
+    @Value("${vnpay.dealer_staff_return_url}")
+    private String dealerStaffReturnUrl;
+
+    /**
+     * URL để VNPay redirect sau khi thanh toán 70% còn lại (final payment)
+     */
+    @Value("${vnpay.final_payment_return_url}")
+    private String finalPaymentReturnUrl;
+
     /**
      * URL API của VNPay để query transaction Dùng cho các API như refund, query
      * payment status
@@ -110,7 +122,7 @@ public class VnpayService {
      * @return VnpayRes chứa URL thanh toán và thông tin đơn hàng
      * @throws Exception nếu Order không tồn tại hoặc đã được thanh toán
      */
-    public VnpayRes createPaymentUrl(String orderId, String ipAddress, String bankCode) throws Exception {
+    public VnpayRes createPaymentUrl(String orderId, String paymentType, String ipAddress, String bankCode, String userType) throws Exception {
         // BƯỚC 1: Validate Order
         Optional<Order> orderOpt = orderRepo.findById(Integer.valueOf(orderId));
         if (!orderOpt.isPresent()) {
@@ -118,14 +130,31 @@ public class VnpayService {
         }
 
         Order order = orderOpt.get();
-        long amount = order.getTotal(); // Số tiền thanh toán (VND)
-        String orderInfo = order.getDescription(); // Thông tin đơn hàng
+        
+        // Tính số tiền thanh toán dựa trên loại thanh toán
+        long paymentAmount;
+        String orderInfo;
+        
+        if ("final".equalsIgnoreCase(paymentType)) {
+            // Thanh toán 70% còn lại khi lấy xe
+            paymentAmount = (long) (order.getTotal() * 0.7);
+            orderInfo = "Thanh toan 70% con lai";
+            if (order.getProduct() != null && order.getProduct().getName() != null) {
+                orderInfo = "Thanh toan 70% - " + order.getProduct().getName();
+            }
+        } else {
+            // Thanh toán đặt cọc 30% (mặc định)
+            paymentAmount = (long) (order.getTotal() * 0.3);
+            orderInfo = "Dat coc 30% don hang";
+            if (order.getProduct() != null && order.getProduct().getName() != null) {
+                orderInfo = "Dat coc 30% - " + order.getProduct().getName();
+            }
+        }
 
         // BƯỚC 2: Tạo mã giao dịch duy nhất
-        // Format: orderId_timestamp
-        // VD: 1_1735459200000
-        // Lý do: VNPay yêu cầu mỗi giao dịch phải có mã duy nhất
-        String vnpTxnRef = orderId + "_" + System.currentTimeMillis();
+        // Format: orderId_paymentType_timestamp
+        // VD: 17_final_1735459200000 hoặc 17_deposit_1735459200000
+        String vnpTxnRef = orderId + "_" + paymentType + "_" + System.currentTimeMillis();
 
         // BƯỚC 3: Xử lý Payment record trong DB
         Optional<Payment> existingPayment = paymentRepo.findByVnpOrderId(orderId);
@@ -133,22 +162,43 @@ public class VnpayService {
         if (existingPayment.isPresent()) {
             Payment payment = existingPayment.get();
 
-            // Kiểm tra trạng thái thanh toán
-            if (payment.getPaidStatus() == PaymentStatus.PAID) {
-                // Đơn hàng đã thanh toán → Không cho phép thanh toán lại
-                throw new Exception("Order has already been paid.");
-            } else if (payment.getPaidStatus() == PaymentStatus.PENDING
-                    || payment.getPaidStatus() == PaymentStatus.FAILED) {
-                // Payment đang PENDING/FAILED → Reset để thử lại
-                payment.setPaidStatus(PaymentStatus.PENDING);
-                payment.setTransactionCode(null);
-                payment.setResponseCode(null);
-                payment.setBankCode(null);
-                payment.setProviderResponse(null);
-                payment.setUpdateAt(new Date());
-                paymentRepo.save(payment);
-
-                System.out.println("🔄 Reset existing payment for retry: Order " + orderId);
+            // Nếu là final payment (70%), cho phép tạo payment mới ngay cả khi deposit đã PAID
+            if ("final".equalsIgnoreCase(paymentType)) {
+                // Kiểm tra xem đã có final payment chưa
+                if (payment.getPaidStatus() == PaymentStatus.PAID && 
+                    payment.getProviderResponse() != null && 
+                    payment.getProviderResponse().contains("70%")) {
+                    throw new Exception("Final payment (70%) has already been completed.");
+                }
+                
+                // Tạo final payment mới hoặc reset nếu PENDING/FAILED
+                if (payment.getPaidStatus() == PaymentStatus.PENDING || 
+                    payment.getPaidStatus() == PaymentStatus.FAILED) {
+                    payment.setPaidStatus(PaymentStatus.PENDING);
+                    payment.setTransactionCode(null);
+                    payment.setResponseCode(null);
+                    payment.setBankCode(null);
+                    payment.setProviderResponse(orderInfo); // Đánh dấu là final payment
+                    payment.setUpdateAt(new Date());
+                    paymentRepo.save(payment);
+                    System.out.println("🔄 Reset final payment for retry: Order " + orderId);
+                }
+                
+            } else {
+                // Deposit payment (30%) - logic cũ
+                if (payment.getPaidStatus() == PaymentStatus.PAID) {
+                    throw new Exception("Deposit (30%) has already been paid.");
+                } else if (payment.getPaidStatus() == PaymentStatus.PENDING
+                        || payment.getPaidStatus() == PaymentStatus.FAILED) {
+                    payment.setPaidStatus(PaymentStatus.PENDING);
+                    payment.setTransactionCode(null);
+                    payment.setResponseCode(null);
+                    payment.setBankCode(null);
+                    payment.setProviderResponse(orderInfo);
+                    payment.setUpdateAt(new Date());
+                    paymentRepo.save(payment);
+                    System.out.println("🔄 Reset deposit payment for retry: Order " + orderId);
+                }
             }
         } else {
             // Chưa có Payment → Tạo mới với status PENDING
@@ -158,10 +208,11 @@ public class VnpayService {
             newPayment.setOrder(order);
             newPayment.setUser(order.getUser());
             newPayment.setVnpOrderId(orderId);
+            newPayment.setProviderResponse(orderInfo); // Lưu loại payment
             newPayment.setUpdateAt(new Date());
             paymentRepo.save(newPayment);
 
-            System.out.println("✅ Created new payment for order: " + orderId);
+            System.out.println("✅ Created new " + paymentType + " payment for order: " + orderId);
         }
 
         // BƯỚC 4: Build parameters theo VNPay specification
@@ -173,7 +224,7 @@ public class VnpayService {
         vnpParams.put("vnp_TmnCode", tmnCode);          // Mã website merchant
 
         // Thông tin giao dịch
-        vnpParams.put("vnp_Amount", String.valueOf(amount * 100)); // VNPay yêu cầu: số tiền * 100
+        vnpParams.put("vnp_Amount", String.valueOf(paymentAmount * 100)); // VNPay yêu cầu: số tiền * 100
         vnpParams.put("vnp_CurrCode", "VND");                      // Loại tiền tệ
         vnpParams.put("vnp_TxnRef", vnpTxnRef);                    // Mã giao dịch duy nhất
         vnpParams.put("vnp_OrderInfo", orderInfo + " - Order: " + orderId); // Thông tin đơn hàng
@@ -184,9 +235,22 @@ public class VnpayService {
             vnpParams.put("vnp_BankCode", bankCode); // Nếu có: redirect thẳng đến bank
         }
 
-        // Cấu hình return
+        // Cấu hình return - Chọn URL dựa trên userType và paymentType
+        String selectedReturnUrl;
+        
+        if ("final".equalsIgnoreCase(paymentType)) {
+            // Thanh toán 70% còn lại - sử dụng final payment return URL
+            selectedReturnUrl = finalPaymentReturnUrl;
+        } else if ("dealer-staff".equalsIgnoreCase(userType)) {
+            // Dealer staff đặt cọc - sử dụng dealer staff return URL
+            selectedReturnUrl = dealerStaffReturnUrl;
+        } else {
+            // Customer đặt cọc - sử dụng customer return URL
+            selectedReturnUrl = returnUrl;
+        }
+        
         vnpParams.put("vnp_Locale", "vn");              // Ngôn ngữ: vn/en
-        vnpParams.put("vnp_ReturnUrl", returnUrl);      // URL callback sau khi thanh toán
+        vnpParams.put("vnp_ReturnUrl", selectedReturnUrl); // URL callback sau khi thanh toán
         vnpParams.put("vnp_IpAddr", ipAddress);         // IP của khách hàng (bắt buộc)
 
         // BƯỚC 5: Tạo thời gian
@@ -215,8 +279,9 @@ public class VnpayService {
 
         System.out.println("🔗 Payment URL created for order: " + orderId);
         System.out.println("📝 TxnRef: " + vnpTxnRef);
+        System.out.println("💰 Payment amount (" + paymentType + "): " + paymentAmount + " VND");
 
-        return new VnpayRes(orderId, amount, bankCode, paymentUrl);
+        return new VnpayRes(orderId, paymentAmount, bankCode, paymentUrl);
     }
 
     /**
@@ -369,14 +434,16 @@ public class VnpayService {
             payment.setUpdateAt(new Date());
             payment.setProviderResponse(providerResponse);
 
-            System.out.println("✅ Payment successful: Order " + orderId + " (TxnRef: " + vnpTxnRef + ")");
-
-            // 🔄 Cập nhật Order status sang "Paid"
+            // 🔄 Cập nhật Order status sang "Đã đặt cọc" và set ngày đặt hàng
             Order order = payment.getOrder();
             if (order != null) {
-                order.setStatus("Paid");
+                order.setStatus("Đã đặt cọc");
+                // Set ngày đặt hàng nếu chưa có
+                if (order.getOrderDate() == null) {
+                    order.setOrderDate(new Date());
+                }
                 orderRepo.save(order);
-                System.out.println("✅ Order status updated to 'Paid': Order " + orderId);
+                System.out.println("✅ Order status updated to 'Đã đặt cọc': Order " + orderId);
             }
 
             System.out.println("✅ Payment successful: Order " + orderId + " (TxnRef: " + vnpTxnRef + ")");
@@ -389,12 +456,11 @@ public class VnpayService {
 
             System.out.println("❌ Payment failed: Order " + orderId + " - Code: " + vnpResponseCode);
 
-            // 🔄 Cập nhật Order status sang "Failed"
+            // 🔄 Giữ nguyên status "Chưa đặt cọc" khi thanh toán thất bại để customer có thể thử lại
             Order order = payment.getOrder();
             if (order != null) {
-                order.setStatus("Failed");
-                orderRepo.save(order);
-                System.out.println("🔄 Order status updated to 'Failed': Order " + orderId);
+                // Không thay đổi status, để customer có thể thử thanh toán lại
+                System.out.println("🔄 Payment failed, order status remains unchanged: Order " + orderId);
             }
         }
 

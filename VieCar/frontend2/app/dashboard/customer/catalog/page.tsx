@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Car, ShoppingCart, MapPin, Battery, Zap, AlertCircle } from 'lucide-react';
+import { Car, ShoppingCart, MapPin, Battery, Zap, AlertCircle, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CatalogPage() {

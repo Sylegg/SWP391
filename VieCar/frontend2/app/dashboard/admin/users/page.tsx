@@ -226,7 +226,7 @@ export default function AdminUsersPage() {
   const filteredUsers = users.filter(user => {
     const userRole = typeof user.role === 'string' ? user.role : user.role?.name || user.roleName || '';
     const matchRole = filterRole === 'all' || userRole === filterRole;
-    const matchSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchSearch = (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                        (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchRole && matchSearch;
   });

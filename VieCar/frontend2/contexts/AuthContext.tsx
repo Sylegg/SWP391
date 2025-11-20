@@ -43,17 +43,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     
+    console.log('🔄 AuthContext init - checking localStorage:', {
+      hasToken: !!storedToken,
+      hasUser: !!storedUser
+    });
+    
     if (storedToken && storedUser) {
       setToken(storedToken);
       const parsedUser = JSON.parse(storedUser);
+      console.log('📦 Parsed user from localStorage:', parsedUser);
       setUser(parsedUser);
       
-      // ⭐ Load lại user profile từ backend để verify dealerId
-      if (parsedUser.id && parsedUser.id !== 'guest') {
+      // ⭐ ALWAYS load fresh user profile from backend when token exists
+      // This ensures we have the latest user data including dealerId
+      if (parsedUser.username && parsedUser.username !== '') {
+        console.log('🔄 Loading fresh user profile for:', parsedUser.username);
+        loadUserFromBackendByUsername(parsedUser.username);
+      } else if (parsedUser.id && parsedUser.id !== 'guest') {
+        console.log('🔄 Loading fresh user profile by ID:', parsedUser.id);
         loadUserFromBackend(parsedUser.id);
       }
+    } else if (storedToken && !storedUser) {
+      // Token exists but no user in localStorage - load from token
+      console.log('⚠️ Token exists but no user - calling loadUserFromToken');
+      setToken(storedToken);
+      loadUserFromToken();
     } else {
       // Set as Guest when user hasn't registered or logged in
+      console.log('👤 No token/user found - setting as Guest');
       const guestUser: User = {
         id: 'guest',
         username: '',
@@ -95,6 +112,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('✅ User profile loaded, dealerId:', userProfile.dealerId);
     } catch (error) {
       console.error('❌ Error loading user profile from backend:', error);
+    }
+  };
+
+  // ⭐ Function load user profile by username
+  const loadUserFromBackendByUsername = async (username: string) => {
+    try {
+      console.log('🔄 Loading user profile by username from backend...', username);
+      const { getUserByUsername } = await import('@/lib/user');
+      const userProfile = await getUserByUsername(username);
+      
+      console.log('📦 Loaded user profile:', userProfile);
+      
+      // Update user với full info từ backend
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        const updated = {
+          ...prevUser,
+          id: userProfile.id?.toString(),
+          email: userProfile.email,
+          phone: userProfile.phone,
+          address: userProfile.address,
+          dealerId: userProfile.dealerId,
+          dealerName: userProfile.dealerName,
+          dealerAddress: userProfile.dealerAddress
+        };
+        // Save to localStorage
+        localStorage.setItem('user', JSON.stringify(updated));
+        console.log('✅ User state updated:', updated);
+        return updated;
+      });
+    } catch (error) {
+      console.error('❌ Error loading user profile by username:', error);
     }
   };
 
@@ -263,9 +312,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Try load full profile từ backend để lấy thêm thông tin (email, phone, dealerId, etc.)
       try {
-        // Get userId từ token payload hoặc tìm bằng username
-        // Note: Payload có thể không có userId, trong trường hợp đó getUserProfile sẽ fail
-        const userProfile = await getUserProfile(parseInt(payload.userId || '0'));
+        // ⭐ FIXED: Load user by username thay vì userId (JWT không chứa userId)
+        const { getUserByUsername } = await import('@/lib/user');
+        const userProfile = await getUserByUsername(username);
         
         // Enrich userData với thông tin từ backend
         userData.id = userProfile.id?.toString();           // User ID
@@ -275,6 +324,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userData.dealerId = userProfile.dealerId;            // Dealer ID (nếu có)
         userData.dealerName = userProfile.dealerName;        // Dealer name
         userData.dealerAddress = userProfile.dealerAddress;  // Dealer address
+        
+        console.log('✅ User profile loaded:', { id: userData.id, dealerId: userData.dealerId });
       } catch (profileError) {
         // Nếu không load được profile, vẫn tiếp tục với user info cơ bản từ token
         console.warn('Could not load full user profile:', profileError);

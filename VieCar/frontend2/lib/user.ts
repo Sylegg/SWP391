@@ -26,6 +26,12 @@ export async function getUserProfile(userId: number): Promise<UserRes> {
   return response.data;
 }
 
+// Get user by username
+export async function getUserByUsername(username: string): Promise<UserRes> {
+  const response = await api.get<UserRes>(`/user/profile/by-username/${username}`);
+  return response.data;
+}
+
 // Delete user by id
 export async function deleteUser(id: number): Promise<void> {
 	await api.delete(`/user/${id}`);

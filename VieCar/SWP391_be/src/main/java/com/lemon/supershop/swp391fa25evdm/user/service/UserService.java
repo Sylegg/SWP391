@@ -1,5 +1,13 @@
 package com.lemon.supershop.swp391fa25evdm.user.service;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
@@ -9,13 +17,6 @@ import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserRes;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
 import com.lemon.supershop.swp391fa25evdm.user.repository.UserRepo;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -68,6 +69,15 @@ public class UserService {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * Find user by exact username match
+     * Used for OAuth login flow
+     */
+    public UserRes findByExactUsername(String username) {
+        Optional<User> user = userRepo.findByUsername(username);
+        return user.map(this::converttoRes).orElse(null);
+    }
+
     public List<UserRes> findByDealer(int dealerid) {
         return userRepo.findUsersByDealer_Id(dealerid).stream().map(user -> {
             return converttoRes(user);
@@ -76,6 +86,12 @@ public class UserService {
 
     public List<UserRes> findDealerManagersWithoutDealer() {
         return userRepo.findByRole_NameAndDealerIsNull("dealer manager").stream().map(user -> {
+            return converttoRes(user);
+        }).collect(Collectors.toList());
+    }
+
+    public List<UserRes> findDealerStaffByDealerId(int dealerId) {
+        return userRepo.findByRole_NameAndDealer_Id("Dealer Staff", dealerId).stream().map(user -> {
             return converttoRes(user);
         }).collect(Collectors.toList());
     }
@@ -113,6 +129,38 @@ public class UserService {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Update preferred dealer for customer
+     * @param userId Customer's user ID
+     * @param dealerId Dealer ID (null to remove preferred dealer)
+     * @return Updated user profile
+     */
+    public UserRes updatePreferredDealer(int userId, Integer dealerId) {
+        Optional<User> userOpt = userRepo.findById(userId);
+        if (!userOpt.isPresent()) {
+            throw new RuntimeException("User not found with id: " + userId);
+        }
+
+        User user = userOpt.get();
+        
+        if (dealerId != null) {
+            // Set preferred dealer
+            Optional<Dealer> dealerOpt = dealerRepo.findById(dealerId);
+            if (!dealerOpt.isPresent()) {
+                throw new RuntimeException("Dealer not found with id: " + dealerId);
+            }
+            user.setDealer(dealerOpt.get());
+            System.out.println("✅ Set dealer " + dealerId + " for user " + userId);
+        } else {
+            // Remove preferred dealer
+            user.setDealer(null);
+            System.out.println("✅ Removed dealer for user " + userId);
+        }
+        
+        userRepo.save(user);
+        return converttoRes(user);
     }
 
     public void blackList(int id){
@@ -156,6 +204,7 @@ public class UserService {
                 dto.setStatus(user.getStatus());
             }
             if(user.getDealer() != null){
+                dto.setDealerId(user.getDealer().getId());
                 dto.setDealerName(user.getDealer().getName());
                 dto.setDealerAddress(user.getDealer().getAddress());
             }

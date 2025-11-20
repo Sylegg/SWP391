@@ -125,6 +125,12 @@ export default function CustomerDashboard() {
       username: user?.username,
       dealerId: user?.dealerId
     });
+    
+    // Check if user has required data
+    if (user && (!user.id || user.id === 'guest')) {
+      console.warn('⚠️ User loaded but missing ID - may need to wait for AuthContext to load profile');
+    }
+    
     loadData();
     requestUserLocation();
   }, [user]);
@@ -531,10 +537,19 @@ export default function CustomerDashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      {dealersWithDistance.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <MapPinned className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <p>Không có đại lý nào</p>
+                        </div>
+                      )}
                       {dealersWithDistance.map((dealer, index) => (
                         <div
                           key={dealer.id}
-                          onClick={() => setSelectedDealer(dealer.id.toString())}
+                          onClick={() => {
+                            console.log('🖱️ Dealer clicked:', dealer.id, dealer.name);
+                            setSelectedDealer(dealer.id.toString());
+                          }}
                           className={`group relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 ${selectedDealer === dealer.id.toString()
                               ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-cyan-50/30 shadow-lg ring-2 ring-emerald-200'
                               : 'border-gray-200 hover:border-emerald-300 hover:shadow-md bg-white hover:bg-gradient-to-br hover:from-white hover:to-emerald-50/30'
@@ -610,22 +625,33 @@ export default function CustomerDashboard() {
                       ))}
                     </div>
 
-                    {/* Confirm Button */}
+                    {/* Confirm Button - Enhanced with animation */}
                     {selectedDealer && (
-                      <div className="pt-4 border-t border-emerald-100 animate-[scale-in_0.2s_ease-out]">
+                      <div className="pt-4 border-t-2 border-emerald-100 animate-[scale-in_0.2s_ease-out]">
+                        <div className="mb-3 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200">
+                          <p className="text-sm text-emerald-800 font-medium flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            Đã chọn: {dealers.find(d => d.id === parseInt(selectedDealer))?.name}
+                          </p>
+                        </div>
                         <Button
                           onClick={() => {
+                            console.log('🔵 Confirm button clicked, selectedDealer:', selectedDealer);
                             const dealer = dealers.find(d => d.id === parseInt(selectedDealer));
+                            console.log('🔍 Found dealer:', dealer);
                             if (dealer) {
                               setPendingDealer(dealer);
                               setShowConfirmDialog(true);
+                              console.log('✅ Opening confirm dialog');
+                            } else {
+                              console.error('❌ Dealer not found!');
                             }
                           }}
-                          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 animate-pulse"
                           size="lg"
                         >
                           <CheckCircle className="mr-2 h-5 w-5" />
-                          Xác nhận đại lý
+                          Xác nhận chọn đại lý này
                         </Button>
                       </div>
                     )}
