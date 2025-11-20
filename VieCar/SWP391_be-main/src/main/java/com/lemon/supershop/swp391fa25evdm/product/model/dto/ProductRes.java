@@ -15,12 +15,21 @@ public class ProductRes {
     private int torque;
     private boolean isSpecial;
     private Date manufacture_date;
+    private Date stockInDate;
     private String image;
     private String description;
-    private long price;
+    
+    // Giá gốc từ hãng (read-only, không được thay đổi)
+    private Long manufacturerPrice;
+    
+    // Giá bán lẻ của đại lý (có thể update)
+    private Long retailPrice;
+    
+    private long price; // @Deprecated - backward compatibility, sử dụng retailPrice
     private ProductStatus status;
     private int categoryId;
     private int dealerCategoryId;
+    private Integer dealerId; // ID của đại lý sở hữu xe này
 
     public ProductRes() {}
 
@@ -150,5 +159,37 @@ public class ProductRes {
 
     public void setStatus(ProductStatus status) {
         this.status = status;
+    }
+
+    public Date getStockInDate() {
+        return stockInDate;
+    }
+
+    public void setStockInDate(Date stockInDate) {
+        this.stockInDate = stockInDate;
+    }
+
+    public Integer getDealerId() {
+        return dealerId;
+    }
+
+    public void setDealerId(Integer dealerId) {
+        this.dealerId = dealerId;
+    }
+
+    public Long getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Long manufacturerPrice) {
+        this.manufacturerPrice = manufacturerPrice;
+    }
+
+    public Long getRetailPrice() {
+        return retailPrice;
+    }
+
+    public void setRetailPrice(Long retailPrice) {
+        this.retailPrice = retailPrice;
     }
 }

@@ -7,7 +7,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
+<<<<<<< HEAD
 import com.lemon.supershop.swp391fa25evdm.contract.model.entity.Contract;
+=======
+import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
+import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepository;
+import com.lemon.supershop.swp391fa25evdm.category.service.CategoryService;
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
 import com.lemon.supershop.swp391fa25evdm.dealer.service.DealerService;
@@ -43,6 +49,8 @@ public class DistributionService {
     private ProductRepo productRepo;
     @Autowired
     private ProductService productService;
+    @Autowired
+    private CategoryService categoryService;
 
     // ===== WORKFLOW METHODS =====
     // Step 1: EVM Staff gửi lời mời
@@ -87,6 +95,102 @@ public class DistributionService {
         return convertToRes(distribution);
     }
 
+    // LUỒNG MỚI: Dealer Manager tạo yêu cầu xe trực tiếp (Pull Model)
+    // Bỏ qua bước invitation, trực tiếp tạo distribution với status PENDING
+    public DistributionRes createDealerRequest(DistributionOrderReq req) {
+        // Validate dealerId
+        if (req.getDealerId() == null) {
+            throw new RuntimeException("Dealer ID is required");
+        }
+
+        // Validate dealer exists
+        Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
+        if (!dealer.isPresent()) {
+            throw new RuntimeException("Dealer not found with id: " + req.getDealerId());
+        }
+
+        // Create new distribution
+        Distribution distribution = new Distribution();
+        distribution.setDealer(dealer.get());
+        distribution.setStatus("PENDING"); // Directly set to PENDING (bypass invitation flow)
+        distribution.setInvitedAt(LocalDateTime.now());
+
+        // Build items and aggregate quantity
+        int totalQty = 0;
+        List<DistributionItem> targetItems = new ArrayList<>();
+
+        if (req.getItems() != null && !req.getItems().isEmpty()) {
+            for (DistributionOrderItemReq item : req.getItems()) {
+                // Validate quantity first
+                if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                    continue; // skip invalid rows silently
+                }
+
+                // ✅ HỖ TRỢ CẢ 2 CÁCH: productId HOẶC categoryId
+                Product productTemplate = null;
+
+                if (item.getProductId() != null) {
+                    // Cách 1: Đặt theo productId cụ thể
+                    Optional<Product> productOpt = productRepo.findById(item.getProductId());
+                    if (productOpt.isEmpty()) {
+                        continue; // skip if product not found
+                    }
+                    productTemplate = productOpt.get();
+                } else if (item.getCategoryId() != null) {
+                    // Cách 2: Đặt theo categoryId - KHÔNG tạo product, chỉ lưu categoryId
+                    Optional<Category> categoryOpt = categoryRepository.findById(item.getCategoryId());
+                    if (categoryOpt.isEmpty()) {
+                        throw new RuntimeException("Category không tồn tại với ID: " + item.getCategoryId());
+                    }
+
+                    // ❌ KHÔNG tạo product template nữa
+                    // ✅ Tìm product mẫu nếu có (để hiển thị thông tin)
+                    List<Product> productsInCategory = productRepo.findByCategoryId(item.getCategoryId());
+                    if (!productsInCategory.isEmpty()) {
+                        productTemplate = productsInCategory.get(0); // Dùng làm reference
+                    }
+                    // Nếu chưa có product nào → productTemplate = null, sẽ lưu categoryId
+                } else {
+                    // Không có productId và categoryId → skip
+                    continue;
+                }
+
+                // Tạo DistributionItem
+                DistributionItem di = new DistributionItem();
+                di.setDistribution(distribution);
+                
+                if (productTemplate != null) {
+                    di.setProduct(productTemplate);
+                } else if (item.getCategoryId() != null) {
+                    // Đặt theo category nhưng chưa có product → lưu categoryId
+                    di.setCategoryId(item.getCategoryId());
+                }
+                
+                di.setColor(item.getColor());
+                di.setQuantity(item.getQuantity());
+                targetItems.add(di);
+                totalQty += item.getQuantity();
+            }
+        }
+
+        // If no valid items, reject
+        if (targetItems.isEmpty()) {
+            throw new RuntimeException("Không có sản phẩm hợp lệ trong đơn hàng (productId/categoryId không tồn tại hoặc số lượng không hợp lệ)");
+        }
+
+        // Set items
+        distribution.setItems(targetItems);
+
+        // Set order details
+        distribution.setRequestedQuantity(totalQty > 0 ? totalQty : null);
+        distribution.setRequestedDeliveryDate(req.getRequestedDeliveryDate());
+        distribution.setDealerNotes(req.getDealerNotes());
+
+        // Save and return
+        distributionRepo.save(distribution);
+        return convertToRes(distribution);
+    }
+
     // Step 3: Dealer Manager tạo đơn hàng (nếu đã ACCEPTED)
     public DistributionRes submitOrder(int id, DistributionOrderReq req) {
         Optional<Distribution> opt = distributionRepo.findById(id);
@@ -100,6 +204,7 @@ public class DistributionService {
         if (!"ACCEPTED".equals(distribution.getStatus())) {
             throw new RuntimeException("Invalid status. Expected ACCEPTED, got: " + distribution.getStatus());
         }
+        
         // Build items and aggregate quantity (update collection IN-PLACE to avoid orphanRemoval issues)
         int totalQty = 0;
         List<DistributionItem> targetItems = distribution.getItems();
@@ -109,18 +214,54 @@ public class DistributionService {
         } else {
             targetItems.clear();
         }
+        
         if (req.getItems() != null && !req.getItems().isEmpty()) {
             for (DistributionOrderItemReq item : req.getItems()) {
-                if (item.getProductId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
+                // Validate quantity first
+                if (item.getQuantity() == null || item.getQuantity() <= 0) {
                     continue; // skip invalid rows silently
                 }
-                Optional<Product> productOpt = productRepo.findById(item.getProductId());
-                if (productOpt.isEmpty()) {
+                
+                // ✅ HỖ TRỢ CẢ 2 CÁCH: productId HOẶC categoryId
+                Product productTemplate = null;
+                
+                if (item.getProductId() != null) {
+                    // Cách 1: Đặt theo productId cụ thể
+                    Optional<Product> productOpt = productRepo.findById(item.getProductId());
+                    if (productOpt.isEmpty()) {
+                        continue; // skip if product not found
+                    }
+                    productTemplate = productOpt.get();
+                } else if (item.getCategoryId() != null) {
+                    // Cách 2: Đặt theo categoryId - KHÔNG tạo product
+                    Optional<Category> categoryOpt = categoryRepository.findById(item.getCategoryId());
+                    if (categoryOpt.isEmpty()) {
+                        throw new RuntimeException("Category không tồn tại với ID: " + item.getCategoryId());
+                    }
+                    
+                    // ❌ KHÔNG tạo product template nữa
+                    // ✅ Tìm product mẫu nếu có (để hiển thị thông tin)
+                    List<Product> productsInCategory = productRepo.findByCategoryId(item.getCategoryId());
+                    if (!productsInCategory.isEmpty()) {
+                        productTemplate = productsInCategory.get(0);
+                    }
+                    // Nếu chưa có product nào → productTemplate = null
+                } else {
+                    // Không có productId và categoryId → skip
                     continue;
                 }
+                
+                // Tạo DistributionItem
                 DistributionItem di = new DistributionItem();
                 di.setDistribution(distribution);
-                di.setProduct(productOpt.get());
+                
+                if (productTemplate != null) {
+                    di.setProduct(productTemplate);
+                } else if (item.getCategoryId() != null) {
+                    // Đặt theo category nhưng chưa có product → lưu categoryId
+                    di.setCategoryId(item.getCategoryId());
+                }
+                
                 di.setColor(item.getColor());
                 di.setQuantity(item.getQuantity());
                 targetItems.add(di);
@@ -130,7 +271,7 @@ public class DistributionService {
 
         // If no valid items, reject to avoid saving empty orders silently
         if (targetItems.isEmpty()) {
-            throw new RuntimeException("Không có sản phẩm hợp lệ trong đơn hàng (productId không tồn tại hoặc số lượng không hợp lệ)");
+            throw new RuntimeException("Không có sản phẩm hợp lệ trong đơn hàng (productId/categoryId không tồn tại hoặc số lượng không hợp lệ)");
         }
 
         // Set order details
@@ -140,7 +281,11 @@ public class DistributionService {
             distribution.setDealerNotes(req.getDealerNotes());
         }
         distribution.setStatus("PENDING");
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         distributionRepo.save(distribution);
         return convertToRes(distribution);
     }
@@ -158,7 +303,11 @@ public class DistributionService {
         if (!"PENDING".equals(distribution.getStatus())) {
             throw new RuntimeException("Invalid status. Expected PENDING, got: " + distribution.getStatus());
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         // If CONFIRMED, require manufacturerPrice and approvedQuantity
         if ("CONFIRMED".equals(req.getDecision())) {
             if (req.getManufacturerPrice() == null || req.getManufacturerPrice() <= 0) {
@@ -167,6 +316,7 @@ public class DistributionService {
             if (req.getApprovedQuantity() == null || req.getApprovedQuantity() <= 0) {
                 throw new RuntimeException("Approved quantity is required when approving");
             }
+<<<<<<< HEAD
 
             // Update category base price with manufacturer price
             updateCategoryBasePriceFromDistribution(distribution, req.getManufacturerPrice());
@@ -175,6 +325,42 @@ public class DistributionService {
             // Dealer must accept the price before proceeding to delivery planning
             distribution.setStatus("PRICE_SENT");
 
+=======
+            
+            // 🔥 XỬ LÝ GIÁ RIÊNG CHO TỪNG ITEM (nếu có)
+            if (req.getItems() != null && !req.getItems().isEmpty() && distribution.getItems() != null) {
+                // EVM đã set giá riêng cho từng item
+                for (DistributionItemPriceReq itemPrice : req.getItems()) {
+                    if (itemPrice.getDistributionItemId() != null) {
+                        // Tìm DistributionItem tương ứng
+                        for (DistributionItem dItem : distribution.getItems()) {
+                            if (dItem.getId() == itemPrice.getDistributionItemId()) {
+                                // Update dealer price if provided
+                                if (itemPrice.getDealerPrice() != null) {
+                                    dItem.setDealerPrice(itemPrice.getDealerPrice());
+                                }
+                                // Update approved quantity if provided
+                                if (itemPrice.getApprovedQuantity() != null && itemPrice.getApprovedQuantity() > 0) {
+                                    dItem.setQuantity(itemPrice.getApprovedQuantity());
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                // Lưu lại các items đã cập nhật giá
+                distributionRepo.save(distribution);
+            }
+            
+            // Update category base price with manufacturer price (giá cao nhất để tham khảo)
+            updateCategoryBasePriceFromDistribution(distribution, req.getManufacturerPrice());
+            
+            // Always send price to dealer for confirmation (regardless of quantity match)
+            // Dealer must accept the price before proceeding to delivery planning
+            distribution.setStatus("PRICE_SENT");
+            
+            // Giá chung (sẽ là giá cao nhất hoặc giá trung bình để tham khảo)
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
             distribution.setManufacturerPrice(req.getManufacturerPrice());
             distribution.setEvmNotes(req.getEvmNotes());
         } else {
@@ -182,7 +368,102 @@ public class DistributionService {
             distribution.setStatus(req.getDecision());
             distribution.setEvmNotes(req.getEvmNotes());
         }
+<<<<<<< HEAD
 
+=======
+        
+        distributionRepo.save(distribution);
+        return convertToRes(distribution);
+    }
+
+    // Step 4b: EVM Staff gửi lại giá mới (khi dealer từ chối giá cũ)
+    public DistributionRes resendPrice(int id, DistributionApprovalReq req) {
+        Optional<Distribution> opt = distributionRepo.findById(id);
+        if (!opt.isPresent()) {
+            throw new RuntimeException("Distribution not found with id: " + id);
+        }
+        
+        Distribution distribution = opt.get();
+        
+        // Validate status - chỉ cho phép khi dealer đã từ chối giá
+        if (!"PRICE_REJECTED".equals(distribution.getStatus())) {
+            throw new RuntimeException("Invalid status. Expected PRICE_REJECTED, got: " + distribution.getStatus());
+        }
+        
+        // Validate input
+        if (req.getManufacturerPrice() == null || req.getManufacturerPrice() <= 0) {
+            throw new RuntimeException("Manufacturer price is required when resending price");
+        }
+        if (req.getApprovedQuantity() == null || req.getApprovedQuantity() <= 0) {
+            throw new RuntimeException("Approved quantity is required");
+        }
+        
+        // 🔥 XỬ LÝ GIÁ RIÊNG CHO TỪNG ITEM (nếu có)
+        if (req.getItems() != null && !req.getItems().isEmpty() && distribution.getItems() != null) {
+            for (DistributionItemPriceReq itemPrice : req.getItems()) {
+                if (itemPrice.getDistributionItemId() != null) {
+                    for (DistributionItem dItem : distribution.getItems()) {
+                        if (dItem.getId() == itemPrice.getDistributionItemId()) {
+                            // Update dealer price
+                            if (itemPrice.getDealerPrice() != null) {
+                                dItem.setDealerPrice(itemPrice.getDealerPrice());
+                            }
+                            // Update approved quantity
+                            if (itemPrice.getApprovedQuantity() != null && itemPrice.getApprovedQuantity() > 0) {
+                                dItem.setQuantity(itemPrice.getApprovedQuantity());
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            distributionRepo.save(distribution);
+        }
+        
+        // Update category base price
+        updateCategoryBasePriceFromDistribution(distribution, req.getManufacturerPrice());
+        
+        // 🔥 GIỮ NGUYÊN phần "Duyệt theo dòng" gốc, chỉ cập nhật GIÁ mới
+        String existingEvmNotes = distribution.getEvmNotes();
+        String newEvmNotes = req.getEvmNotes();
+        
+        if (existingEvmNotes != null && existingEvmNotes.contains("Duyệt theo dòng:")) {
+            // Tách phần "Duyệt theo dòng: ..." từ evmNotes cũ
+            String approvalPart = existingEvmNotes;
+            if (existingEvmNotes.contains(" | Ghi chú:")) {
+                approvalPart = existingEvmNotes.split(" \\| Ghi chú:")[0];
+            } else if (existingEvmNotes.contains(" | Dealer:")) {
+                approvalPart = existingEvmNotes.split(" \\| Dealer:")[0];
+            }
+            
+            // Cập nhật lại GIÁ trong approvalPart nếu có thông tin mới từ req.getEvmNotes()
+            if (newEvmNotes != null && newEvmNotes.contains("Duyệt theo dòng:")) {
+                // Lấy phần giá mới từ newEvmNotes
+                String newApprovalPart = newEvmNotes;
+                if (newEvmNotes.contains(" | Ghi chú:")) {
+                    newApprovalPart = newEvmNotes.split(" \\| Ghi chú:")[0];
+                }
+                approvalPart = newApprovalPart; // Dùng giá mới
+            }
+            
+            // Thêm ghi chú mới (nếu có)
+            String additionalNote = "";
+            if (newEvmNotes != null && newEvmNotes.contains(" | Ghi chú:")) {
+                additionalNote = newEvmNotes.substring(newEvmNotes.indexOf(" | Ghi chú:"));
+            }
+            
+            // Ghép lại: approvalPart (có giá mới) + ghi chú mới
+            distribution.setEvmNotes(approvalPart + (additionalNote.isEmpty() ? "" : additionalNote));
+        } else {
+            // Nếu chưa có evmNotes hoặc không có format chuẩn → dùng mới
+            distribution.setEvmNotes(newEvmNotes);
+        }
+        
+        // Gửi lại giá mới cho dealer
+        distribution.setStatus("PRICE_SENT");
+        distribution.setManufacturerPrice(req.getManufacturerPrice());
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         distributionRepo.save(distribution);
         return convertToRes(distribution);
     }
@@ -193,14 +474,24 @@ public class DistributionService {
         if (!opt.isPresent()) {
             throw new RuntimeException("Distribution not found with id: " + id);
         }
+<<<<<<< HEAD
 
         Distribution distribution = opt.get();
 
+=======
+        
+        Distribution distribution = opt.get();
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         // Validate status
         if (!"PRICE_SENT".equals(distribution.getStatus())) {
             throw new RuntimeException("Invalid status. Expected PRICE_SENT, got: " + distribution.getStatus());
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         if ("PRICE_ACCEPTED".equals(decision)) {
             distribution.setStatus("CONFIRMED");
         } else if ("PRICE_REJECTED".equals(decision)) {
@@ -208,12 +499,20 @@ public class DistributionService {
         } else {
             throw new RuntimeException("Invalid decision. Expected PRICE_ACCEPTED or PRICE_REJECTED");
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         if (dealerNotes != null && !dealerNotes.isEmpty()) {
             String existing = distribution.getDealerNotes();
             distribution.setDealerNotes(existing != null ? existing + " | " + dealerNotes : dealerNotes);
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         distributionRepo.save(distribution);
         return convertToRes(distribution);
     }
@@ -287,9 +586,47 @@ public class DistributionService {
                 calcSum += recv;
 
                 if (recv > 0) {
+                    // Lấy template từ item.product HOẶC tìm từ categoryId
                     Product template = orderedItem.getProduct();
+                    Category category = null;
+                    
+                    if (template == null && orderedItem.getCategoryId() != null) {
+                        // Item đặt theo categoryId (không có product template)
+                        Optional<Category> catOpt = categoryRepository.findById(orderedItem.getCategoryId());
+                        if (catOpt.isPresent()) {
+                            category = catOpt.get();
+                            
+                            // Tìm product mẫu trong category (nếu có) để copy thông tin
+                            List<Product> productsInCategory = productRepo.findByCategoryId(orderedItem.getCategoryId());
+                            if (!productsInCategory.isEmpty()) {
+                                template = productsInCategory.get(0);
+                            }
+                        } else {
+                            throw new RuntimeException("Category không tồn tại với ID: " + orderedItem.getCategoryId());
+                        }
+                    }
+                    
+                    // Xác định giá HÃNG (manufacturer price) - Ưu tiên:
+                    // 1. Giá từ DistributionReceivedItemReq (dealer có thể cập nhật khi nhận hàng)
+                    // 2. Giá từ DistributionItem (giá đã set cho từng item)
+                    // 3. Giá chung từ Distribution.manufacturerPrice (fallback)
+                    // 4. Giá từ Category basePrice (fallback cuối)
+                    long manufacturerPriceValue = 0L;
+                    if (ir.getDealerPrice() != null) {
+                        manufacturerPriceValue = ir.getDealerPrice().longValue();
+                    } else if (orderedItem.getDealerPrice() != null) {
+                        manufacturerPriceValue = orderedItem.getDealerPrice().longValue();
+                    } else if (distribution.getManufacturerPrice() != null) {
+                        manufacturerPriceValue = distribution.getManufacturerPrice().longValue();
+                    } else if (category != null) {
+                        manufacturerPriceValue = category.getBasePrice();
+                    } else if (template != null && template.getCategory() != null) {
+                        manufacturerPriceValue = template.getCategory().getBasePrice();
+                    }
+                    
                     for (int i = 0; i < recv; i++) {
                         Product p = new Product();
+                        
                         // Copy basics from template if available
                         if (template != null) {
                             p.setName(template.getName());
@@ -301,13 +638,38 @@ public class DistributionService {
                             if (template.getCategory() != null) {
                                 p.setCategory(template.getCategory());
                             }
+                        } else if (category != null) {
+                            // Không có template → tạo từ category
+                            p.setName(category.getName());
+                            p.setCategory(category);
+                            p.setBattery(0);
+                            p.setHp(0);
+                            p.setTorque(0);
+                            p.setRange(0);
                         }
+<<<<<<< HEAD
                         // Set manufacturer price from distribution
                         if (distribution.getManufacturerPrice() != null) {
                             p.setDealerPrice(distribution.getManufacturerPrice().longValue());
                         } else {
                             p.setDealerPrice(0L);
                         }
+=======
+                        
+                        // ✅ SET MANUFACTURER PRICE (chỉ set 1 lần duy nhất, không được đổi)
+                        if (manufacturerPriceValue > 0) {
+                            p.setManufacturerPrice(manufacturerPriceValue);
+                        }
+                        
+                        // ✅ SET RETAIL PRICE = MANUFACTURER PRICE (dealer có thể update sau)
+                        if (manufacturerPriceValue > 0) {
+                            p.setRetailPrice(manufacturerPriceValue);
+                        }
+                        
+                        // Legacy dealer price (backward compatibility)
+                        p.setDealerPrice(manufacturerPriceValue);
+                        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
                         // Link to this distribution and set color from item
                         p.setDistribution(distribution);
                         p.setColor(orderedItem.getColor());
@@ -323,7 +685,12 @@ public class DistributionService {
                                 ? java.util.Date.from(req.getActualDeliveryDate().atZone(ZoneId.systemDefault()).toInstant())
                                 : new java.util.Date();
                         p.setStockInDate(stockIn);
+<<<<<<< HEAD
                         p.setStatus(com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus.ACTIVE);
+=======
+                        // 🔧 SỬA: Set INACTIVE khi nhập kho - Dealer staff sẽ đăng lên showroom sau
+                        p.setStatus(com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus.INACTIVE);
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
                         productRepo.save(p);
                     }
                 }
@@ -338,6 +705,10 @@ public class DistributionService {
         distribution.setStatus("COMPLETED");
 
         distributionRepo.save(distribution);
+        
+        // ✅ Cập nhật Category basePrice = GIÁ CAO NHẤT từ các items (kể cả khác màu)
+        updateCategoryPriceFromDistributionItems(distribution);
+        
         return convertToRes(distribution);
     }
 
@@ -350,11 +721,40 @@ public class DistributionService {
         return String.valueOf(ts) + String.format("%03d", rnd);
     }
 
+<<<<<<< HEAD
     // Helper method: Update category base price from manufacturer price
+=======
+    // Generate mã cố định từ ID (hash deterministic - không đổi khi load lại)
+    // Ví dụ: ID=13 → luôn ra "7K3M", ID=42 → luôn ra "G9X2"
+    private String generateCodeFromId(int id) {
+        String chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        // Dùng ID làm seed để hash thành 4 ký tự
+        int hash = id * 31 + 12345; // Prime multiplier cho distribution tốt
+        StringBuilder sb = new StringBuilder(4);
+        for (int i = 0; i < 4; i++) {
+            hash = hash * 1103515245 + 12345; // Linear congruential generator
+            int index = Math.abs(hash) % chars.length();
+            sb.append(chars.charAt(index));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Helper: Cập nhật giá tham khảo của Category từ Distribution
+     * 
+     * LƯU Ý VỀ CƠ CHẾ GIÁ:
+     * - Category.basePrice: Giá tham khảo/mặc định của danh mục = GIÁ CAO NHẤT từ các DistributionItem
+     * - DistributionItem.dealerPrice: Giá RIÊNG của từng item (mỗi xe một giá)
+     * - Product.dealerPrice: Giá thực tế của từng xe khi nhập kho (copy từ DistributionItem)
+     * 
+     * => MỖI XE CÓ GIÁ RIÊNG, Category.basePrice chỉ để tham khảo (lấy giá cao nhất)!
+     */
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
     private void updateCategoryBasePriceFromDistribution(Distribution distribution, Double manufacturerPrice) {
         if (distribution.getItems() == null || distribution.getItems().isEmpty()) {
             return; // No items, cannot determine category
         }
+<<<<<<< HEAD
 
         // Get category from first item's product
         for (DistributionItem item : distribution.getItems()) {
@@ -370,6 +770,106 @@ public class DistributionService {
                 System.out.println("✅ Updated Category ID " + category.getId()
                         + " base price to: " + newBasePrice);
                 break; // Only update once (assume all items same category)
+=======
+        
+        // ✅ TÌM GIÁ CAO NHẤT từ các DistributionItem
+        long maxPrice = 0L;
+        Category targetCategory = null;
+        
+        for (DistributionItem item : distribution.getItems()) {
+            if (item.getProduct() != null && item.getProduct().getCategory() != null) {
+                if (targetCategory == null) {
+                    targetCategory = item.getProduct().getCategory();
+                }
+                
+                // Lấy giá từ DistributionItem (ưu tiên) hoặc manufacturerPrice (fallback)
+                long itemPrice = 0L;
+                if (item.getDealerPrice() != null) {
+                    itemPrice = item.getDealerPrice().longValue();
+                } else if (manufacturerPrice != null) {
+                    itemPrice = manufacturerPrice.longValue();
+                }
+                
+                // Cập nhật giá cao nhất
+                if (itemPrice > maxPrice) {
+                    maxPrice = itemPrice;
+                }
+            }
+        }
+        
+        // Cập nhật Category basePrice = giá cao nhất
+        if (targetCategory != null && maxPrice > 0) {
+            long oldBasePrice = targetCategory.getBasePrice();
+            targetCategory.setBasePrice(maxPrice);
+            categoryRepository.save(targetCategory);
+            
+            // Log the update với giá cũ và mới
+            System.out.println("✅ Updated Category ID " + targetCategory.getId() + " (" + targetCategory.getName() + ")");
+            System.out.println("   Old basePrice: " + oldBasePrice);
+            System.out.println("   New basePrice: " + maxPrice + " (GIÁ CAO NHẤT từ distribution items)");
+        }
+    }
+
+    /**
+     * ✅ PHƯƠNG THỨC MỚI: Cập nhật giá Category từ các DistributionItem khi confirmReceived
+     * - Tìm GIÁ CAO NHẤT từ tất cả các items (kể cả khác màu)
+     * - Cập nhật Category.basePrice nếu giá mới cao hơn giá hiện tại
+     */
+    private void updateCategoryPriceFromDistributionItems(Distribution distribution) {
+        if (distribution.getItems() == null || distribution.getItems().isEmpty()) {
+            return;
+        }
+        
+        // Group items by category
+        java.util.Map<Integer, Long> categoryMaxPrices = new java.util.HashMap<>();
+        
+        for (DistributionItem item : distribution.getItems()) {
+            Integer categoryId = null;
+            
+            // Lấy categoryId từ product hoặc trực tiếp từ item
+            if (item.getProduct() != null && item.getProduct().getCategory() != null) {
+                categoryId = item.getProduct().getCategory().getId();
+            } else if (item.getCategoryId() != null) {
+                categoryId = item.getCategoryId();
+            }
+            
+            if (categoryId != null) {
+                // Lấy giá từ item
+                long itemPrice = 0L;
+                if (item.getDealerPrice() != null) {
+                    itemPrice = item.getDealerPrice().longValue();
+                } else if (distribution.getManufacturerPrice() != null) {
+                    itemPrice = distribution.getManufacturerPrice().longValue();
+                }
+                
+                // Cập nhật giá cao nhất cho category này
+                if (itemPrice > 0) {
+                    categoryMaxPrices.put(categoryId, 
+                        Math.max(categoryMaxPrices.getOrDefault(categoryId, 0L), itemPrice));
+                }
+            }
+        }
+        
+        // Cập nhật basePrice cho từng category (chỉ cập nhật nếu giá mới cao hơn)
+        for (java.util.Map.Entry<Integer, Long> entry : categoryMaxPrices.entrySet()) {
+            Integer categoryId = entry.getKey();
+            Long maxPrice = entry.getValue();
+            
+            Optional<Category> catOpt = categoryRepository.findById(categoryId);
+            if (catOpt.isPresent()) {
+                Category category = catOpt.get();
+                long currentPrice = category.getBasePrice();
+                
+                // Chỉ cập nhật nếu giá mới cao hơn giá hiện tại
+                if (maxPrice > currentPrice) {
+                    category.setBasePrice(maxPrice);
+                    categoryRepository.save(category);
+                    
+                    System.out.println("✅ Updated Category #" + categoryId + " (" + category.getName() + ")");
+                    System.out.println("   Old basePrice: " + currentPrice);
+                    System.out.println("   New basePrice: " + maxPrice + " (GIÁ CAO NHẤT từ items, kể cả khác màu)");
+                }
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
             }
         }
     }
@@ -385,6 +885,15 @@ public class DistributionService {
                 .map(this::convertToRes)
                 .orElseThrow(() -> new RuntimeException("Distribution not found with id: " + id));
     }
+<<<<<<< HEAD
+=======
+
+    // ❌ Xóa method không dùng
+    // public List<DistributionRes> getDistributionsByCategoryId(int categoryId) {
+    //     List<Distribution> distributions = distributionRepo.findByCategoryId(categoryId);
+    //     return distributions.stream().map(this::convertToRes).toList();
+    // }
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
     public List<DistributionRes> getDistributionsByDealerId(int dealerId) {
         List<Distribution> distributions = distributionRepo.findByDealerId(dealerId);
@@ -445,6 +954,14 @@ public class DistributionService {
         DistributionRes res = new DistributionRes();
 
         res.setId(distribution.getId());
+        
+        // Generate mã phân phối cố định từ ID: PP{year}-{hash4} (ví dụ: PP2025-7K3M)
+        // Mã không đổi mỗi lần load vì hash từ ID
+        int year = java.time.Year.now().getValue();
+        String hashCode = generateCodeFromId(distribution.getId());
+        String code = String.format("PP%d-%s", year, hashCode);
+        res.setCode(code);
+        
         res.setStatus(distribution.getStatus());
 
         // Convert Dealer
@@ -474,8 +991,17 @@ public class DistributionService {
                     ProductRes pr = productService.convertToRes(di.getProduct());
                     ir.setProduct(pr);
                 }
+                ir.setCategoryId(di.getCategoryId()); // ✅ Set categoryId (có thể null)
+                
+                // ✅ Populate category object nếu có categoryId
+                if (di.getCategoryId() != null) {
+                    var categoryRes = categoryService.getCategoryById(di.getCategoryId());
+                    ir.setCategory(categoryRes);
+                }
+                
                 ir.setColor(di.getColor());
                 ir.setQuantity(di.getQuantity());
+                ir.setDealerPrice(di.getDealerPrice()); // 🔥 SET DEALER PRICE
                 itemResList.add(ir);
             }
             res.setItems(itemResList);
@@ -500,9 +1026,226 @@ public class DistributionService {
         // Set quantities - CHỈ 2 FIELD ĐANG DÙNG
         res.setRequestedQuantity(distribution.getRequestedQuantity());
         res.setReceivedQuantity(distribution.getReceivedQuantity());
+<<<<<<< HEAD
 
         res.setManufacturerPrice(distribution.getManufacturerPrice());
 
+=======
+        // ❌ Xóa 2 quantity fields không dùng
+        // res.setApprovedQuantity(distribution.getApprovedQuantity());
+        // res.setActualQuantity(distribution.getActualQuantity());
+        
+        res.setManufacturerPrice(distribution.getManufacturerPrice());
+        
+        // Set supplementary fields
+        res.setParentDistributionId(distribution.getParentDistributionId());
+        res.setIsSupplementary(distribution.getIsSupplementary());
+        
+        // Set payment information
+        res.setPaidAmount(distribution.getPaidAmount());
+        res.setTransactionNo(distribution.getTransactionNo());
+        res.setPaidAt(distribution.getPaidAt());
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         return res;
+    }
+
+    // ===== SUPPLEMENTARY DISTRIBUTION =====
+    /**
+     * Tạo đơn phân phối bổ sung cho số lượng thiếu
+     * Được gọi khi EVM Staff duyệt đơn với số lượng < yêu cầu
+     * 
+     * @param parentDistributionId ID của đơn gốc
+     * @return Đơn bổ sung mới được tạo với status PENDING
+     */
+    public DistributionRes createSupplementaryDistribution(int parentDistributionId) {
+        // 1. Lấy distribution gốc
+        Optional<Distribution> parentOpt = distributionRepo.findById(parentDistributionId);
+        if (!parentOpt.isPresent()) {
+            throw new RuntimeException("Distribution gốc không tồn tại với ID: " + parentDistributionId);
+        }
+        Distribution parent = parentOpt.get();
+
+        // 2. Validate: Chỉ tạo bổ sung nếu đơn gốc đã được duyệt (PRICE_SENT, CONFIRMED, hoặc sau đó)
+        if (!"PRICE_SENT".equals(parent.getStatus()) && 
+            !"PRICE_ACCEPTED".equals(parent.getStatus()) &&
+            !"CONFIRMED".equals(parent.getStatus()) && 
+            !"PLANNED".equals(parent.getStatus()) &&
+            !"COMPLETED".equals(parent.getStatus())) {
+            throw new RuntimeException("Chỉ có thể tạo đơn bổ sung khi đơn gốc đã được duyệt (status: PRICE_SENT trở đi)");
+        }
+
+        // 3. Kiểm tra evmNotes để parse số lượng đã duyệt
+        // QUAN TRỌNG: evmNotes phải có format "Duyệt theo dòng: ..." để biết số yêu cầu ban đầu
+        if (parent.getEvmNotes() == null || !parent.getEvmNotes().contains("Duyệt theo dòng:")) {
+            throw new RuntimeException("Không thể tạo đơn bổ sung: Đơn gốc chưa được duyệt với chi tiết số lượng từng item. " +
+                                     "Vui lòng đảm bảo EVM Staff đã duyệt đơn với ghi chú chi tiết 'Duyệt theo dòng: ...'");
+        }
+        
+        // Tính số lượng thiếu từ items của đơn gốc
+        if (parent.getItems() == null || parent.getItems().isEmpty()) {
+            throw new RuntimeException("Đơn gốc không có items để tạo đơn bổ sung");
+        }
+
+        int totalShortage = 0;
+        List<DistributionItem> supplementaryItems = new ArrayList<>();
+
+        // Parse evmNotes để lấy số lượng đã duyệt cho từng item
+        // Format: "Duyệt theo dòng: vf3 (Đen): 5/10 xe @ 10.000 VND; vf3 (Xanh): 3/5 xe @ 20.000 VND | Ghi chú: ..."
+        java.util.Map<String, Integer> approvedQuantitiesMap = new java.util.HashMap<>();
+        java.util.Map<String, Integer> requestedQuantitiesMap = new java.util.HashMap<>(); // Lưu requested từ evmNotes
+        boolean parsedFromEvmNotes = false;
+        
+        // Parse evmNotes - BẮT BUỘC phải thành công
+        if (parent.getEvmNotes() != null && parent.getEvmNotes().contains("Duyệt theo dòng:")) {
+            try {
+                String evmNotes = parent.getEvmNotes();
+                int startIdx = evmNotes.indexOf("Duyệt theo dòng:") + "Duyệt theo dòng:".length();
+                int endIdx = evmNotes.indexOf("|", startIdx);
+                if (endIdx == -1) endIdx = evmNotes.length();
+                
+                String itemsText = evmNotes.substring(startIdx, endIdx).trim();
+                String[] itemParts = itemsText.split(";");
+                
+                for (String part : itemParts) {
+                    part = part.trim();
+                    if (part.isEmpty()) continue;
+                    
+                    // Parse: "vf3 (Đen): 5/10 xe @ 10.000 VND" hoặc "vf3 (Đen): 5/10 xe"
+                    java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("^(.+?):\\s*(\\d+)/(\\d+)\\s*xe");
+                    java.util.regex.Matcher matcher = pattern.matcher(part);
+                    
+                    if (matcher.find()) {
+                        String itemKey = matcher.group(1).trim(); // "vf3 (Đen)"
+                        int approved = Integer.parseInt(matcher.group(2)); // 5
+                        int requested = Integer.parseInt(matcher.group(3)); // 10
+                        approvedQuantitiesMap.put(itemKey, approved);
+                        requestedQuantitiesMap.put(itemKey, requested);
+                        parsedFromEvmNotes = true;
+                        
+                        System.out.println("📊 Parsed evmNotes: " + itemKey + " = " + approved + "/" + requested + " xe");
+                    }
+                }
+                
+                // Nếu parse được nhưng không có item nào match
+                if (!parsedFromEvmNotes) {
+                    throw new RuntimeException("Không thể parse số lượng từ evmNotes. Format: 'Duyệt theo dòng: Tên (Màu): X/Y xe; ...'");
+                }
+                
+            } catch (Exception e) {
+                System.err.println("⚠️ Lỗi khi parse evmNotes: " + e.getMessage());
+                throw new RuntimeException("Không thể parse số lượng từ evmNotes: " + e.getMessage() + 
+                                         ". Vui lòng đảm bảo format đúng: 'Duyệt theo dòng: Tên (Màu): X/Y xe; ...'");
+            }
+        }
+
+        // Tạo supplementary items với số lượng = số lượng thiếu
+        for (DistributionItem parentItem : parent.getItems()) {
+            // Tìm số lượng đã duyệt từ evmNotes
+            // Ưu tiên Product name, fallback về Category name (load từ categoryId)
+            String itemName = "Unknown";
+            if (parentItem.getProduct() != null && parentItem.getProduct().getName() != null) {
+                itemName = parentItem.getProduct().getName();
+            } else if (parentItem.getCategoryId() != null) {
+                // Nếu chỉ có categoryId, cố gắng load category name
+                try {
+                    Optional<Category> catOpt = categoryRepository.findById(parentItem.getCategoryId());
+                    if (catOpt.isPresent()) {
+                        itemName = catOpt.get().getName();
+                    }
+                } catch (Exception e) {
+                    System.err.println("⚠️ Cannot load category for categoryId: " + parentItem.getCategoryId());
+                }
+            }
+            
+            String itemKey = itemName + (parentItem.getColor() != null ? " (" + parentItem.getColor() + ")" : "");
+            
+            System.out.println("🔍 Checking item: " + itemKey + " (Product: " + 
+                             (parentItem.getProduct() != null ? parentItem.getProduct().getName() : "null") + 
+                             ", CategoryId: " + parentItem.getCategoryId() + ")");
+            
+            // BẮT BUỘC phải có trong parsed map
+            if (!requestedQuantitiesMap.containsKey(itemKey)) {
+                throw new RuntimeException("Không tìm thấy thông tin số lượng cho item: " + itemKey + 
+                                         " trong evmNotes. Vui lòng kiểm tra lại ghi chú duyệt đơn. " +
+                                         "Available keys: " + requestedQuantitiesMap.keySet());
+            }
+            
+            int requested = requestedQuantitiesMap.get(itemKey);
+            int approved = approvedQuantitiesMap.get(itemKey);
+            int shortage = requested - approved;
+            
+            System.out.println("🔍 Item: " + itemKey + " → Requested=" + requested + ", Approved=" + approved + ", Shortage=" + shortage);
+            
+            if (shortage > 0) {
+                // Clone item với số lượng = số lượng thiếu
+                DistributionItem suppItem = new DistributionItem();
+                suppItem.setProduct(parentItem.getProduct());
+                suppItem.setColor(parentItem.getColor());
+                suppItem.setQuantity(shortage);
+                suppItem.setDealerPrice(parentItem.getDealerPrice());
+                supplementaryItems.add(suppItem);
+                totalShortage += shortage;
+            }
+        }
+
+        if (supplementaryItems.isEmpty()) {
+            // Debug: In ra thông tin chi tiết để biết tại sao không có items thiếu
+            System.err.println("❌ Không tạo được đơn bổ sung - Chi tiết:");
+            System.err.println("   Parent Distribution ID: " + parentDistributionId);
+            System.err.println("   Parent Status: " + parent.getStatus());
+            System.err.println("   Requested Quantity: " + parent.getRequestedQuantity());
+            System.err.println("   Received Quantity: " + parent.getReceivedQuantity());
+            System.err.println("   Total Items: " + (parent.getItems() != null ? parent.getItems().size() : 0));
+            System.err.println("   Parsed from evmNotes: " + parsedFromEvmNotes);
+            System.err.println("   EvmNotes: " + (parent.getEvmNotes() != null ? parent.getEvmNotes() : "null"));
+            
+            if (parent.getItems() != null) {
+                for (DistributionItem item : parent.getItems()) {
+                    String name = (item.getProduct() != null && item.getProduct().getName() != null) 
+                                ? item.getProduct().getName() : "Unknown";
+                    String color = item.getColor() != null ? item.getColor() : "null";
+                    int qty = item.getQuantity() != null ? item.getQuantity() : 0;
+                    System.err.println("   - Item: " + name + " (" + color + ") → Quantity: " + qty);
+                }
+            }
+            
+            throw new RuntimeException("Không có items thiếu để tạo đơn bổ sung. Kiểm tra console logs để biết chi tiết.");
+        }
+
+        // 4. Tạo distribution bổ sung
+        Distribution supplementary = new Distribution();
+        supplementary.setDealer(parent.getDealer());
+        supplementary.setStatus("PENDING"); // Đơn bổ sung bắt đầu ở PENDING
+        supplementary.setInvitedAt(LocalDateTime.now());
+        
+        // Set supplementary fields
+        supplementary.setParentDistributionId(parentDistributionId);
+        supplementary.setIsSupplementary(true);
+        
+        // Set items
+        for (DistributionItem item : supplementaryItems) {
+            item.setDistribution(supplementary);
+        }
+        supplementary.setItems(supplementaryItems);
+        
+        // Set quantities
+        supplementary.setRequestedQuantity(totalShortage);
+        
+        // Copy thông tin từ đơn gốc
+        supplementary.setManufacturerPrice(parent.getManufacturerPrice());
+        supplementary.setRequestedDeliveryDate(parent.getRequestedDeliveryDate());
+        
+        // Set notes
+        String suppNote = "Đơn bổ sung cho đơn gốc #" + parentDistributionId + " (" + totalShortage + " xe thiếu)";
+        supplementary.setEvmNotes(suppNote);
+        
+        // Save
+        distributionRepo.save(supplementary);
+        
+        System.out.println("✅ Tạo đơn bổ sung thành công: ID=" + supplementary.getId() + 
+                         ", Parent=" + parentDistributionId + ", Shortage=" + totalShortage + " xe");
+        
+        return convertToRes(supplementary);
     }
 }

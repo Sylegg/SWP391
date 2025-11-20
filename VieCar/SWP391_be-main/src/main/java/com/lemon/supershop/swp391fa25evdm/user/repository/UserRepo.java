@@ -18,8 +18,9 @@ public interface UserRepo extends JpaRepository<User, Long> {
     List<User> findByIsBlackTrue();
     List<User> findByIsBlackFalse();
     List<User> findByStatus(UserStatus status);
-    Optional<User> findUsersByDealer_Id(int dealerId);
+    List<User> findUsersByDealer_Id(int dealerId);
     List<User> findByRole_Name(String roleName);
     List<User> findByRole_NameAndDealerIsNull(String roleName);
+    List<User> findByRole_NameAndDealer_Id(String roleName, int dealerId);
 
 }

@@ -59,9 +59,16 @@ public class ProductService {
     public ProductRes updateProduct (int id, ProductReq productReq) {
         Optional<Product> existingProductOpt = productRepo.findById(id);
         if (existingProductOpt.isPresent()) {
-            Product existingProduct = convertReqToEntity(existingProductOpt.get(), productReq);
-            productRepo.save(existingProduct);
-            return convertToRes(existingProduct);
+            Product existingProduct = existingProductOpt.get();
+            
+            // Prevent updating products that have been sold
+            if (ProductStatus.SOLDOUT.equals(existingProduct.getStatus())) {
+                throw new IllegalStateException("Không thể cập nhật thông tin xe đã bán");
+            }
+            
+            Product updatedProduct = convertReqToEntity(existingProduct, productReq);
+            productRepo.save(updatedProduct);
+            return convertToRes(updatedProduct);
         }
         return null;
     }
@@ -84,6 +91,11 @@ public class ProductService {
     public List<ProductRes> getProductByEngineNum(String engineNum){
         List<Product> productOpt = productRepo.findByEngineNumContainingIgnoreCase(engineNum);
         return productOpt.isEmpty() ? null : productOpt.stream().map(this::convertToRes).toList();
+    }
+    
+    public List<ProductRes> getProductByDealerCategoryId(int dealerCategoryId){
+        List<Product> products = productRepo.findByDealerCategoryId(dealerCategoryId);
+        return products.stream().map(this::convertToRes).toList();
     }
 
     public ProductRes convertToRes(Product product) {
@@ -128,6 +140,46 @@ public class ProductService {
             } else {
                 productRes.setStatus(ProductStatus.INACTIVE);
             }
+<<<<<<< HEAD
+=======
+            if (product.getImage() != null) {
+                productRes.setImage(product.getImage());
+            }
+            if (product.getManufacture_date() != null){
+                productRes.setManufacture_date(product.getManufacture_date());
+            }
+            if (product.getStockInDate() != null) {
+                productRes.setStockInDate(product.getStockInDate());
+            }
+            
+            // ✅ NEW PRICE LOGIC - Ưu tiên retailPrice, fallback về manufacturerPrice
+            if (product.getRetailPrice() != null && product.getRetailPrice() > 0) {
+                productRes.setRetailPrice(product.getRetailPrice());
+                productRes.setPrice(product.getRetailPrice()); // Backward compatibility
+                System.out.println("� Product ID " + product.getId() + " - Retail Price: " + product.getRetailPrice());
+            } else if (product.getManufacturerPrice() != null && product.getManufacturerPrice() > 0) {
+                productRes.setRetailPrice(product.getManufacturerPrice()); // Default retail = manufacturer
+                productRes.setPrice(product.getManufacturerPrice());
+                System.out.println("💰 Product ID " + product.getId() + " - Using Manufacturer Price: " + product.getManufacturerPrice());
+            } else if (product.getDealerPrice() > 0) {
+                // Legacy fallback
+                productRes.setPrice(product.getDealerPrice());
+                System.out.println("⚠️ Product ID " + product.getId() + " - Using legacy DealerPrice: " + product.getDealerPrice());
+            } else if (product.getCategory() != null) {
+                // Final fallback to category base price
+                long basePrice = product.getCategory().getBasePrice();
+                if (basePrice > 0) {
+                    productRes.setPrice(basePrice);
+                    System.out.println("⚠️ Product ID " + product.getId() + " - Using category basePrice: " + basePrice);
+                }
+            }
+            
+            // Set manufacturer price (read-only)
+            if (product.getManufacturerPrice() != null) {
+                productRes.setManufacturerPrice(product.getManufacturerPrice());
+            }
+            
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
             if (product.getCategory() != null) {
                 Optional<Category> category = categoryRepository.findById(product.getCategory().getId());
                 if (category.isPresent()) {
@@ -139,6 +191,10 @@ public class ProductService {
                 Optional<DealerCategory> category = dealerCategoryRepository.findById(product.getDealerCategory().getId());
                 if (category.isPresent()) {
                     productRes.setDealerCategoryId(category.get().getId());
+                    // Set dealerId from DealerCategory
+                    if (category.get().getDealer() != null) {
+                        productRes.setDealerId(category.get().getDealer().getId());
+                    }
                 }
             }
             return productRes;
@@ -185,9 +241,32 @@ public class ProductService {
             if (productReq.getManufacture_date() != null){
                 product.setManufacture_date(productReq.getManufacture_date());
             }
+            if (productReq.getStockInDate() != null) {
+                product.setStockInDate(productReq.getStockInDate());
+            }
+            
+            // ✅ Manufacturer Price - CHỈ SET KHI TẠO MỚI (không update)
+            if (productReq.getManufacturerPrice() != null && productReq.getManufacturerPrice() > 0) {
+                try {
+                    product.setManufacturerPrice(productReq.getManufacturerPrice());
+                    System.out.println("✅ Set Manufacturer Price: " + productReq.getManufacturerPrice());
+                } catch (IllegalStateException e) {
+                    System.out.println("⚠️ Cannot update manufacturer price: " + e.getMessage());
+                    // Bỏ qua nếu đã có giá, không throw exception
+                }
+            }
+            
+            // ✅ Retail Price - CÓ THỂ UPDATE
+            if (productReq.getRetailPrice() != null && productReq.getRetailPrice() > 0) {
+                product.setRetailPrice(productReq.getRetailPrice());
+                System.out.println("✅ Set/Update Retail Price: " + productReq.getRetailPrice());
+            }
+            
+            // Legacy dealer price (backward compatibility)
             if (productReq.getDealerPrice() > 0){
                 product.setDealerPrice(productReq.getDealerPrice());
             }
+            
             if (productReq.getCategoryId() > 0){
                 categoryRepository.findById(productReq.getCategoryId()).ifPresent(product::setCategory);
             }

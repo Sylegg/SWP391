@@ -41,15 +41,19 @@ public class Product {
     @Column(name = "Name", columnDefinition = "VARCHAR(150)")
     private String name;
 
-    @Column(name = "Vin", columnDefinition = "VARCHAR(100) UNIQUE")
+    @Column(name = "Vin", columnDefinition = "VARCHAR(100)", unique = true)
     private String vinNum;
 
-    @Column(name = "Engine", columnDefinition = "VARCHAR(100) UNIQUE")
+    @Column(name = "Engine", columnDefinition = "VARCHAR(100)", unique = true)
     private String engineNum;
 
     @Column(name = "Manufacture", columnDefinition = "DATETIME2")
     private Date manufacture_date;
 
+<<<<<<< HEAD
+=======
+    // Ngày nhập kho (tự set khi xác nhận nhận hàng trong luồng phân phối)
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
     @Column(name = "StockInDate", columnDefinition = "DATETIME2")
     private Date stockInDate;
 
@@ -68,6 +72,15 @@ public class Product {
     @Column(name = "Color", columnDefinition = "NVARCHAR(20)")
     private String Color;
 
+    // Giá gốc từ hãng sản xuất (KHÔNG được thay đổi sau khi nhập kho)
+    @Column(name = "ManufacturerPrice", columnDefinition = "BIGINT", updatable = false)
+    private Long manufacturerPrice;
+
+    // Giá bán lẻ của đại lý (CÓ THỂ thay đổi)
+    @Column(name = "RetailPrice", columnDefinition = "BIGINT")
+    private Long retailPrice;
+
+    // @Deprecated - Keep for backward compatibility, sử dụng retailPrice thay thế
     @Column(name = "DealerPrice", columnDefinition = "BIGINT")
     private long dealerPrice;
 
@@ -91,8 +104,8 @@ public class Product {
     @JsonIgnore
     private DealerCategory dealerCategory;
 
-    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Order order;
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<Order> orders = new ArrayList<>();
 
     @ManyToOne
     @JoinColumn(name = "DistributionId")
@@ -105,8 +118,13 @@ public class Product {
     @OneToOne(mappedBy = "product")
     private InstallmentPlan installmentPlan;
 
+<<<<<<< HEAD
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<TestDrive> testDrives;
+=======
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    private List<TestDrive> testDrives = new ArrayList<>();
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
     public Product() {
     }
@@ -207,6 +225,29 @@ public class Product {
         this.dealerPrice = dealerPrice;
     }
 
+    // Manufacturer Price - Giá gốc từ hãng (KHÔNG được thay đổi sau khi set lần đầu)
+    public Long getManufacturerPrice() {
+        return manufacturerPrice;
+    }
+
+    public void setManufacturerPrice(Long manufacturerPrice) {
+        // Chỉ set được 1 lần duy nhất khi manufacturerPrice == null
+        if (this.manufacturerPrice == null) {
+            this.manufacturerPrice = manufacturerPrice;
+        } else {
+            throw new IllegalStateException("Manufacturer price cannot be changed once set. Current value: " + this.manufacturerPrice);
+        }
+    }
+
+    // Retail Price - Giá bán lẻ của đại lý (CÓ THỂ thay đổi)
+    public Long getRetailPrice() {
+        return retailPrice;
+    }
+
+    public void setRetailPrice(Long retailPrice) {
+        this.retailPrice = retailPrice;
+    }
+
     public List<PreOrder> getPreOrders() {
         return preOrders;
     }
@@ -263,12 +304,12 @@ public class Product {
         Color = color;
     }
 
-    public Order getOrder() {
-        return order;
+    public List<Order> getOrders() {
+        return orders;
     }
 
-    public void setOrder(Order order) {
-        this.order = order;
+    public void setOrders(List<Order> orders) {
+        this.orders = orders;
     }
 
     public ProductStatus getStatus() {

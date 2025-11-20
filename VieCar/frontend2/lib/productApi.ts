@@ -3,11 +3,11 @@ import api from './api';
 import { ProductReq, ProductRes, ProductStatus } from '@/types/product';
 
 // Re-export types for convenience
-export type { ProductReq, ProductRes };
+export type { ProductReq, ProductRes, ProductStatus };
 export type Product = ProductRes;
 export type ProductRequest = ProductReq;
 
-const PRODUCT_BASE = '/api/products';
+const PRODUCT_BASE = '/products';
 
 // ============ Product APIs ============
 
@@ -80,6 +80,14 @@ export const updateProduct = async (id: number, data: ProductReq): Promise<Produ
  */
 export const deleteProduct = async (id: number): Promise<string> => {
   const response = await api.delete<string>(`${PRODUCT_BASE}/delete/${id}`);
+  return response.data;
+};
+
+/**
+ * Get products by dealer category ID
+ */
+export const getProductsByDealerCategory = async (dealerCategoryId: number): Promise<ProductRes[]> => {
+  const response = await api.get<ProductRes[]>(`${PRODUCT_BASE}/search/dealerCategory/${dealerCategoryId}`);
   return response.data;
 };
 

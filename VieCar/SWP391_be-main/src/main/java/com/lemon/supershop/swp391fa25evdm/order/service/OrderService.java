@@ -18,11 +18,13 @@ import com.lemon.supershop.swp391fa25evdm.order.model.dto.response.OrderRes;
 import com.lemon.supershop.swp391fa25evdm.order.model.entity.Order;
 import com.lemon.supershop.swp391fa25evdm.order.repository.OrderRepo;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
 import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
 import com.lemon.supershop.swp391fa25evdm.promotion.model.entity.Promotion;
 import com.lemon.supershop.swp391fa25evdm.promotion.repository.PromotionRepo;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import com.lemon.supershop.swp391fa25evdm.user.repository.UserRepo;
+import com.lemon.supershop.swp391fa25evdm.email.service.EmailService;
 
 @Service
 public class OrderService {
@@ -45,6 +47,9 @@ public class OrderService {
     @Autowired
     private PromotionRepo promotionRepo;
 
+    @Autowired
+    private EmailService emailService;
+
     public List<OrderRes> ListOrderbyUserId(int userId) {
         User user = userRepo.findById(userId).get();
         if (user != null){
@@ -54,6 +59,25 @@ public class OrderService {
         }else {
             return null;
         }
+    }
+
+    public List<OrderRes> ListOrderbyDealerId(int dealerId) {
+        Optional<Dealer> dealer = dealerRepo.findById(dealerId);
+        if (dealer.isPresent()){
+            return orderRepo.findByDealerId(dealerId).stream().map(order -> {
+                return convertOrderToOrderRes(order);
+            }).collect(Collectors.toList());
+        }else {
+            return new ArrayList<>();
+        }
+    }
+
+    public OrderRes getOrderById(int orderId) {
+        Optional<Order> order = orderRepo.findById(orderId);
+        if (order.isPresent()){
+            return convertOrderToOrderRes(order.get());
+        }
+        return null;
     }
 
     public List<OrderRes> ListAllOrders() {
@@ -67,9 +91,43 @@ public class OrderService {
         if (user.isPresent()){
             Order order = new Order();
             order.setUser(user.get());
+<<<<<<< HEAD
             Order newOrder = converttoEntity(order, dto);
             orderRepo.save(newOrder);
             return convertoRes(newOrder);
+=======
+            
+            // Set default status
+            order.setStatus("Chờ xử lý");
+            
+            if (dto.getProductId() > 0 ){
+                Optional<Product> product  = productRepo.findById(dto.getProductId());
+                if (product.isPresent()){
+                    order.setProduct(product.orElse(null));
+                    order.setTotal(product.get().getDealerPrice());
+                }
+            }
+            if (dto.getContractId() > 0){
+                Optional<Contract> contract  = contractRepo.findById(dto.getContractId());
+                if (contract.isPresent()){
+                    List<Contract> contracts = new ArrayList<>();
+                    contracts.add(contract.get());
+                    order.setContract(contracts);
+                }
+            }
+            if (dto.getDealerId() > 0){
+                Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
+                if (dealer.isPresent()){
+                    order.setDealer(dealer.orElse(null));
+                    List<Promotion> promotions = promotionRepo.findByDealer_Id(dealer.get().getId());
+                    if (promotions != null){
+                        order.setPromotions(promotions);
+                    }
+                }
+            }
+            orderRepo.save(order);
+            return convertOrderToOrderRes(order);
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         }
         return null;
     }
@@ -84,6 +142,11 @@ public class OrderService {
             }
             if (dto.getShip_status() != null){
                 order.get().setShipStatus(dto.getShip_status());
+<<<<<<< HEAD
+=======
+            } else {
+                order.get().setShipStatus("Chờ giao hàng");
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
             }
             orderRepo.save(order.get());
             return convertoRes(order.get());
@@ -94,9 +157,138 @@ public class OrderService {
     public OrderRes updateOrder(int orderId, OrderReq dto) {
         Optional<Order> order = orderRepo.findById(orderId);
         if (order.isPresent()){
+<<<<<<< HEAD
             Order updateOrder = converttoEntity(order.get(), dto);
             orderRepo.save(updateOrder);
             return convertoRes(order.get());
+=======
+            String oldStatus = order.get().getStatus();
+            
+            // Prevent updating orders that have been delivered (completed)
+            if ("Đã giao".equals(oldStatus)) {
+                throw new IllegalStateException("Không thể chỉnh sửa đơn hàng đã giao. Đơn hàng này đã hoàn tất.");
+            }
+            
+            // Update status if provided
+            if (dto.getStatus() != null && !dto.getStatus().isEmpty()) {
+                order.get().setStatus(dto.getStatus());
+                
+                // Update product status in showroom when deposit is confirmed
+                if (("Đã đặt cọc".equals(dto.getStatus()) || "Đã yêu cầu đại lý".equals(dto.getStatus())) 
+                    && !dto.getStatus().equals(oldStatus)) {
+                    try {
+                        Product product = order.get().getProduct();
+                        if (product != null) {
+                            product.setStatus(ProductStatus.RESERVED); // Đánh dấu xe đã được đặt cọc
+                            productRepo.save(product);
+                            System.out.println("Updated product status to RESERVED for product ID: " + product.getId());
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to update product status: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+                
+                // Update product status to SOLDOUT when vehicle is delivered
+                if ("Đã giao".equals(dto.getStatus()) && !dto.getStatus().equals(oldStatus)) {
+                    try {
+                        Product product = order.get().getProduct();
+                        if (product != null) {
+                            product.setStatus(ProductStatus.SOLDOUT); // Đánh dấu xe đã bán
+                            productRepo.save(product);
+                            System.out.println("Updated product status to SOLDOUT for product ID: " + product.getId());
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to update product status to SOLDOUT: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+                
+                // Send email notification when status changes to "Sẵn sàng giao xe"
+                if ("Sẵn sàng giao xe".equals(dto.getStatus()) && !dto.getStatus().equals(oldStatus)) {
+                    try {
+                        User customer = order.get().getUser();
+                        if (customer != null && customer.getEmail() != null) {
+                            String customerName = customer.getUsername();
+                            String customerEmail = customer.getEmail();
+                            String productName = order.get().getProduct() != null ? order.get().getProduct().getName() : "N/A";
+                            String dealerName = order.get().getDealer() != null ? order.get().getDealer().getName() : "N/A";
+                            String dealerAddress = order.get().getDealer() != null ? order.get().getDealer().getAddress() : "N/A";
+                            double totalPrice = order.get().getTotal();
+                            double depositPaid = totalPrice * 0.3;
+                            double remainingAmount = totalPrice * 0.7;
+                            
+                            // Get expected delivery date from DTO or from notes (backward compatibility)
+                            String expectedDeliveryDate = "N/A";
+                            if (dto.getDeliveryDate() != null) {
+                                // Format the date from DTO
+                                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy");
+                                expectedDeliveryDate = sdf.format(dto.getDeliveryDate());
+                            } else if (dto.getNotes() != null && dto.getNotes().contains("Ngày giao dự kiến:")) {
+                                // Fallback: Extract from notes for backward compatibility
+                                try {
+                                    int startIndex = dto.getNotes().indexOf("Ngày giao dự kiến:") + "Ngày giao dự kiến:".length();
+                                    int endIndex = dto.getNotes().indexOf(".", startIndex);
+                                    if (endIndex == -1) endIndex = dto.getNotes().length();
+                                    expectedDeliveryDate = dto.getNotes().substring(startIndex, endIndex).trim();
+                                } catch (Exception e) {
+                                    expectedDeliveryDate = "Sớm nhất có thể";
+                                }
+                            }
+                            
+                            // Send vehicle ready notification email
+                            emailService.sendVehicleReadyNotification(
+                                customerEmail,
+                                customerName,
+                                productName,
+                                dealerName,
+                                dealerAddress,
+                                totalPrice,
+                                depositPaid,
+                                remainingAmount,
+                                expectedDeliveryDate
+                            );
+                        }
+                    } catch (Exception e) {
+                        // Log error but don't fail the order update
+                        System.err.println("Failed to send vehicle ready notification email: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+            }
+            
+            // Update delivery date if provided
+            if (dto.getDeliveryDate() != null) {
+                order.get().setDeliveryDate(dto.getDeliveryDate());
+                System.out.println("Updated delivery date to: " + dto.getDeliveryDate());
+            }
+            
+            if (dto.getProductId() > 0 ){
+                Optional<Product> product  = productRepo.findById(dto.getProductId());
+                if (product.isPresent()){
+                    order.get().setProduct(product.orElse(null));
+                    order.get().setTotal(product.get().getDealerPrice());
+                }
+            }
+            if (dto.getContractId() > 0 ){
+                Optional<Contract> contract = contractRepo.findById(dto.getContractId());
+                if (contract.isPresent()){
+                    order.get().getContract().add(contract.get());
+                }
+            }
+            if (dto.getDealerId() > 0){
+                Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
+                if (dealer.isPresent()){
+                    order.get().setDealer(dealer.orElse(null));
+                    List<Promotion> promotions = promotionRepo.findByDealer_Id(dealer.get().getId());
+                    if (promotions != null){
+                        order.get().setPromotions(promotions);
+                    }
+                }
+            }
+            orderRepo.save(order.get());
+            return convertOrderToOrderRes(order.get());
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         }
         return null;
     }
@@ -170,7 +362,16 @@ public class OrderService {
             if (order.getStatus() != null){
                 orderRes.setStatus(order.getStatus());
             } else {
-                orderRes.setStatus("Processing");
+                orderRes.setStatus("Chờ xử lý");
+            }
+            if (order.getOrderDate() != null){
+                orderRes.setOrderDate(order.getOrderDate());
+            }
+            // Use the dedicated deliveryDate field instead of shipAt
+            if (order.getDeliveryDate() != null){
+                orderRes.setDeliveryDate(order.getDeliveryDate());
+            } else if (order.getShipAt() != null){
+                orderRes.setDeliveryDate(order.getShipAt());
             }
         }
         return orderRes;

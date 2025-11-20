@@ -1,316 +1,606 @@
-"use client";
+﻿"use client";
 
 import { ProtectedRoute } from "@/components/auth-guards";
 import DealerManagerLayout from "@/components/layout/dealer-manager-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { 
-  Users, 
-  Search, 
-  Filter, 
-  Eye, 
-  Edit,
-  Trash2,
-  UserPlus,
-  Mail,
-  Phone,
-  CheckCircle2,
-  XCircle
-} from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-
-// Mock data - replace with actual API
-interface Staff {
-  id: number;
-  username: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  role: "Dealer Staff";
-  status: "active" | "inactive";
-  joinedDate: string;
-}
-
-const mockStaff: Staff[] = [
-  {
-    id: 1,
-    username: "staff001",
-    fullName: "Nguyễn Văn A",
-    email: "nguyenvana@dealer.com",
-    phone: "0901234567",
-    role: "Dealer Staff",
-    status: "active",
-    joinedDate: "2025-01-15"
-  },
-  {
-    id: 2,
-    username: "staff002",
-    fullName: "Trần Thị B",
-    email: "tranthib@dealer.com",
-    phone: "0912345678",
-    role: "Dealer Staff",
-    status: "active",
-    joinedDate: "2025-02-20"
-  },
-  {
-    id: 3,
-    username: "staff003",
-    fullName: "Lê Văn C",
-    email: "levanc@dealer.com",
-    phone: "0923456789",
-    role: "Dealer Staff",
-    status: "inactive",
-    joinedDate: "2024-12-10"
-  },
-];
-
-const statusLabels = {
-  active: "Đang hoạt động",
-  inactive: "Không hoạt động"
-};
-
-const statusColors = {
-  active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  inactive: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-};
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Users, UserPlus, Edit, Trash2, RefreshCw } from "lucide-react";
+import { getDealerStaffByDealerId, createUser, updateUser, deleteUser, type UserRes, type UserReq } from "@/lib/userApi";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function StaffManagementPage() {
-  const [staff, setStaff] = useState<Staff[]>(mockStaff);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [staff, setStaff] = useState<UserRes[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<UserRes | null>(null);
+  const [formData, setFormData] = useState({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
 
-  const filteredStaff = staff.filter((s) => {
-    const matchesSearch = 
-      s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.phone.includes(searchTerm);
-    const matchesStatus = 
-      statusFilter === "all" || 
-      s.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => { 
+    if (user?.dealerId) {
+      loadStaff(); 
+    }
+  }, [user?.dealerId]);
 
-  const handleDelete = (id: number) => {
-    if (confirm("Bạn có chắc chắn muốn xóa nhân viên này?")) {
-      setStaff(prev => prev.filter(s => s.id !== id));
+  const loadStaff = async () => {
+    if (!user?.dealerId) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Không tìm thấy thông tin đại lý", duration: 3000 });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Chỉ lấy nhân viên có role "Dealer Staff" của dealer này
+      const data = await getDealerStaffByDealerId(user.dealerId);
+      console.log('🔍 Dealer Staff for dealer', user.dealerId, ':', data);
+      setStaff(data);
+    } catch (error) {
+      console.error('❌ Load staff error:', error);
+      toast({ variant: "destructive", title: "Lỗi", description: "Không thể tải danh sách nhân viên", duration: 3000 });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleStatus = (id: number) => {
-    setStaff(prev => 
-      prev.map(s => 
-        s.id === id 
-          ? { ...s, status: s.status === "active" ? "inactive" as const : "active" as const }
-          : s
-      )
-    );
+  const validatePhone = (phone: string) => {
+    const phoneRegex = /^0\d{9}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const validateEmail = (email: string) => {
+    return email.endsWith('@gmail.com');
+  };
+
+  const validateUsername = (username: string) => {
+    // Chỉ cho phép chữ cái (kể cả tiếng Việt có dấu) và khoảng trắng
+    const usernameRegex = /^[a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s]+$/;
+    return usernameRegex.test(username);
+  };
+
+  const handleCreate = async () => {
+    if (!formData.username.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập tên đăng nhập", duration: 3000 });
+      return;
+    }
+    if (!validateUsername(formData.username)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Tên đăng nhập chỉ được chứa chữ cái và khoảng trắng", duration: 3000 });
+      return;
+    }
+    if (!formData.password.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập mật khẩu", duration: 3000 });
+      return;
+    }
+    if (!formData.email.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập email", duration: 3000 });
+      return;
+    }
+    if (!validateEmail(formData.email)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Email phải có định dạng @gmail.com", duration: 3000 });
+      return;
+    }
+    if (!formData.phone.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập số điện thoại", duration: 3000 });
+      return;
+    }
+    if (!validatePhone(formData.phone)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Số điện thoại phải có 10 số và bắt đầu bằng số 0", duration: 3000 });
+      return;
+    }
+    if (!formData.address.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập địa chỉ", duration: 3000 });
+      return;
+    }
+    try {
+      setLoading(true);
+      console.log('🚀 Creating user with dealerId:', user?.dealerId);
+      const newUserData = { ...formData, roleName: "Dealer Staff", dealerId: user?.dealerId };
+      console.log('📋 User data:', newUserData);
+      
+      const result = await createUser(newUserData);
+      console.log('✅ User created:', result);
+      
+      toast({ title: "Thành công", description: "Tạo tài khoản nhân viên thành công", duration: 3000 });
+      setIsCreateDialogOpen(false);
+      setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
+      loadStaff();
+    } catch (error: any) {
+      console.error('❌ Create user error:', error);
+      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể tạo tài khoản", duration: 3000 });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!selectedStaff) return;
+    
+    if (formData.phone && !validatePhone(formData.phone)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Số điện thoại phải có 10 số và bắt đầu bằng số 0", duration: 3000 });
+      return;
+    }
+    if (formData.email && !validateEmail(formData.email)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Email phải có định dạng @gmail.com", duration: 3000 });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const updates: any = { 
+        username: formData.username,
+        email: formData.email || "", 
+        phone: formData.phone || "", 
+        address: formData.address || "",
+        status: formData.status || "ACTIVE"
+      };
+      // Chỉ gửi password nếu người dùng nhập mật khẩu mới
+      if (formData.password && formData.password.trim() !== "") {
+        updates.password = formData.password;
+      }
+      
+      console.log('📤 Sending update request for user ID:', selectedStaff.id);
+      console.log('📤 Update data:', updates);
+      
+      await updateUser(selectedStaff.id, updates);
+      toast({ title: "Thành công", description: "Cập nhật thông tin nhân viên thành công", duration: 3000 });
+      setIsEditDialogOpen(false);
+      setSelectedStaff(null);
+      setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
+      loadStaff();
+    } catch (error: any) {
+      console.error('❌ Update error:', error);
+      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể cập nhật thông tin", duration: 3000 });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (staffId: number) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa nhân viên này?")) return;
+    try {
+      setLoading(true);
+      await deleteUser(staffId);
+      toast({ title: "Thành công", description: "Xóa nhân viên thành công", duration: 3000 });
+      loadStaff();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể xóa nhân viên", duration: 3000 });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <ProtectedRoute allowedRoles={['Dealer Manager', 'Admin']}>
+    <ProtectedRoute allowedRoles={["Dealer Manager", "Admin"]}>
       <DealerManagerLayout>
         <div className="p-6 space-y-6">
-          {/* Header */}
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center">
-                <Users className="mr-2 h-8 w-8" />
-                Quản lý nhân viên
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Quản lý tài khoản Dealer Staff thuộc đại lý
-              </p>
+          {/* Header with Liquid Glass */}
+          <div className="relative overflow-hidden rounded-2xl backdrop-blur-md bg-white/70 dark:bg-gray-900/70 border border-white/30 shadow-xl p-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 animate-gradient-shift"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.3),transparent_50%)]"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
+                    <Users className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                      Quản lý Nhân viên
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                      Tạo và quản lý tài khoản nhân viên cho đại lý <span className="font-semibold text-blue-600 dark:text-blue-400">{user?.dealerName}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button 
+                    onClick={() => setIsCreateDialogOpen(true)}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Thêm nhân viên
+                  </Button>
+                </div>
+              </div>
             </div>
-            <Link href="/dashboard/dealer-manager/staff/create">
-              <Button size="lg">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Thêm nhân viên mới
-              </Button>
-            </Link>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tổng nhân viên</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{staff.length}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Đang hoạt động</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {staff.filter(s => s.status === "active").length}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6 group">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Tổng nhân viên</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{staff.length}</p>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Không hoạt động</CardTitle>
-                <XCircle className="h-4 w-4 text-gray-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {staff.filter(s => s.status === "inactive").length}
+                <div className="p-4 rounded-xl bg-blue-500/20 backdrop-blur-sm shadow-md group-hover:scale-110 transition-transform duration-300">
+                  <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="mt-2 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            </div>
+
+            <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6 group">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Đang hoạt động</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{staff.filter(s => s.status === "ACTIVE").length}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-green-500/20 backdrop-blur-sm shadow-md group-hover:scale-110 transition-transform duration-300">
+                  <Users className="h-8 w-8 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+              <div className="mt-2 h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            </div>
+
+            <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl border border-white/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6 group">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Không hoạt động</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{staff.filter(s => s.status === "INACTIVE").length}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-red-500/20 backdrop-blur-sm shadow-md group-hover:scale-110 transition-transform duration-300">
+                  <Users className="h-8 w-8 text-red-600 dark:text-red-400" />
+                </div>
+              </div>
+              <div className="mt-2 h-1 bg-gradient-to-r from-red-500 to-orange-500 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            </div>
           </div>
 
-          {/* Filters & Search */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tìm kiếm & Lọc</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Tìm kiếm theo tên, username, email, SĐT..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[200px]">
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Lọc trạng thái" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                    <SelectItem value="active">Đang hoạt động</SelectItem>
-                    <SelectItem value="inactive">Không hoạt động</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Staff Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Danh sách nhân viên</CardTitle>
-              <CardDescription>
-                {filteredStaff.length} nhân viên
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredStaff.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Không có nhân viên nào
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
+          {/* Table with Liquid Glass */}
+          <div className="backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl border border-white/30 shadow-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tên đăng nhập</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Số điện thoại</TableHead>
+                    <TableHead>Địa chỉ</TableHead>
+                    <TableHead>Đại lý</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Họ tên</TableHead>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Liên hệ</TableHead>
-                      <TableHead>Ngày tham gia</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
+                      <TableCell colSpan={7} className="text-center py-8">Đang tải...</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredStaff.map((s) => (
+                  ) : staff.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Chưa có nhân viên nào. Nhấn "Thêm nhân viên" để tạo tài khoản mới.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    staff.map(s => (
                       <TableRow key={s.id}>
-                        <TableCell className="font-medium">#{s.id}</TableCell>
-                        <TableCell className="font-semibold">{s.fullName}</TableCell>
+                        <TableCell className="font-semibold">{s.username}</TableCell>
+                        <TableCell>{s.email || "-"}</TableCell>
+                        <TableCell>{s.phone || "-"}</TableCell>
+                        <TableCell>{s.address || "-"}</TableCell>
+                        <TableCell>{s.dealerName || "Chưa gán"}</TableCell>
                         <TableCell>
-                          <code className="text-sm bg-muted px-2 py-1 rounded">
-                            {s.username}
-                          </code>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Mail className="h-3 w-3 text-muted-foreground" />
-                              {s.email}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Phone className="h-3 w-3 text-muted-foreground" />
-                              {s.phone}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(s.joinedDate).toLocaleDateString('vi-VN')}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[s.status]}>
-                            {statusLabels[s.status]}
+                          <Badge variant={s.status === "ACTIVE" ? "default" : "secondary"}>
+                            {s.status === "ACTIVE" ? "Hoạt động" : "Không hoạt động"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Link href={`/dashboard/dealer-manager/staff/${s.id}`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Link href={`/dashboard/dealer-manager/staff/${s.id}/edit`}>
-                              <Button variant="outline" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
                             <Button 
                               variant="outline" 
-                              size="sm"
-                              onClick={() => toggleStatus(s.id)}
+                              size="sm" 
+                              onClick={() => {
+                                setSelectedStaff(s);
+                                console.log('🔍 Staff status:', s.status, 'Type:', typeof s.status);
+                                const statusValue = typeof s.status === 'string' ? s.status : (s.status || "ACTIVE");
+                                setFormData({
+                                  username: s.username,
+                                  email: s.email || "",
+                                  phone: s.phone || "",
+                                  address: s.address || "",
+                                  password: "",
+                                  status: statusValue,
+                                });
+                                setIsEditDialogOpen(true);
+                              }}
                             >
-                              {s.status === "active" ? (
-                                <XCircle className="h-4 w-4 text-orange-600" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              )}
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button 
-                              variant="outline" 
-                              size="sm"
+                              variant="destructive" 
+                              size="sm" 
                               onClick={() => handleDelete(s.id)}
                             >
-                              <Trash2 className="h-4 w-4 text-red-600" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Create Dialog with Liquid Glass */}
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogContent className="max-w-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-white/30">
+              <DialogHeader>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Tạo tài khoản nhân viên mới
+                </DialogTitle>
+                <DialogDescription>Nhập thông tin để tạo tài khoản Dealer Staff</DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Account Info Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gradient-to-r from-blue-500 to-purple-500">
+                    <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Thông tin đăng nhập</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-blue-600 dark:text-blue-400 font-medium">Tên đăng nhập *</Label>
+                      <Input 
+                        placeholder="Nhập họ tên (VD: Nguyễn Văn A)" 
+                        value={formData.username} 
+                        onChange={e => {
+                          const value = e.target.value.replace(/[^a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s]/g, '');
+                          setFormData({ ...formData, username: value });
+                        }}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-blue-200 dark:border-blue-800 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500">Chỉ chữ cái (có dấu) và khoảng trắng, không chứa số hay ký tự</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-purple-600 dark:text-purple-400 font-medium">Mật khẩu *</Label>
+                      <Input 
+                        type="password" 
+                        placeholder="Nhập mật khẩu" 
+                        value={formData.password} 
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-purple-200 dark:border-purple-800 focus:border-purple-500 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Info Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gradient-to-r from-green-500 to-emerald-500">
+                    <div className="w-1 h-5 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Thông tin liên hệ</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-green-600 dark:text-green-400 font-medium">Email *</Label>
+                      <Input 
+                        type="email" 
+                        placeholder="example@gmail.com" 
+                        value={formData.email} 
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-green-200 dark:border-green-800 focus:border-green-500 focus:ring-green-500"
+                      />
+                      <p className="text-xs text-gray-500">Phải có định dạng @gmail.com</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-emerald-600 dark:text-emerald-400 font-medium">Số điện thoại *</Label>
+                      <Input 
+                        placeholder="0xxxxxxxxx (10 số)" 
+                        value={formData.phone} 
+                        maxLength={10}
+                        onChange={e => {
+                          let value = e.target.value.replace(/[^0-9]/g, '');
+                          // Tự động thêm số 0 ở đầu nếu người dùng nhập số khác
+                          if (value.length > 0 && !value.startsWith('0')) {
+                            value = '0' + value;
+                          }
+                          // Giới hạn 10 số
+                          if (value.length > 10) {
+                            value = value.substring(0, 10);
+                          }
+                          setFormData({ ...formData, phone: value });
+                        }}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 focus:ring-emerald-500"
+                      />
+                      <p className="text-xs text-gray-500">10 số, tự động bắt đầu bằng số 0</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-teal-600 dark:text-teal-400 font-medium">Địa chỉ *</Label>
+                    <Input 
+                      placeholder="Nhập địa chỉ" 
+                      value={formData.address} 
+                      onChange={e => setFormData({ ...formData, address: e.target.value })}
+                      className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => { 
+                    setIsCreateDialogOpen(false); 
+                    setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" }); 
+                  }}
+                  className="backdrop-blur-sm"
+                >
+                  Hủy
+                </Button>
+                <Button 
+                  onClick={handleCreate} 
+                  disabled={loading}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/30"
+                >
+                  Tạo tài khoản
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Dialog with Liquid Glass */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-white/30">
+              <DialogHeader>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
+                  Chỉnh sửa thông tin nhân viên
+                </DialogTitle>
+                <DialogDescription>Cập nhật thông tin cho <span className="font-semibold text-orange-600">{selectedStaff?.username}</span></DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Account Info Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gradient-to-r from-orange-500 to-pink-500">
+                    <div className="w-1 h-5 bg-gradient-to-b from-orange-500 to-pink-500 rounded-full"></div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Thông tin đăng nhập</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-600 dark:text-gray-400 font-medium">Tên đăng nhập</Label>
+                      <Input 
+                        value={formData.username} 
+                        disabled 
+                        className="backdrop-blur-sm bg-gray-100/80 dark:bg-gray-800/80"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-orange-600 dark:text-orange-400 font-medium">Mật khẩu mới (để trống nếu không đổi)</Label>
+                      <Input 
+                        type="password" 
+                        placeholder="Nhập mật khẩu mới" 
+                        value={formData.password} 
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-orange-200 dark:border-orange-800 focus:border-orange-500 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Info Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gradient-to-r from-blue-500 to-cyan-500">
+                    <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Thông tin liên hệ</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-blue-600 dark:text-blue-400 font-medium">Email</Label>
+                      <Input 
+                        type="email" 
+                        placeholder="example@gmail.com" 
+                        value={formData.email} 
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-blue-200 dark:border-blue-800 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500">Phải có định dạng @gmail.com</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-cyan-600 dark:text-cyan-400 font-medium">Số điện thoại</Label>
+                      <Input 
+                        placeholder="0xxxxxxxxx (10 số)" 
+                        value={formData.phone} 
+                        maxLength={10}
+                        onChange={e => {
+                          let value = e.target.value.replace(/[^0-9]/g, '');
+                          // Tự động thêm số 0 ở đầu nếu người dùng nhập số khác
+                          if (value.length > 0 && !value.startsWith('0')) {
+                            value = '0' + value;
+                          }
+                          // Giới hạn 10 số
+                          if (value.length > 10) {
+                            value = value.substring(0, 10);
+                          }
+                          setFormData({ ...formData, phone: value });
+                        }}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-cyan-200 dark:border-cyan-800 focus:border-cyan-500 focus:ring-cyan-500"
+                      />
+                      <p className="text-xs text-gray-500">10 số, tự động bắt đầu bằng số 0</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-teal-600 dark:text-teal-400 font-medium">Địa chỉ</Label>
+                    <Input 
+                      placeholder="Nhập địa chỉ" 
+                      value={formData.address} 
+                      onChange={e => setFormData({ ...formData, address: e.target.value })}
+                      className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Status Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gradient-to-r from-green-500 to-red-500">
+                    <div className="w-1 h-5 bg-gradient-to-b from-green-500 to-red-500 rounded-full"></div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Trạng thái</h3>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-purple-600 dark:text-purple-400 font-medium">Trạng thái hoạt động</Label>
+                    <Select 
+                      value={formData.status || "ACTIVE"} 
+                      onValueChange={(v) => {
+                        console.log('📝 Status changed to:', v);
+                        setFormData({ ...formData, status: v });
+                      }}
+                    >
+                      <SelectTrigger className="w-full backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-purple-200 dark:border-purple-800 focus:border-purple-500 focus:ring-purple-500">
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ACTIVE">Hoạt động</SelectItem>
+                        <SelectItem value="INACTIVE">Không hoạt động</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => { 
+                    setIsEditDialogOpen(false); 
+                    setSelectedStaff(null); 
+                    setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" }); 
+                  }}
+                  className="backdrop-blur-sm"
+                >
+                  Hủy
+                </Button>
+                <Button 
+                  onClick={handleEdit} 
+                  disabled={loading}
+                  className="bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 shadow-lg shadow-orange-500/30"
+                >
+                  Cập nhật
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </DealerManagerLayout>
     </ProtectedRoute>

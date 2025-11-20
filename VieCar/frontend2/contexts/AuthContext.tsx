@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<void>;
   register: (userData: RegisterRequest) => Promise<void>;
   logout: () => void;
+  updatePreferredDealer: (dealerId: number | null) => Promise<void>;
   hasRole: (role: RoleName) => boolean;
   hasPermission: (permission: string) => boolean;
   isAuthenticated: boolean;
@@ -43,7 +44,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     if (storedToken && storedUser) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      
+      // ⭐ Load lại user profile từ backend để verify dealerId
+      if (parsedUser.id && parsedUser.id !== 'guest') {
+        loadUserFromBackend(parsedUser.id);
+      }
     } else {
       // Set as Guest when user hasn't registered or logged in
       const guestUser: User = {
@@ -64,13 +71,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(false);
   }, []);
 
+  // ⭐ Function load user profile từ backend (bao gồm dealerId)
+  const loadUserFromBackend = async (userId: string) => {
+    try {
+      console.log('🔄 Loading user profile from backend...', userId);
+      const userProfile = await getUserProfile(parseInt(userId));
+      
+      // Update user với dealer info từ backend
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        const updated = {
+          ...prevUser,
+          dealerId: userProfile.dealerId,
+          dealerName: userProfile.dealerName,
+          dealerAddress: userProfile.dealerAddress
+        };
+        // Save to localStorage
+        localStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+      });
+      
+      console.log('✅ User profile loaded, dealerId:', userProfile.dealerId);
+    } catch (error) {
+      console.error('❌ Error loading user profile from backend:', error);
+    }
+  };
+
   const login = async (credentials: LoginRequest) => {
     try {
       setIsLoading(true);
-      const { data } = await api.post<LoginResponse>('/api/auth/login', credentials);
+      const { data } = await api.post<LoginResponse>('/auth/login', credentials);
 
       // Set token first so subsequent API calls can use it
       setToken(data.token);
+<<<<<<< HEAD
+=======
+      
+      // ⭐ QUAN TRỌNG: Set userId TRƯỚC KHI gọi API
+      if ((data as any).userId) {
+        userData.id = (data as any).userId.toString();
+        console.log('✅ User ID set:', userData.id);
+        
+        try {
+          const userProfile = await getUserProfile((data as any).userId);
+          // ⭐ Cập nhật dealerId từ backend
+          if (userProfile.dealerId) {
+            userData.dealerId = userProfile.dealerId;
+            userData.dealerName = userProfile.dealerName;
+            userData.dealerAddress = userProfile.dealerAddress;
+            console.log('✅ Login: Found dealerId:', userProfile.dealerId);
+          } else {
+            console.log('ℹ️ Login: No dealerId');
+          }
+        } catch (profileError) {
+          console.warn('Could not load user profile:', profileError);
+        }
+      }
+      
+      // ⭐ Set user state và save to localStorage (với dealerId đã được set)
+      setUser(userData);
+
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
 
@@ -114,8 +175,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      // Throw a more specific error message
-      if ((error as any)?.response?.status === 401) {
+      
+      // Xử lý error message từ backend
+      const errorMessage = (error as any)?.response?.data?.message;
+      
+      if (errorMessage) {
+        // Backend đã trả về message rõ ràng (tiếng Việt)
+        throw new Error(errorMessage);
+      } else if ((error as any)?.response?.status === 401) {
         throw new Error('Email hoặc mật khẩu không đúng');
       } else if ((error as any)?.code === 'ECONNREFUSED' || (error as any)?.code === 'ERR_NETWORK') {
         throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra lại.');
@@ -129,7 +196,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: RegisterRequest) => {
     try {
       setIsLoading(true);
-      await api.post('/api/auth/register', userData);
+      await api.post('/auth/register', userData);
 
       await login({
         identifier: userData.email,
@@ -175,6 +242,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(guestUser);
   };
 
+  // ⭐ Function để update dealer cho customer
+  const updatePreferredDealer = async (dealerId: number | null) => {
+    if (!user?.id || user.id === 'guest') {
+      console.error('❌ No user ID to update dealer');
+      return;
+    }
+
+    try {
+      console.log('🔄 Updating dealer...', { userId: user.id, dealerId });
+      
+      // Dynamic import để tránh circular dependency
+      const { updatePreferredDealer: updatePreferredDealerApi } = await import('@/lib/userApi');
+      
+      // Gọi API
+      const updatedUser = await updatePreferredDealerApi(parseInt(user.id), dealerId);
+      
+      console.log('✅ Dealer updated:', updatedUser);
+      
+      // ⭐ Update user state với dealerId mới
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        const updated = {
+          ...prevUser,
+          dealerId: updatedUser.dealerId,
+          dealerName: updatedUser.dealerName,
+          dealerAddress: updatedUser.dealerAddress
+        };
+        // Save to localStorage
+        localStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+      });
+    } catch (error) {
+      console.error('❌ Error updating dealer:', error);
+      throw error;
+    }
+  };
+
   const hasRole = (role: RoleName): boolean => {
     return user?.role?.name === role;
   };
@@ -203,6 +307,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
+    updatePreferredDealer,
     hasRole,
     hasPermission,
     isAuthenticated,

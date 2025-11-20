@@ -34,6 +34,12 @@ public class Distribution {
 
     @Column(name = "Status", columnDefinition = "VARCHAR(20)")
     private String status; // INVITED, ACCEPTED, DECLINED, PENDING, CONFIRMED, CANCELED, PRICE_SENT, PRICE_ACCEPTED, PRICE_REJECTED, PLANNED, COMPLETED
+<<<<<<< HEAD
+=======
+
+    @Column(name = "ManufacturerPrice")
+    private Double manufacturerPrice; // Giá hãng gửi cho dealer
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
     @Column(name = "ManufacturerPrice")
     private Double manufacturerPrice; // Giá hãng gửi cho dealer
@@ -90,6 +96,23 @@ public class Distribution {
 
     @OneToOne(mappedBy = "distribution")
     private Contract contract;
+
+    // Supplementary Distribution Fields
+    @Column(name = "ParentDistributionId")
+    private Integer parentDistributionId;  // ID của đơn gốc nếu đây là đơn bổ sung
+
+    @Column(name = "IsSupplementary")
+    private Boolean isSupplementary;       // True nếu đây là đơn bổ sung số lượng thiếu
+
+    // Payment Information
+    @Column(name = "PaidAmount")
+    private Double paidAmount;             // Số tiền đã thanh toán
+
+    @Column(name = "TransactionNo", columnDefinition = "VARCHAR(100)")
+    private String transactionNo;          // Mã giao dịch VNPay
+
+    @Column(name = "PaidAt", columnDefinition = "DATETIME2")
+    private LocalDateTime paidAt;          // Thời gian thanh toán thành công
 
     @PrePersist
     protected void onCreate() {
@@ -254,4 +277,47 @@ public class Distribution {
     public void setManufacturerPrice(Double manufacturerPrice) {
         this.manufacturerPrice = manufacturerPrice;
     }
+<<<<<<< HEAD
+=======
+
+    public Integer getParentDistributionId() {
+        return parentDistributionId;
+    }
+
+    public void setParentDistributionId(Integer parentDistributionId) {
+        this.parentDistributionId = parentDistributionId;
+    }
+
+    public Boolean getIsSupplementary() {
+        return isSupplementary;
+    }
+
+    public void setIsSupplementary(Boolean isSupplementary) {
+        this.isSupplementary = isSupplementary;
+    }
+
+    public Double getPaidAmount() {
+        return paidAmount;
+    }
+
+    public void setPaidAmount(Double paidAmount) {
+        this.paidAmount = paidAmount;
+    }
+
+    public String getTransactionNo() {
+        return transactionNo;
+    }
+
+    public void setTransactionNo(String transactionNo) {
+        this.transactionNo = transactionNo;
+    }
+
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
+    }
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 }

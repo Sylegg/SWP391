@@ -8,6 +8,7 @@ public class RegisterReq {
     private String roleName;
     private String password;
     private String confirmPassword;
+    private Integer dealerId;
 
     public RegisterReq() {}
 
@@ -37,5 +38,9 @@ public class RegisterReq {
 
     public String getRoleName() {
         return roleName;
+    }
+
+    public Integer getDealerId() {
+        return dealerId;
     }
 }

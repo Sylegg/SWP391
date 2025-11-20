@@ -13,6 +13,8 @@ export interface DealerReq {
   email: string;
   taxcode: string;
   userId?: number; // ID của user có role dealer manager
+  latitude?: number; // Geographic latitude
+  longitude?: number; // Geographic longitude
   // status field is not in backend DealerReq
 }
 
@@ -25,6 +27,9 @@ export interface DealerRes {
   taxcode: string;
   status: DealerStatus;
   creationDate: string | Date;
+  latitude?: number; // Geographic latitude (DECIMAL 10,8)
+  longitude?: number; // Geographic longitude (DECIMAL 11,8)
+  distance?: number; // Calculated distance from user (in km) - frontend only
 }
 
 export type Dealer = DealerRes;

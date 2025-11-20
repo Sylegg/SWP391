@@ -3,6 +3,7 @@ package com.lemon.supershop.swp391fa25evdm.distribution.model.entity;
 import java.math.BigDecimal;
 
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+<<<<<<< HEAD
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,6 +14,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+=======
+import java.math.BigDecimal;
+import jakarta.persistence.*;
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
 @Entity
 @Table(name = "distribution_item")
@@ -31,6 +36,9 @@ public class DistributionItem {
     @JoinColumn(name = "ProductId")
     private Product product;
 
+    @Column(name = "CategoryId")
+    private Integer categoryId; // Lưu categoryId khi đặt theo category (product = null)
+
     @Column(name = "Color", columnDefinition = "NVARCHAR(20)")
     private String color;
 
@@ -41,8 +49,12 @@ public class DistributionItem {
     @Column(name = "DealerPrice", precision = 18, scale = 2)
     private BigDecimal dealerPrice;
 
+<<<<<<< HEAD
     public DistributionItem() {
     }
+=======
+    public DistributionItem() {}
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
     public int getId() {
         return id;
@@ -91,4 +103,15 @@ public class DistributionItem {
     public void setDealerPrice(BigDecimal dealerPrice) {
         this.dealerPrice = dealerPrice;
     }
+<<<<<<< HEAD
+=======
+
+    public Integer getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Integer categoryId) {
+        this.categoryId = categoryId;
+    }
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 }

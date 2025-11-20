@@ -9,6 +9,9 @@ export const API_CONFIG = {
   }
 }
 
+// Export base URL for easy access
+export const API_BASE_URL = API_CONFIG.BACKEND_URL;
+
 // Helper function to get full API URL
 export const getApiUrl = (endpoint: string) => {
   return `${API_CONFIG.BACKEND_URL}${endpoint}`

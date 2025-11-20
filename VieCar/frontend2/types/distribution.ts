@@ -14,6 +14,9 @@ export enum DistributionStatus {
   PENDING = 'PENDING',       // Dealer đã tạo đơn chi tiết, chờ EVM duyệt
   CONFIRMED = 'CONFIRMED',   // EVM đã duyệt đơn
   CANCELED = 'CANCELED',     // EVM từ chối đơn
+  PRICE_SENT = 'PRICE_SENT', // EVM gửi giá hãng, chờ dealer phản hồi
+  PRICE_ACCEPTED = 'PRICE_ACCEPTED', // Dealer chấp nhận giá
+  PRICE_REJECTED = 'PRICE_REJECTED', // Dealer từ chối giá
   PLANNED = 'PLANNED',       // EVM đã lên kế hoạch giao hàng
   COMPLETED = 'COMPLETED',   // Dealer xác nhận đã nhận hàng
 }
@@ -29,13 +32,17 @@ export interface DistributionInvitationReq {
 
 /**
  * Distribution Order Request (Bước 3: Dealer tạo đơn chi tiết)
+ * Cũng dùng cho Luồng 2: Dealer tạo yêu cầu xe trực tiếp
  */
 export interface DistributionOrderReq {
+  dealerId?: number;          // Required cho luồng dealer request, optional cho luồng invite
   items: {
-    productId: number;
+    // Cho phép tạo theo sản phẩm cụ thể HOẶC theo danh mục (không cần product)
+    productId?: number;
+    categoryId?: number;
     color?: string;
     quantity: number;
-  }[];                         // Danh sách chi tiết: mỗi loại xe có màu và số lượng riêng
+  }[];                         // Danh sách chi tiết: mỗi dòng gồm màu và số lượng
   dealerNotes?: string;        // Ghi chú của dealer
   requestedDeliveryDate?: string; // Ngày mong muốn nhận hàng
 }
@@ -46,7 +53,12 @@ export interface DistributionOrderReq {
 export interface DistributionApprovalReq {
   decision: string;           // "CONFIRMED" or "CANCELED"
   approvedQuantity?: number;  // Số lượng được duyệt
+  manufacturerPrice?: number; // Giá hãng (tham khảo cao nhất)
   evmNotes?: string;          // Ghi chú của EVM
+  items?: {                   // Giá riêng cho từng item
+    distributionItemId: number;
+    dealerPrice: number;
+  }[];
 }
 
 /**
@@ -77,23 +89,32 @@ export interface DistributionCompletionReq {
  */
 export interface DistributionRes {
   id: number;
+  code?: string; // Mã phân phối (PP2025-0013)
   status: DistributionStatus;
   
   // Dealer info
   dealerId: number;
   dealerName?: string;
   
-  // ❌ Xóa categoryId - không dùng, Dealer đã có Category
-  // categoryId: number;
-  
-  // Products
+  // Products (legacy)
   products: ProductRes[];
+  
   // Items (mới): chi tiết theo dòng xe / màu / số lượng
   items?: {
     id: number;
-    product: ProductRes;
+    product?: ProductRes;    // Optional - có thể null nếu chỉ chọn category
+    productId?: number;      // Product ID
+    category?: {             // Category reference
+      id: number;
+      name: string;
+      brand?: string;
+    };
+    categoryId?: number;     // Category ID
     color?: string;
     quantity: number;
+    dealerPrice?: number;    // Giá hãng cho item này (EVM set)
+    approvedQuantity?: number; // Số lượng được duyệt cho item này
+    receivedQuantity?: number; // Số lượng đã nhận cho item này
   }[];
   
   // Timeline
@@ -106,15 +127,28 @@ export interface DistributionRes {
   evmNotes?: string;          // Ghi chú của EVM
   feedback?: string;          // Phản hồi sau khi nhận hàng
   
-  // Dates
+  // Dates (ISO date strings)
   deadline?: string;                  // Hạn phản hồi lời mời
   requestedDeliveryDate?: string;     // Ngày dealer mong muốn
   estimatedDeliveryDate?: string;     // Ngày EVM dự kiến giao
   actualDeliveryDate?: string;        // Ngày thực tế giao
   
   // Quantities
-  requestedQuantity?: number;
-  receivedQuantity?: number;
+  requestedQuantity?: number;         // Số lượng dealer yêu cầu
+  approvedQuantity?: number;          // Số lượng EVM duyệt
+  receivedQuantity?: number;          // Số lượng dealer nhận được
+  
+  // Manufacturer price (giá hãng - tham khảo cao nhất)
+  manufacturerPrice?: number;
+  
+  // Supplementary order fields
+  parentDistributionId?: number;      // ID của đơn gốc nếu đây là đơn bổ sung
+  isSupplementary?: boolean;          // True nếu đây là đơn bổ sung số lượng thiếu
+  
+  // Payment information
+  paidAmount?: number;                // Số tiền đã thanh toán
+  transactionNo?: string;             // Mã giao dịch VNPay
+  paidAt?: string;                    // Thời gian thanh toán (ISO string)
 }
 
 /**
@@ -143,8 +177,11 @@ export const getDistributionStatusLabel = (status: DistributionStatus): string =
     [DistributionStatus.ACCEPTED]: 'Đã chấp nhận',
     [DistributionStatus.DECLINED]: 'Đã từ chối',
     [DistributionStatus.PENDING]: 'Chờ duyệt',
-    [DistributionStatus.CONFIRMED]: 'Đã duyệt',
+    [DistributionStatus.CONFIRMED]: 'Đã thanh toán',
     [DistributionStatus.CANCELED]: 'Đã hủy',
+    [DistributionStatus.PRICE_SENT]: 'Chờ xác nhận giá',
+    [DistributionStatus.PRICE_ACCEPTED]: 'Đã chấp nhận giá',
+    [DistributionStatus.PRICE_REJECTED]: 'Từ chối do không đủ số lượng',
     [DistributionStatus.PLANNED]: 'Đã lên kế hoạch',
     [DistributionStatus.COMPLETED]: 'Hoàn thành',
   };
@@ -160,6 +197,9 @@ export const getDistributionStatusColor = (status: DistributionStatus): string =
     [DistributionStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
     [DistributionStatus.CONFIRMED]: 'bg-green-100 text-green-800',
     [DistributionStatus.CANCELED]: 'bg-red-100 text-red-800',
+    [DistributionStatus.PRICE_SENT]: 'bg-amber-100 text-amber-800',
+    [DistributionStatus.PRICE_ACCEPTED]: 'bg-green-100 text-green-800',
+    [DistributionStatus.PRICE_REJECTED]: 'bg-red-100 text-red-800',
     [DistributionStatus.PLANNED]: 'bg-purple-100 text-purple-800',
     [DistributionStatus.COMPLETED]: 'bg-green-100 text-green-800',
   };

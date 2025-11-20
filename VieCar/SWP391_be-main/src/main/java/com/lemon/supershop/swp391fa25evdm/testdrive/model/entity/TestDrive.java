@@ -21,14 +21,17 @@ public class TestDrive {
     @Column(name = "schedule_date", columnDefinition = "DATETIME2")
     private LocalDateTime scheduleDate;
 
-    @Column(name = "location", columnDefinition = "NVARCHAR(255)")
-    private String location;
-
-    @Column(name = "status", columnDefinition = "VARCHAR(20)")
-    private String status; // PENDING, CONFIRMED, COMPLETED, CANCELED
+    @Column(name = "Status", columnDefinition = "VARCHAR(20)")
+    private String status; // PENDING, ASSIGNING, APPROVED, IN_PROGRESS, DONE, REJECTED, CANCELLED
 
     @Column(name = "notes", columnDefinition = "NVARCHAR(MAX)")
     private String notes;
+
+    @Column(name = "specific_vin", columnDefinition = "VARCHAR(50)")
+    private String specificVIN;
+    
+    @Column(name = "product_model_name", columnDefinition = "NVARCHAR(100)")
+    private String productModelName; // Model name chosen by customer (e.g., "VF8", "VF9")
 
     @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
@@ -51,7 +54,15 @@ public class TestDrive {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ProductId")
-    private Product product;
+    private Product product;  // Xe cụ thể được assign bởi dealer staff (nullable khi customer tạo yêu cầu)
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "CategoryId")
+    private Category category;  // Model xe mà customer chọn
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "EscortStaffId")
+    private User escortStaff;  // Staff được assign để đi cùng customer
 
     public TestDrive() {
     }
@@ -72,14 +83,6 @@ public class TestDrive {
         this.scheduleDate = scheduleDate;
     }
 
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
     public String getStatus() {
         return status;
     }
@@ -94,6 +97,14 @@ public class TestDrive {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getSpecificVIN() {
+        return specificVIN;
+    }
+
+    public void setSpecificVIN(String specificVIN) {
+        this.specificVIN = specificVIN;
     }
 
     public Date getCreateAt() {
@@ -126,5 +137,29 @@ public class TestDrive {
 
     public void setProduct(Product product) {
         this.product = product;
+    }
+    
+    public Category getCategory() {
+        return category;
+    }
+
+    public void setCategory(Category category) {
+        this.category = category;
+    }
+    
+    public User getEscortStaff() {
+        return escortStaff;
+    }
+
+    public void setEscortStaff(User escortStaff) {
+        this.escortStaff = escortStaff;
+    }
+    
+    public String getProductModelName() {
+        return productModelName;
+    }
+
+    public void setProductModelName(String productModelName) {
+        this.productModelName = productModelName;
     }
 }

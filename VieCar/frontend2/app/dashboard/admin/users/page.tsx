@@ -1,458 +1,1005 @@
-"use client";
+'use client';
 
-import { useState } from "react";
 import { ProtectedRoute } from "@/components/auth-guards";
 import AdminLayout from "@/components/layout/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Lock, Unlock, Key, Shield, Search, Mail, Phone, UserCircle, Eye } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Switch } from "@/components/ui/switch";
+import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { getAllUsers, updateUser, deleteUser, UserRes } from '@/lib/userApi';
+import { getAllRoles, RoleDto } from '@/lib/roleApi';
+import { getAllDealers, DealerRes } from '@/lib/dealerApi';
+import api from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { 
+  PlusCircle, 
+  Pencil, 
+  Trash2, 
+  Search, 
+  Eye,
+  User,
+  Mail,
+  Phone,
+  Shield,
+  RefreshCw,
+  UserCheck,
+  UserX
+} from 'lucide-react';
 
-// Mock data
-const mockUsers = [
-  { id: 1, name: "Nguyễn Văn A", email: "admin@vinfast.vn", phone: "0901234567", role: "Admin", status: "active", createdAt: "2025-01-15", lastLogin: "2025-10-20" },
-  { id: 2, name: "Trần Thị B", email: "evm.manager@vinfast.vn", phone: "0907654321", role: "EVM Manager", status: "active", createdAt: "2025-02-10", lastLogin: "2025-10-19" },
-  { id: 3, name: "Lê Văn C", email: "evm.staff@vinfast.vn", phone: "0909876543", role: "EVM Staff", status: "active", createdAt: "2025-03-05", lastLogin: "2025-10-18" },
-  { id: 4, name: "Phạm Thị D", email: "dealer.manager@vinfast.vn", phone: "0903456789", role: "Dealer Manager", status: "active", createdAt: "2025-04-12", lastLogin: "2025-10-20" },
-  { id: 5, name: "Hoàng Văn E", email: "dealer.staff@vinfast.vn", phone: "0905432109", role: "Dealer Staff", status: "active", createdAt: "2025-05-20", lastLogin: "2025-10-17" },
-  { id: 6, name: "Võ Thị F", email: "customer@gmail.com", phone: "0908765432", role: "Customer", status: "locked", createdAt: "2025-06-01", lastLogin: "2025-09-15" }
-];
+// Role types
+type RoleName = 'ADMIN' | 'DEALER_MANAGER' | 'DEALER_STAFF' | 'EVM_STAFF' | 'CUSTOMER';
 
-const roles = [
-  { value: "Admin", label: "Admin", description: "Toàn quyền quản trị hệ thống" },
-  { value: "EVM Manager", label: "EVM Manager", description: "Quản lý vận hành hãng xe" },
-  { value: "EVM Staff", label: "EVM Staff", description: "Nhân viên vận hành hãng" },
-  { value: "Dealer Manager", label: "Dealer Manager", description: "Quản lý đại lý" },
-  { value: "Dealer Staff", label: "Dealer Staff", description: "Nhân viên đại lý" },
-  { value: "Customer", label: "Customer", description: "Khách hàng" }
-];
+interface CreateUserReq {
+  username: string;
+  password: string;
+  email: string;
+  phone?: string;
+  roleName: RoleName;
+  address?: string;
+}
 
-export default function UserManagementPage() {
+interface UpdateUserReq {
+  username?: string;
+  email?: string;
+  phone?: string;
+  roleName?: RoleName;
+  status?: 'ACTIVE' | 'INACTIVE';
+  address?: string;
+  dealerId?: number;
+}
+
+// Role labels in Vietnamese
+const roleLabels: Record<string, string> = {
+  ADMIN: 'Quản trị viên',
+  Admin: 'Quản trị viên',
+  'Manage the entire system': 'Quản trị viên',
+  DEALER_MANAGER: 'Nhân viên đại lý',
+  'Dealer Manager': 'Nhân viên đại lý',
+  'Manage the dealer': 'Nhân viên đại lý',
+  DEALER_STAFF: 'Nhân viên đại lý',
+  'Dealer Staff': 'Nhân viên đại lý',
+  EVM_STAFF: 'Nhân viên hãng',
+  'EVM Staff': 'Nhân viên hãng',
+  'Nhân viên hãng': 'Nhân viên hãng',
+  CUSTOMER: 'Khách hàng',
+  Customer: 'Khách hàng',
+  'Customer is king': 'Khách hàng',
+};
+
+// Role colors
+const roleColors: Record<string, string> = {
+  ADMIN: 'bg-gradient-to-r from-purple-600 to-pink-600',
+  Admin: 'bg-gradient-to-r from-purple-600 to-pink-600',
+  'Manage the entire system': 'bg-gradient-to-r from-purple-600 to-pink-600',
+  DEALER_MANAGER: 'bg-gradient-to-r from-blue-600 to-cyan-600',
+  'Dealer Manager': 'bg-gradient-to-r from-blue-600 to-cyan-600',
+  'Manage the dealer': 'bg-gradient-to-r from-blue-600 to-cyan-600',
+  DEALER_STAFF: 'bg-gradient-to-r from-green-600 to-teal-600',
+  'Dealer Staff': 'bg-gradient-to-r from-green-600 to-teal-600',
+  EVM_STAFF: 'bg-gradient-to-r from-amber-600 to-orange-600',
+  'EVM Staff': 'bg-gradient-to-r from-amber-600 to-orange-600',
+  'Nhân viên hãng': 'bg-gradient-to-r from-amber-600 to-orange-600',
+  CUSTOMER: 'bg-gradient-to-r from-gray-600 to-slate-600',
+  Customer: 'bg-gradient-to-r from-gray-600 to-slate-600',
+  'Customer is king': 'bg-gradient-to-r from-gray-600 to-slate-600',
+};
+
+// Status colors
+const statusColors = {
+  ACTIVE: 'bg-green-500',
+  INACTIVE: 'bg-gray-500',
+};
+
+const statusLabels = {
+  ACTIVE: 'Hoạt động',
+  INACTIVE: 'Ngừng hoạt động',
+};
+
+export default function AdminUsersPage() {
   const { toast } = useToast();
-  const [users, setUsers] = useState(mockUsers);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRole, setSelectedRole] = useState("all");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-
+  
+  // State
+  const [users, setUsers] = useState<UserRes[]>([]);
+  const [roles, setRoles] = useState<RoleDto[]>([]);
+  const [dealers, setDealers] = useState<DealerRes[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [loadingDealers, setLoadingDealers] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('all');
+  
+  // Dialog states
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserRes | null>(null);
+  
   // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    role: "",
-    password: ""
+  const [createFormData, setCreateFormData] = useState<CreateUserReq>({
+    username: '',
+    password: '',
+    email: '',
+    phone: '',
+    roleName: 'DEALER_MANAGER',
+    address: '',
   });
 
-  const handleCreateUser = () => {
-    if (!formData.name || !formData.email || !formData.role || !formData.password) {
-      toast({ variant: "destructive", title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ thông tin bắt buộc" });
-      return;
-    }
+  const [editFormData, setEditFormData] = useState<UpdateUserReq>({
+    username: '',
+    email: '',
+    phone: '',
+    roleName: 'DEALER_MANAGER',
+    status: 'ACTIVE',
+  });
 
-    const newUser = {
-      id: users.length + 1,
-      ...formData,
-      status: "active",
-      createdAt: new Date().toISOString().split('T')[0],
-      lastLogin: "-"
-    };
+  // Load users
+  useEffect(() => {
+    loadUsers();
+    loadRoles();
+    loadDealers();
+  }, []);
 
-    setUsers([...users, newUser]);
-    setShowCreateDialog(false);
-    resetForm();
-    toast({ title: "Tạo tài khoản thành công", description: `Đã tạo tài khoản cho ${formData.name}` });
-  };
-
-  const handleEditUser = () => {
-    if (!formData.name || !formData.email || !formData.role) {
-      toast({ variant: "destructive", title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ thông tin bắt buộc" });
-      return;
-    }
-
-    setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...formData } : u));
-    setShowEditDialog(false);
-    resetForm();
-    toast({ title: "Cập nhật thành công", description: "Thông tin tài khoản đã được cập nhật" });
-  };
-
-  const handleDeleteUser = (userId: number, userName: string) => {
-    if (confirm(`Bạn có chắc muốn xóa tài khoản "${userName}"?`)) {
-      setUsers(users.filter(u => u.id !== userId));
-      toast({ title: "Đã xóa tài khoản", description: `Tài khoản ${userName} đã bị xóa` });
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllUsers();
+      setUsers(data);
+      toast({
+        title: '✅ Tải thành công',
+        description: `Đã tải ${data.length} người dùng`,
+        duration: 3000,
+      });
+    } catch (error: any) {
+      toast({
+        title: '❌ Lỗi tải dữ liệu',
+        description: error.response?.data?.message || 'Không thể tải danh sách người dùng',
+        variant: 'destructive',
+        duration: 3000,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleToggleLock = (userId: number, currentStatus: string, userName: string) => {
-    const newStatus = currentStatus === "active" ? "locked" : "active";
-    setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus } : u));
-    toast({
-      title: newStatus === "locked" ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản",
-      description: `Tài khoản ${userName} đã ${newStatus === "locked" ? "bị khóa" : "được mở khóa"}`
-    });
+  const loadRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      const data = await getAllRoles();
+      setRoles(data);
+      console.log('✅ Loaded roles:', data);
+    } catch (error: any) {
+      console.error('❌ Error loading roles:', error);
+      toast({
+        title: '⚠️ Không thể tải danh sách vai trò',
+        description: 'Sử dụng danh sách vai trò mặc định',
+        variant: 'default',
+      });
+    } finally {
+      setLoadingRoles(false);
+    }
   };
 
-  const handleResetPassword = (userName: string) => {
-    toast({
-      title: "Đã gửi email reset mật khẩu",
-      description: `Link đặt lại mật khẩu đã được gửi đến email của ${userName}`
-    });
+  const loadDealers = async () => {
+    try {
+      setLoadingDealers(true);
+      const data = await getAllDealers();
+      setDealers(data);
+      console.log('✅ Loaded dealers:', data);
+    } catch (error: any) {
+      console.error('❌ Error loading dealers:', error);
+      toast({
+        title: '⚠️ Không thể tải danh sách đại lý',
+        description: 'Vui lòng thử lại sau',
+        variant: 'default',
+      });
+    } finally {
+      setLoadingDealers(false);
+    }
   };
 
-  const resetForm = () => {
-    setFormData({ name: "", email: "", phone: "", role: "", password: "" });
-    setSelectedUser(null);
-  };
-
-  const openEditDialog = (user: any) => {
-    setSelectedUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      password: ""
-    });
-    setShowEditDialog(true);
-  };
-
-  const getStatusBadge = (status: string) => {
-    return status === "active" 
-      ? <Badge variant="default" className="bg-green-500">Hoạt động</Badge>
-      : <Badge variant="destructive">Đã khóa</Badge>;
-  };
-
-  const getRoleBadge = (role: string) => {
-    const colors: any = {
-      Admin: "bg-purple-500 text-white",
-      "EVM Manager": "bg-blue-500 text-white",
-      "EVM Staff": "bg-blue-300 text-white",
-      "Dealer Manager": "bg-orange-500 text-white",
-      "Dealer Staff": "bg-orange-300 text-white",
-      Customer: "bg-gray-500 text-white"
-    };
-    return <Badge className={colors[role] || ""}>{roles.find(r => r.value === role)?.label}</Badge>;
-  };
-
+  // Filter and search
   const filteredUsers = users.filter(user => {
-    const matchSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       user.phone.includes(searchQuery);
-    const matchRole = selectedRole === "all" || user.role === selectedRole;
-    return matchSearch && matchRole;
+    const userRole = typeof user.role === 'string' ? user.role : user.role?.name || user.roleName || '';
+    const matchRole = filterRole === 'all' || userRole === filterRole;
+    const matchSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchRole && matchSearch;
   });
+
+  // Helper function to get role name
+  const getUserRoleName = (user: UserRes): string => {
+    if (typeof user.role === 'string') {
+      return user.role;
+    } else if (user.role?.name) {
+      return user.role.name;
+    } else if (user.roleName) {
+      return user.roleName;
+    }
+    return 'CUSTOMER';
+  };
+
+  // Helper function to get role label
+  const getRoleLabel = (roleName: string): string => {
+    return roleLabels[roleName] || roleName;
+  };
+
+  // Reset create form
+  const resetCreateForm = () => {
+    setCreateFormData({
+      username: '',
+      password: '',
+      email: '',
+      phone: '',
+      roleName: 'DEALER_MANAGER',
+      address: '',
+    });
+  };
+
+  // Create user - Sử dụng API register
+  const handleCreate = async () => {
+    // Validation
+    if (!createFormData.username || !createFormData.password || !createFormData.email || !createFormData.phone) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng điền đầy đủ username, password, email và số điện thoại',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate email must contain @gmail.com
+    if (!createFormData.email.includes('@gmail.com')) {
+      toast({
+        title: '⚠️ Email không hợp lệ',
+        description: 'Email phải có định dạng @gmail.com',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate phone number: must be digits only, start with 0, and exactly 10 digits
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(createFormData.phone)) {
+      toast({
+        title: '⚠️ Số điện thoại không hợp lệ',
+        description: 'Số điện thoại phải bắt đầu bằng số 0 và có đúng 10 chữ số',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      // Gọi API register giống trang đăng ký
+      await api.post('/auth/register', {
+        username: createFormData.username,
+        password: createFormData.password,
+        confirmPassword: createFormData.password, // Thêm confirmPassword
+        email: createFormData.email,
+        phone: createFormData.phone || '',
+        address: createFormData.address || '',
+        roleName: createFormData.roleName,
+      });
+      
+      toast({
+        title: '✅ Tạo thành công',
+        description: `Đã tạo tài khoản ${createFormData.username} với vai trò ${roleLabels[createFormData.roleName]}`,
+        duration: 3000,
+      });
+      setIsCreateOpen(false);
+      resetCreateForm();
+      loadUsers();
+    } catch (error: any) {
+      const errorMessage = typeof error.response?.data === 'string' 
+        ? error.response.data 
+        : error.response?.data?.message || error.message || 'Không thể tạo người dùng';
+      
+      toast({
+        title: '❌ Lỗi tạo người dùng',
+        description: errorMessage,
+        variant: 'destructive',
+        duration: 3000,
+      });
+    }
+  };
+
+  // Edit user
+  const openEditDialog = (user: UserRes) => {
+    setSelectedUser(user);
+    const userRole = typeof user.role === 'string' ? user.role : user.role?.name || user.roleName || 'CUSTOMER';
+    setEditFormData({
+      username: user.username,
+      email: user.email || '',
+      phone: user.phone || '',
+      roleName: userRole as RoleName,
+      status: user.status as 'ACTIVE' | 'INACTIVE',
+      address: user.address || '',
+      dealerId: user.dealerId,
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!selectedUser) return;
+
+    if (!editFormData.username || !editFormData.email || !editFormData.phone) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng điền đầy đủ username, email và số điện thoại',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate email must contain @gmail.com
+    if (!editFormData.email.includes('@gmail.com')) {
+      toast({
+        title: '⚠️ Email không hợp lệ',
+        description: 'Email phải có định dạng @gmail.com',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate phone number: must be digits only, start with 0, and exactly 10 digits
+    const phoneRegex = /^0\d{9}$/;
+    if (editFormData.phone && !phoneRegex.test(editFormData.phone)) {
+      toast({
+        title: '⚠️ Số điện thoại không hợp lệ',
+        description: 'Số điện thoại phải bắt đầu bằng số 0 và có đúng 10 chữ số',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      await updateUser(selectedUser.id, editFormData);
+      toast({
+        title: '✅ Cập nhật thành công',
+        description: `Đã cập nhật người dùng ${editFormData.username}`,
+        duration: 3000,
+      });
+      setIsEditOpen(false);
+      setSelectedUser(null);
+      loadUsers();
+    } catch (error: any) {
+      const errorMessage = typeof error.response?.data === 'string' 
+        ? error.response.data 
+        : error.response?.data?.message || error.message || 'Không thể cập nhật người dùng';
+      
+      toast({
+        title: '❌ Lỗi cập nhật',
+        description: errorMessage,
+        variant: 'destructive',
+        duration: 3000,
+      });
+    }
+  };
+
+  // Delete user
+  const openDeleteDialog = (user: UserRes) => {
+    setSelectedUser(user);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedUser) return;
+
+    try {
+      await deleteUser(selectedUser.id);
+      toast({
+        title: '✅ Xóa thành công',
+        description: `Đã xóa người dùng ${selectedUser.username}`,
+        duration: 3000,
+      });
+      setIsDeleteOpen(false);
+      setSelectedUser(null);
+      loadUsers();
+    } catch (error: any) {
+      const errorMessage = typeof error.response?.data === 'string' 
+        ? error.response.data 
+        : error.response?.data?.message || error.message || 'Không thể xóa người dùng';
+      
+      toast({
+        title: '❌ Lỗi xóa',
+        description: errorMessage,
+        variant: 'destructive',
+        duration: 3000,
+      });
+    }
+  };
+
+  // View user
+  const openViewDialog = (user: UserRes) => {
+    setSelectedUser(user);
+    setIsViewOpen(true);
+  };
 
   return (
-    <ProtectedRoute allowedRoles={["Admin"]}>
+    <ProtectedRoute allowedRoles={['Admin']}>
       <AdminLayout>
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
+        <div className="p-8 space-y-6">
+          {/* Header */}
+          <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold">Quản lý người dùng & Phân quyền</h1>
-              <p className="text-muted-foreground mt-2">Quản lý tài khoản và vai trò trong hệ thống</p>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Quản lý người dùng
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Quản lý tài khoản Dealer Manager, EVM Staff và các vai trò khác
+              </p>
             </div>
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Tạo tài khoản
+            <Button 
+              onClick={() => setIsCreateOpen(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Tạo người dùng
             </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Tổng người dùng</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{users.length}</div>
-                <p className="text-xs text-muted-foreground">Tất cả tài khoản</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Đang hoạt động</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{users.filter(u => u.status === "active").length}</div>
-                <p className="text-xs text-muted-foreground">Tài khoản active</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Đã khóa</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{users.filter(u => u.status === "locked").length}</div>
-                <p className="text-xs text-muted-foreground">Tài khoản bị khóa</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Admin</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">{users.filter(u => u.role === "Admin").length}</div>
-                <p className="text-xs text-muted-foreground">Quản trị viên</p>
-              </CardContent>
-            </Card>
+          {/* Search and Filter */}
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Tìm kiếm theo username hoặc email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterRole} onValueChange={setFilterRole}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Lọc theo vai trò" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả vai trò</SelectItem>
+                {roles.length > 0 ? (
+                  roles.map((role) => (
+                    <SelectItem key={role.id} value={role.name}>
+                      {role.description || roleLabels[role.name as RoleName] || role.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <>
+                    <SelectItem value="DEALER_MANAGER">Quản lý đại lý</SelectItem>
+                    <SelectItem value="EVM_STAFF">Nhân viên hãng</SelectItem>
+                    <SelectItem value="DEALER_STAFF">Nhân viên đại lý</SelectItem>
+                    <SelectItem value="CUSTOMER">Khách hàng</SelectItem>
+                    <SelectItem value="ADMIN">Quản trị viên</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="outline" 
+              onClick={loadUsers}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
 
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Tìm theo tên, email, SĐT..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <Select value={selectedRole} onValueChange={setSelectedRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Lọc theo vai trò" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tất cả vai trò</SelectItem>
-                    {roles.map(r => (
-                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Users Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Danh sách người dùng ({filteredUsers.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredUsers.map(user => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                        <UserCircle className="w-6 h-6 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{user.name}</h3>
-                          {getRoleBadge(user.role)}
-                          {getStatusBadge(user.status)}
+          {/* Table */}
+          <div className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-xl shadow-2xl border border-white/20 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+                  <TableHead>ID</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Số điện thoại</TableHead>
+                  <TableHead>Vai trò</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                      <p className="mt-2 text-muted-foreground">Đang tải...</p>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Không tìm thấy người dùng
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <TableRow 
+                      key={user.id} 
+                      className="hover:bg-gradient-to-r hover:from-purple-500/5 hover:to-pink-500/5 transition-all duration-200"
+                    >
+                      <TableCell className="font-mono text-sm">{user.id}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{user.username}</span>
                         </div>
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-3 h-3" />
-                            {user.email}
-                            <span>•</span>
-                            <Phone className="w-3 h-3" />
-                            {user.phone}
-                          </div>
-                          <div>
-                            Tạo: {user.createdAt} • Đăng nhập gần nhất: {user.lastLogin}
-                          </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{user.email}</span>
                         </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEditDialog(user)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleToggleLock(user.id, user.status, user.name)}
-                      >
-                        {user.status === "active" ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleResetPassword(user.name)}
-                      >
-                        <Key className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id, user.name)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-
-                {filteredUsers.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    Không tìm thấy người dùng nào
-                  </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{user.phone || '-'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const userRole = getUserRoleName(user);
+                          const roleLabel = getRoleLabel(userRole);
+                          const roleColor = roleColors[userRole] || 'bg-gradient-to-r from-gray-600 to-slate-600';
+                          
+                          return (
+                            <Badge className={`${roleColor} text-white shadow-lg`}>
+                              {roleLabel}
+                            </Badge>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`${statusColors[user.status as 'ACTIVE' | 'INACTIVE']} text-white shadow-md`}>
+                          {user.status === 'ACTIVE' ? (
+                            <><UserCheck className="h-3 w-3 mr-1" /> {statusLabels.ACTIVE}</>
+                          ) : (
+                            <><UserX className="h-3 w-3 mr-1" /> {statusLabels.INACTIVE}</>
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openViewDialog(user)}
+                            className="hover:bg-blue-500/10 hover:text-blue-600"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                            className="hover:bg-amber-500/10 hover:text-amber-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteDialog(user)}
+                            className="hover:bg-red-500/10 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </TableBody>
+            </Table>
+          </div>
 
-          {/* Create User Dialog */}
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogContent className="max-w-2xl">
+          {/* Create Dialog */}
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogContent className="max-w-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-2 border-white/30 shadow-2xl">
               <DialogHeader>
-                <DialogTitle>Tạo tài khoản mới</DialogTitle>
-                <DialogDescription>Nhập thông tin để tạo tài khoản người dùng</DialogDescription>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  Tạo người dùng mới
+                </DialogTitle>
+                <DialogDescription>
+                  Tạo tài khoản cho Dealer Manager, EVM Staff hoặc vai trò khác
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Họ tên <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="username">Username *</Label>
                     <Input
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="Nguyễn Văn A"
+                      id="username"
+                      placeholder="Nhập username"
+                      value={createFormData.username}
+                      onChange={(e) => setCreateFormData({ ...createFormData, username: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Email <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="password">Password *</Label>
                     <Input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      placeholder="user@example.com"
+                      id="password"
+                      type="password"
+                      placeholder="Nhập password"
+                      value={createFormData.password}
+                      onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
                     />
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Số điện thoại</Label>
+                    <Label htmlFor="email">Email *</Label>
                     <Input
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      placeholder="0901234567"
+                      id="email"
+                      type="email"
+                      placeholder="Nhập email"
+                      value={createFormData.email}
+                      onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
                     />
+                    <p className="text-xs text-muted-foreground">Email phải có định dạng @gmail.com</p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Vai trò <span className="text-red-500">*</span></Label>
-                    <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn vai trò" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roles.map(r => (
-                          <SelectItem key={r.value} value={r.value}>
-                            <div>
-                              <div className="font-medium">{r.label}</div>
-                              <div className="text-xs text-muted-foreground">{r.description}</div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="phone">Số điện thoại *</Label>
+                    <Input
+                      id="phone"
+                      placeholder="Nhập số điện thoại"
+                      value={createFormData.phone}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow digits
+                        if (/^\d*$/.test(value)) {
+                          setCreateFormData({ ...createFormData, phone: value });
+                        }
+                      }}
+                      maxLength={10}
+                    />
+                    <p className="text-xs text-muted-foreground">VD: 0912345678 (Bắt đầu bằng 0, đúng 10 số)</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Mật khẩu <span className="text-red-500">*</span></Label>
-                  <Input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    placeholder="Nhập mật khẩu"
-                  />
+                  <Label htmlFor="role">Vai trò *</Label>
+                  <Select 
+                    value={createFormData.roleName} 
+                    onValueChange={(value) => setCreateFormData({ ...createFormData, roleName: value as RoleName })}
+                    disabled={loadingRoles}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingRoles ? "Đang tải..." : "Chọn vai trò"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.length > 0 ? (
+                        roles.map((role) => (
+                          <SelectItem key={role.id} value={role.name}>
+                            {role.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="ADMIN">ADMIN</SelectItem>
+                          <SelectItem value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
+                          <SelectItem value="EVM_STAFF">EVM_STAFF</SelectItem>
+                          <SelectItem value="DEALER_STAFF">DEALER_STAFF</SelectItem>
+                          <SelectItem value="CUSTOMER">CUSTOMER</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
-                    Hủy
-                  </Button>
-                  <Button onClick={handleCreateUser}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Tạo tài khoản
-                  </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Địa chỉ</Label>
+                  <Input
+                    id="address"
+                    placeholder="Nhập địa chỉ (tùy chọn)"
+                    value={createFormData.address}
+                    onChange={(e) => setCreateFormData({ ...createFormData, address: e.target.value })}
+                  />
                 </div>
               </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                  Hủy
+                </Button>
+                <Button 
+                  onClick={handleCreate}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                >
+                  ✨ Tạo tài khoản
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          {/* Edit User Dialog */}
-          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-            <DialogContent className="max-w-2xl">
+          {/* Edit Dialog */}
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogContent className="max-w-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-2 border-white/30 shadow-2xl">
               <DialogHeader>
-                <DialogTitle>Chỉnh sửa tài khoản</DialogTitle>
-                <DialogDescription>Cập nhật thông tin tài khoản {selectedUser?.name}</DialogDescription>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                  Cập nhật người dùng
+                </DialogTitle>
+                <DialogDescription>
+                  Chỉnh sửa thông tin người dùng {selectedUser?.username}
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Họ tên <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="edit-username">Username *</Label>
                     <Input
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      id="edit-username"
+                      value={editFormData.username}
+                      onChange={(e) => setEditFormData({ ...editFormData, username: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Email <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="edit-email">Email *</Label>
                     <Input
+                      id="edit-email"
                       type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      value={editFormData.email}
+                      onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
                     />
+                    <p className="text-xs text-muted-foreground">Email phải có định dạng @gmail.com</p>
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-phone">Số điện thoại *</Label>
+                  <Input
+                    id="edit-phone"
+                    placeholder="Nhập số điện thoại"
+                    value={editFormData.phone}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow digits
+                      if (/^\d*$/.test(value)) {
+                        setEditFormData({ ...editFormData, phone: value });
+                      }
+                    }}
+                    maxLength={10}
+                  />
+                  <p className="text-xs text-muted-foreground">VD: 0912345678 (Bắt đầu bằng 0, đúng 10 số)</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-address">Địa chỉ</Label>
+                  <Input
+                    id="edit-address"
+                    placeholder="Nhập địa chỉ"
+                    value={editFormData.address}
+                    onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Số điện thoại</Label>
-                    <Input
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    />
+                    <Label htmlFor="edit-role">Vai trò *</Label>
+                    <Select 
+                      value={editFormData.roleName} 
+                      onValueChange={(value) => setEditFormData({ ...editFormData, roleName: value as RoleName })}
+                      disabled={loadingRoles}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingRoles ? "Đang tải..." : "Chọn vai trò"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles.length > 0 ? (
+                          roles.map((role) => (
+                            <SelectItem key={role.id} value={role.name}>
+                              {role.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <>
+                            <SelectItem value="ADMIN">ADMIN</SelectItem>
+                            <SelectItem value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
+                            <SelectItem value="EVM_STAFF">EVM_STAFF</SelectItem>
+                            <SelectItem value="DEALER_STAFF">DEALER_STAFF</SelectItem>
+                            <SelectItem value="CUSTOMER">CUSTOMER</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Vai trò <span className="text-red-500">*</span></Label>
-                    <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
+                    <Label htmlFor="edit-status">Trạng thái *</Label>
+                    <Select 
+                      value={editFormData.status} 
+                      onValueChange={(value) => setEditFormData({ ...editFormData, status: value as 'ACTIVE' | 'INACTIVE' })}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {roles.map(r => (
-                          <SelectItem key={r.value} value={r.value}>
-                            {r.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="ACTIVE">Hoạt động</SelectItem>
+                        <SelectItem value="INACTIVE">Ngừng hoạt động</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <Alert>
-                  <Shield className="h-4 w-4" />
-                  <AlertDescription>
-                    Để đổi mật khẩu, vui lòng sử dụng chức năng "Reset mật khẩu"
-                  </AlertDescription>
-                </Alert>
-
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => { setShowEditDialog(false); resetForm(); }}>
-                    Hủy
-                  </Button>
-                  <Button onClick={handleEditUser}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Cập nhật
-                  </Button>
-                </div>
+                {/* Dealer selection - only show for DEALER_MANAGER and DEALER_STAFF */}
+                {(editFormData.roleName === 'DEALER_MANAGER' || 
+                  editFormData.roleName === 'DEALER_STAFF') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-dealer">Đại lý *</Label>
+                    <Select 
+                      value={editFormData.dealerId?.toString() || ''} 
+                      onValueChange={(value) => setEditFormData({ ...editFormData, dealerId: value ? parseInt(value) : undefined })}
+                      disabled={loadingDealers}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingDealers ? "Đang tải..." : "Chọn đại lý"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dealers.length > 0 ? (
+                          dealers.map((dealer) => (
+                            <SelectItem key={dealer.id} value={dealer.id.toString()}>
+                              {dealer.name} - {dealer.address}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>
+                            Không có đại lý nào
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                  Hủy
+                </Button>
+                <Button 
+                  onClick={handleEdit}
+                  className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                >
+                  ✏️ Cập nhật
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Dialog */}
+          <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <DialogContent className="backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-2 border-red-300/30 shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
+                  Xác nhận xóa
+                </DialogTitle>
+                <DialogDescription>
+                  Bạn có chắc muốn xóa người dùng <strong>{selectedUser?.username}</strong>?
+                  <br />
+                  <span className="text-red-500">Hành động này không thể hoàn tác.</span>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+                  Hủy
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Xóa người dùng
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* View Dialog */}
+          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+            <DialogContent className="max-w-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-2 border-white/30 shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                  Chi tiết người dùng
+                </DialogTitle>
+              </DialogHeader>
+              {selectedUser && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="backdrop-blur-sm bg-blue-500/10 p-4 rounded-xl border border-blue-300/30">
+                      <Label className="text-muted-foreground">ID</Label>
+                      <p className="font-semibold text-lg">{selectedUser.id}</p>
+                    </div>
+                    <div className="backdrop-blur-sm bg-green-500/10 p-4 rounded-xl border border-green-300/30">
+                      <Label className="text-muted-foreground">Trạng thái</Label>
+                      <div className="mt-1">
+                        <Badge className={`${statusColors[selectedUser.status as 'ACTIVE' | 'INACTIVE']} shadow-lg`}>
+                          {selectedUser.status === 'ACTIVE' ? statusLabels.ACTIVE : statusLabels.INACTIVE}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="backdrop-blur-sm bg-gradient-to-r from-purple-500/10 to-pink-500/10 p-4 rounded-xl border border-purple-300/30">
+                    <Label className="text-muted-foreground flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Username
+                    </Label>
+                    <p className="font-semibold text-lg">{selectedUser.username}</p>
+                  </div>
+
+                  <div className="backdrop-blur-sm bg-blue-500/10 p-4 rounded-xl border border-blue-300/30">
+                    <Label className="text-muted-foreground flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      Email
+                    </Label>
+                    <p className="font-medium">{selectedUser.email}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="backdrop-blur-sm bg-teal-500/10 p-4 rounded-xl border border-teal-300/30">
+                      <Label className="text-muted-foreground flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Số điện thoại
+                      </Label>
+                      <p className="font-medium">{selectedUser.phone || '-'}</p>
+                    </div>
+                    <div className="backdrop-blur-sm bg-purple-500/10 p-4 rounded-xl border border-purple-300/30">
+                      <Label className="text-muted-foreground flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        Vai trò
+                      </Label>
+                      <div className="mt-1">
+                        {(() => {
+                          const userRole = getUserRoleName(selectedUser);
+                          const roleLabel = getRoleLabel(userRole);
+                          const roleColor = roleColors[userRole] || 'bg-gradient-to-r from-gray-600 to-slate-600';
+                          
+                          return (
+                            <Badge className={`${roleColor} text-white shadow-lg`}>
+                              {roleLabel}
+                            </Badge>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedUser.dealerName && (
+                    <div className="backdrop-blur-sm bg-indigo-500/10 p-4 rounded-xl border border-indigo-300/30">
+                      <Label className="text-muted-foreground">Đại lý</Label>
+                      <p className="font-medium">{selectedUser.dealerName}</p>
+                      <p className="text-sm text-muted-foreground">{selectedUser.dealerAddress}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <DialogFooter>
+                <Button onClick={() => setIsViewOpen(false)} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
+                  Đóng
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

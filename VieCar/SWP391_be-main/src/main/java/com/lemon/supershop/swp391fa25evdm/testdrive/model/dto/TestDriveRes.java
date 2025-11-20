@@ -14,10 +14,17 @@ public class TestDriveRes {
     private LocalDateTime scheduleDate;
     private String status; // PENDING, CONFIRMED, COMPLETED, CANCELED
     private String notes;
+<<<<<<< HEAD
     private String location;
+=======
+    private String specificVIN;
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
     private UserRes user;
     private DealerRes dealer;
     private String productName;
+    private String productModelName; // Customer's requested model name
+    private String categoryName; // Customer's requested category
+    private UserRes escortStaff; // Staff member assigned to accompany
 
     public TestDriveRes() {
     }
@@ -78,11 +85,44 @@ public class TestDriveRes {
         this.productName = productName;
     }
 
+<<<<<<< HEAD
     public String getLocation() {
         return location;
     }
 
     public void setLocation(String location) {
         this.location = location;
+=======
+    public String getSpecificVIN() {
+        return specificVIN;
+    }
+
+    public void setSpecificVIN(String specificVIN) {
+        this.specificVIN = specificVIN;
+    }
+
+    public String getProductModelName() {
+        return productModelName;
+    }
+
+    public void setProductModelName(String productModelName) {
+        this.productModelName = productModelName;
+    }
+
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+
+    public UserRes getEscortStaff() {
+        return escortStaff;
+    }
+
+    public void setEscortStaff(UserRes escortStaff) {
+        this.escortStaff = escortStaff;
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
     }
 }

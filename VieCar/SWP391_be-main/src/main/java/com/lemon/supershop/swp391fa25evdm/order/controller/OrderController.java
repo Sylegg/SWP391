@@ -24,8 +24,36 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/search/user/{userId}")
+    public ResponseEntity<List<OrderRes>> searchOrdersByUser(@PathVariable int userId) {
+        List<OrderRes> orders = orderService.ListOrderbyUserId(userId);
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/search/dealer/{dealerId}")
+    public ResponseEntity<List<OrderRes>> searchOrdersByDealer(@PathVariable int dealerId) {
+        List<OrderRes> orders = orderService.ListOrderbyDealerId(dealerId);
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/search/id/{orderId}")
+    public ResponseEntity<OrderRes> searchOrderById(@PathVariable int orderId) {
+        OrderRes order = orderService.getOrderById(orderId);
+        if (order != null) {
+            return ResponseEntity.ok(order);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping
     public ResponseEntity<List<OrderRes>> getAllOrders() {
+        List<OrderRes> orders = orderService.ListAllOrders();
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/listOrders")
+    public ResponseEntity<List<OrderRes>> listAllOrders() {
         List<OrderRes> orders = orderService.ListAllOrders();
         return ResponseEntity.ok(orders);
     }
@@ -40,6 +68,16 @@ public class OrderController {
         }
     }
 
+    @PostMapping("/createOrder")
+    public ResponseEntity<OrderRes> createOrderFromBody(@RequestBody OrderReq dto) {
+        OrderRes order = orderService.createOrder(dto.getUserId(), dto);
+        if (order != null) {
+            return ResponseEntity.ok(order);
+        } else {
+            return ResponseEntity.badRequest().body(order);
+        }
+    }
+
     @PostMapping("/{orderId}/delivery")
     public ResponseEntity<String> createDelivery(@PathVariable int orderId, @RequestBody DeliveryReq dto) {
         orderService.createDelivery(orderId, dto);
@@ -47,9 +85,29 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}")
+<<<<<<< HEAD
     public ResponseEntity<String> updateOrder(@PathVariable int orderId, @RequestBody OrderReq dto) {
         orderService.updateOrder(orderId, dto);
         return ResponseEntity.ok("Order updated successfully!");
+=======
+    public ResponseEntity<OrderRes> updateOrder(@PathVariable int orderId, @RequestBody UpdateOrderReq dto) {
+        OrderRes order = orderService.updateOrder(orderId, dto);
+        if (order != null) {
+            return ResponseEntity.ok(order);
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/updateOrder/{orderId}")
+    public ResponseEntity<OrderRes> updateOrderAlt(@PathVariable int orderId, @RequestBody UpdateOrderReq dto) {
+        OrderRes order = orderService.updateOrder(orderId, dto);
+        if (order != null) {
+            return ResponseEntity.ok(order);
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
     }
 
     @PutMapping("/{orderId}/delivery")
@@ -60,6 +118,15 @@ public class OrderController {
 
     @DeleteMapping("/{orderId}")
     public ResponseEntity<String> deleteOrder(@PathVariable int orderId) {
+        if (orderService.deleteOrder(orderId)){
+            return ResponseEntity.ok("Order deleted successfully!");
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/deleteOrder/{orderId}")
+    public ResponseEntity<String> deleteOrderAlt(@PathVariable int orderId) {
         if (orderService.deleteOrder(orderId)){
             return ResponseEntity.ok("Order deleted successfully!");
         } else {

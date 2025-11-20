@@ -59,6 +59,12 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
+    @GetMapping("/dealer/{dealerId}/staff")
+    public ResponseEntity<List<UserRes>> getDealerStaff(@PathVariable("dealerId") int dealerId) {
+        List<UserRes> users = userService.findDealerStaffByDealerId(dealerId);
+        return ResponseEntity.ok(users);
+    }
+
     @PostMapping("/addBlackList/{id}")
     public ResponseEntity<String> addBlackList(@PathVariable("id") int id) {
         userService.blackList(id);
@@ -76,6 +82,19 @@ public class UserController {
         if (userService.removeUser(id)){
             return ResponseEntity.ok("User Removed successfully");
         } else {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // API để customer cập nhật dealer đang quan tâm
+    @PutMapping("/{userId}/preferred-dealer")
+    public ResponseEntity<UserRes> updatePreferredDealer(
+            @PathVariable("userId") int userId,
+            @RequestParam(value = "dealerId", required = false) Integer dealerId) {
+        try {
+            UserRes user = userService.updatePreferredDealer(userId, dealerId);
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
         }
     }

@@ -6,19 +6,16 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Home,
-  Car,
   Users,
-  Calendar,
-  FileText,
   ShoppingCart,
-  MessageSquare,
-  BarChart,
-  ArrowLeft,
   LogOut,
-  Tag,
-  Package
+  Car,
+  Calendar,
+  CalendarDays,
+  Sparkles
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { LucideIcon } from "lucide-react";
@@ -37,14 +34,46 @@ interface NavigationItem {
 
 const navigationItems: NavigationItem[] = [
   {
+    title: "📊 DASHBOARD",
+    isHeader: true,
+    section: "main"
+  },
+  {
     title: "Tổng quan",
     href: "/dashboard/dealer-staff",
     icon: Home,
     section: "main"
   },
-  // Module 1: Bán hàng
   {
-    title: "🛒 Bán hàng",
+    title: "🚗 QUẢN LÝ SHOWROOM",
+    isHeader: true,
+    section: "showroom"
+  },
+  {
+    title: "Danh sách xe",
+    href: "/dashboard/dealer-staff/showroom",
+    icon: Car,
+    section: "showroom"
+  },
+  {
+    title: "📅 LỊCH LÁI THỬ",
+    isHeader: true,
+    section: "testdrive"
+  },
+  {
+    title: "Quản lý lịch hẹn",
+    href: "/dashboard/dealer-staff/test-drives",
+    icon: Calendar,
+    section: "testdrive"
+  },
+  {
+    title: "Xem lịch Calendar",
+    href: "/dashboard/dealer-staff/test-drives/calendar",
+    icon: CalendarDays,
+    section: "testdrive"
+  },
+  {
+    title: "🛒 BÁN HÀNG",
     isHeader: true,
     section: "sales"
   },
@@ -53,30 +82,6 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/dealer-staff/orders",
     icon: ShoppingCart,
     section: "sales"
-  },
-  {
-    title: "Danh mục xe",
-    href: "/dashboard/dealer-staff/dealer-category",
-    icon: Car,
-    section: "sales"
-  },
-  {
-    title: "Danh mục Category",
-    href: "/dashboard/dealer-staff/categories",
-    icon: Tag,
-    section: "sales"
-  },
-  // Module 2: Khách hàng
-  {
-    title: "👥 Khách hàng",
-    isHeader: true,
-    section: "customers"
-  },
-  {
-    title: "Quản lý khách hàng",
-    href: "/dashboard/dealer-staff/customers",
-    icon: Users,
-    section: "customers"
   }
 ];
 
@@ -91,33 +96,40 @@ export default function DealerStaffLayout({ children }: DealerStaffLayoutProps) 
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
-        <div className="flex flex-col flex-grow bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800">
-          {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200 dark:border-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Nhân viên đại lý
-            </h2>
-          </div>
+    <div className="flex min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-gray-950 dark:via-orange-950 dark:to-amber-950">
+      {/* Liquid Glass Sidebar */}
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-40">
+        <div className="flex flex-col flex-grow backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border-r border-white/20 dark:border-gray-700/30 shadow-2xl shadow-orange-500/10">
+          {/* Logo with Link to Home */}
+          <Link href="/" className="flex items-center justify-center h-20 px-4 border-b border-white/10 dark:border-gray-700/20 relative overflow-hidden group hover:bg-amber-50/30 dark:hover:bg-amber-950/30 transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-yellow-500/5 animate-gradient-shift"></div>
+            <div className="relative">
+              <Image 
+                src="/logo.png" 
+                alt="VIECAR Logo" 
+                width={140} 
+                height={60}
+                className="object-contain transition-transform duration-300 group-hover:scale-105"
+                priority
+              />
+            </div>
+          </Link>
 
           {/* Navigation */}
           <ScrollArea className="flex-1 px-3 py-4">
-            <nav className="space-y-1">
+            <nav className="space-y-1.5">
               {navigationItems.map((item, index) => {
-                // Render section header
                 if (item.isHeader) {
                   return (
-                    <div key={`header-${index}`} className={cn("pt-4 pb-2", index > 0 && "mt-2")}>
-                      <h3 className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <div key={`header-${index}`} className={cn("pt-4 pb-2 first:pt-0", index > 0 && "mt-2")}>
+                      <h3 className="px-3 text-xs font-bold text-amber-700/80 dark:text-amber-300/80 uppercase tracking-wider">
                         {item.title}
                       </h3>
+                      <div className="mt-2 h-px bg-gradient-to-r from-amber-200 via-amber-300 to-transparent dark:from-amber-800 dark:via-amber-700"></div>
                     </div>
                   );
                 }
 
-                // Skip if no href (safety check)
                 if (!item.href || !item.icon) return null;
 
                 const isActive = pathname === item.href;
@@ -128,61 +140,69 @@ export default function DealerStaffLayout({ children }: DealerStaffLayoutProps) 
                     <Button
                       variant={isActive ? "default" : "ghost"}
                       className={cn(
-                        "w-full justify-start text-left font-normal",
-                        isActive && "bg-primary text-primary-foreground"
+                        "w-full justify-start text-left font-medium transition-all duration-300 group relative overflow-hidden",
+                        isActive 
+                          ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 hover:from-amber-600 hover:to-orange-700" 
+                          : "hover:bg-white/50 dark:hover:bg-gray-800/50 backdrop-blur-sm hover:shadow-md hover:scale-[1.02]"
                       )}
                     >
-                      <Icon className="mr-3 h-4 w-4" />
-                      {item.title}
+                      {isActive && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-orange-400/20 animate-gradient-shift"></div>
+                      )}
+                      <Icon className={cn(
+                        "mr-3 h-4 w-4 transition-transform duration-300 group-hover:scale-110",
+                        isActive && "drop-shadow-sm"
+                      )} />
+                      <span className="relative">{item.title}</span>
                     </Button>
                   </Link>
                 );
               })}
-              
-              {/* Separator */}
-              <div className="my-4">
-                <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
-              </div>
-
-              {/* Quick actions */}
-              <div className="space-y-1">
-                <Link href="/">
-                  <Button variant="ghost" className="w-full justify-start text-left font-normal">
-                    <ArrowLeft className="mr-3 h-4 w-4" />
-                    Quay về trang chủ
-                  </Button>
-                </Link>
-                
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start text-left font-normal text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="mr-3 h-4 w-4" />
-                  Đăng xuất
-                </Button>
-              </div>
             </nav>
           </ScrollArea>
 
-          {/* User info */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-primary-foreground">
-                    {user?.username?.[0]?.toUpperCase()}
-                  </span>
+          {/* Home Button */}
+          <div className="px-3 pb-3">
+            <Link href="/">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-900 dark:hover:to-orange-900 text-amber-700 dark:text-amber-300 font-semibold shadow-sm hover:shadow-md transition-all duration-300"
+              >
+                <Home className="h-5 w-5" />
+                <span>Về trang chủ</span>
+              </Button>
+            </Link>
+          </div>
+
+          {/* User info with Liquid Glass */}
+          <div className="p-4 border-t border-white/10 dark:border-gray-700/20 backdrop-blur-sm bg-gradient-to-br from-white/40 to-amber-50/40 dark:from-gray-800/40 dark:to-amber-900/40">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30 ring-2 ring-white/20">
+                    <span className="text-sm font-bold text-white drop-shadow-sm">
+                      {user?.username?.[0]?.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                    {user?.username}
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium truncate">
+                    {user?.role?.name}
+                  </p>
                 </div>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {user?.username}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {user?.role?.name}
-                </p>
-              </div>
+              <Button 
+                size="icon"
+                variant="ghost" 
+                className="flex-shrink-0 ml-2 text-red-600 hover:text-red-700 hover:bg-red-50/80 dark:hover:bg-red-950/30 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                onClick={handleLogout}
+                title="Đăng xuất"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>
@@ -190,8 +210,10 @@ export default function DealerStaffLayout({ children }: DealerStaffLayoutProps) 
 
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col flex-1">
-        <main className="flex-1">
-          {children}
+        <main className="flex-1 p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

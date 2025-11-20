@@ -46,6 +46,16 @@ public class DistributionController {
             return ResponseEntity.notFound().build();
         }
     }
+<<<<<<< HEAD
+=======
+
+    // ❌ Xóa endpoint không dùng
+    // @GetMapping("/search/category/{categoryId}")
+    // public ResponseEntity<List<DistributionRes>> getDistributionsByCategory(@PathVariable int categoryId) {
+    //     List<DistributionRes> distributions = distributionService.getDistributionsByCategoryId(categoryId);
+    //     return ResponseEntity.ok(distributions);
+    // }
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
     @GetMapping("/search/dealer/{dealerId}")
     public ResponseEntity<List<DistributionRes>> getDistributionsByDealer(@PathVariable int dealerId) {
@@ -136,6 +146,22 @@ public class DistributionController {
         }
     }
 
+<<<<<<< HEAD
+=======
+    // Step 4b: EVM Staff gửi lại giá mới (khi dealer từ chối giá cũ)
+    @PutMapping("/{id}/resend-price")
+    public ResponseEntity<DistributionRes> resendPrice(
+            @PathVariable int id,
+            @RequestBody DistributionApprovalReq request) {
+        try {
+            DistributionRes response = distributionService.resendPrice(id, request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
     // Step 4a: Dealer Manager phản hồi về giá hãng (chấp nhận hoặc từ chối)
     @PutMapping("/{id}/respond-price")
     public ResponseEntity<?> respondToPrice(
@@ -176,6 +202,33 @@ public class DistributionController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // LUỒNG MỚI: Dealer Manager tạo yêu cầu xe trực tiếp (Pull Model)
+    // Bỏ qua bước invitation, trực tiếp tạo distribution với status PENDING
+    @PostMapping("/dealer-request")
+    public ResponseEntity<?> createDealerRequest(@RequestBody DistributionOrderReq request) {
+        try {
+            DistributionRes response = distributionService.createDealerRequest(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", e.getMessage() != null ? e.getMessage() : "Bad Request"
+            ));
+        }
+    }
+
+    // SUPPLEMENTARY DISTRIBUTION: Tạo đơn bổ sung cho số lượng thiếu
+    @PostMapping("/{parentDistributionId}/create-supplementary")
+    public ResponseEntity<?> createSupplementaryDistribution(@PathVariable int parentDistributionId) {
+        try {
+            DistributionRes response = distributionService.createSupplementaryDistribution(parentDistributionId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", e.getMessage() != null ? e.getMessage() : "Bad Request"
+            ));
         }
     }
 }

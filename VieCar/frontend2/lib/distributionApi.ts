@@ -12,12 +12,12 @@ import {
   DistributionStats,
 } from '@/types/distribution';
 
-const DISTRIBUTION_BASE = '/api/distributions';
+const DISTRIBUTION_BASE = '/distributions';
 
 // ============ EVM Staff APIs ============
 
 /**
- * Step 1: EVM Staff gửi lời mời nhập hàng
+ * LUỒNG 1: EVM Staff gửi lời mời nhập hàng (Push Model)
  */
 export const sendDistributionInvitation = async (
   data: DistributionInvitationReq
@@ -33,10 +33,25 @@ export const sendDistributionInvitation = async (
  * Get all distributions (EVM Staff view)
  */
 export const getAllDistributions = async (): Promise<DistributionRes[]> => {
-  const response = await api.get<DistributionRes[]>(
+  const response = await api.get<any[]>(
     `${DISTRIBUTION_BASE}/listDistributions`
   );
-  return response.data;
+  
+  // Map backend response to frontend types
+  // Backend might use different field names
+  const mappedData = response.data.map((dist: any) => ({
+    ...dist,
+    // Ensure dealerId is properly mapped from possible backend field names
+    dealerId: dist.dealerId || dist.dealer_id || dist.dealer?.id || dist.dealerDTO?.id,
+    dealerName: dist.dealerName || dist.dealer_name || dist.dealer?.name || dist.dealerDTO?.name,
+  }));
+  
+  console.log('🔄 API Response Mapping:', {
+    original: response.data[0],
+    mapped: mappedData[0]
+  });
+  
+  return mappedData as DistributionRes[];
 };
 
 /**
@@ -60,6 +75,20 @@ export const approveDistributionOrder = async (
 ): Promise<DistributionRes> => {
   const response = await api.put<DistributionRes>(
     `${DISTRIBUTION_BASE}/${id}/approve`,
+    data
+  );
+  return response.data;
+};
+
+/**
+ * Step 4b: EVM Staff gửi lại báo giá (khi dealer từ chối giá)
+ */
+export const resendPrice = async (
+  id: number,
+  data: DistributionApprovalReq
+): Promise<DistributionRes> => {
+  const response = await api.put<DistributionRes>(
+    `${DISTRIBUTION_BASE}/${id}/resend-price`,
     data
   );
   return response.data;
@@ -104,6 +133,25 @@ export const deleteDistribution = async (id: number): Promise<string> => {
 };
 
 // ============ Dealer Manager APIs ============
+
+/**
+ * LUỒNG 2: Dealer Manager tạo yêu cầu xe trực tiếp (Pull Model)
+ * Bỏ qua bước invitation, trực tiếp tạo distribution với status PENDING
+ */
+export const createDealerRequest = async (
+  data: DistributionOrderReq
+): Promise<DistributionRes> => {
+  try {
+    const response = await api.post<DistributionRes>(
+      `${DISTRIBUTION_BASE}/dealer-request`,
+      data
+    );
+    return response.data;
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Request failed';
+    throw new Error(msg);
+  }
+};
 
 /**
  * Get distributions for specific dealer
@@ -169,6 +217,29 @@ export const confirmDistributionReceived = async (
   return response.data;
 };
 
+/**
+ * Step 4a: Dealer Manager phản hồi về giá hãng (chấp nhận hoặc từ chối)
+ */
+export const respondToManufacturerPrice = async (
+  id: number,
+  accepted: boolean,
+  dealerNotes?: string
+): Promise<DistributionRes> => {
+  try {
+    const response = await api.put<DistributionRes>(
+      `${DISTRIBUTION_BASE}/${id}/respond-price`,
+      {
+        decision: accepted ? 'PRICE_ACCEPTED' : 'PRICE_REJECTED',
+        dealerNotes: dealerNotes || '',
+      }
+    );
+    return response.data;
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Request failed';
+    throw new Error(msg);
+  }
+};
+
 // ============ Common APIs ============
 
 /**
@@ -225,3 +296,28 @@ export const planDelivery = planDistributionDelivery;
 export const respondInvitation = respondToInvitation;
 export const submitOrder = submitDistributionOrder;
 export const confirmReceived = confirmDistributionReceived;
+
+/**
+ * Tạo đơn phân phối bổ sung cho số lượng thiếu
+ * EVM Staff gọi API này khi duyệt đơn với số lượng < yêu cầu
+ */
+export const createSupplementaryDistribution = async (
+  parentDistributionId: number
+): Promise<DistributionRes> => {
+  try {
+    const response = await api.post<DistributionRes>(
+      `${DISTRIBUTION_BASE}/${parentDistributionId}/create-supplementary`
+    );
+    return response.data;
+  } catch (err: any) {
+    // Extract detailed error message from backend
+    const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create supplementary distribution';
+    console.error('❌ Create Supplementary Error:', {
+      status: err?.response?.status,
+      message: errorMsg,
+      data: err?.response?.data,
+      parentDistributionId
+    });
+    throw new Error(errorMsg);
+  }
+};

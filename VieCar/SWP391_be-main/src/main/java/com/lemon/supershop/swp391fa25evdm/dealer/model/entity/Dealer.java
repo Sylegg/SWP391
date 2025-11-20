@@ -34,6 +34,12 @@ public class Dealer {
     @Column(name = "Address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
+    @Column(name = "Latitude", columnDefinition = "DECIMAL(10,8)")
+    private Double latitude;
+
+    @Column(name = "Longitude", columnDefinition = "DECIMAL(11,8)")
+    private Double longitude;
+
     @Column(name = "Tax", columnDefinition = "VARCHAR(50)")
     private String taxcode;
 
@@ -109,6 +115,22 @@ public class Dealer {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 
     public String getTaxcode() {

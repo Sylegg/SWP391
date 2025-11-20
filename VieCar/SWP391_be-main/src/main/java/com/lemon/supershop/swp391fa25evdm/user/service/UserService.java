@@ -80,34 +80,69 @@ public class UserService {
         }).collect(Collectors.toList());
     }
 
+    public List<UserRes> findDealerStaffByDealerId(int dealerId) {
+        return userRepo.findByRole_NameAndDealer_Id("Dealer Staff", dealerId).stream().map(user -> {
+            return convertUsertoUserRes(user);
+        }).collect(Collectors.toList());
+    }
+
     public UserRes updateProfile(int id, UserReq dto){
         Optional<User> user = userRepo.findById(id);
         if(user.isPresent()){
-
-            if(dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
-                user.get().setPhone(dto.getPhone());
-            }
-            if (dto.getEmail() != null && EMAIL_PATTERN.matcher(dto.getEmail()).matches()){
-                user.get().setEmail(dto.getEmail());
-            }
-            if(dto.getUsername() != null){
+            // Update username
+            if(dto.getUsername() != null && !dto.getUsername().isEmpty()){
                 user.get().setUsername(dto.getUsername());
             }
-            if(dto.getAddress() != null){
-                user.get().setAddress(dto.getAddress());
+            
+            // Update phone - chỉ validate nếu không rỗng
+            if(dto.getPhone() != null){
+                if(dto.getPhone().isEmpty()){
+                    user.get().setPhone(null); // Cho phép xóa phone
+                } else if(PHONE_PATTERN.matcher(dto.getPhone()).matches()){
+                    user.get().setPhone(dto.getPhone());
+                }
             }
-            if (dto.getRoleName() != null){
+            
+            // Update email - chỉ validate nếu không rỗng
+            if (dto.getEmail() != null){
+                if(dto.getEmail().isEmpty()){
+                    user.get().setEmail(null); // Cho phép xóa email
+                } else if(EMAIL_PATTERN.matcher(dto.getEmail()).matches()){
+                    user.get().setEmail(dto.getEmail());
+                }
+            }
+            
+            // Update address
+            if(dto.getAddress() != null){
+                user.get().setAddress(dto.getAddress().isEmpty() ? null : dto.getAddress());
+            }
+            
+            // Update password - chỉ khi có giá trị mới
+            if(dto.getPassword() != null && !dto.getPassword().isEmpty()){
+                user.get().setPassword(dto.getPassword());
+            }
+            
+            // Update role
+            if (dto.getRoleName() != null && !dto.getRoleName().isEmpty()){
                 Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(dto.getRoleName());
                 if(role.isPresent()){
                     user.get().setRole(role.get());
                 }
             }
+            
+            // Update dealer
             if(dto.getDealerId() > 0){
                 Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
                 if(dealer.isPresent()){
                     user.get().setDealer(dealer.get());
                 }
             }
+            
+            // Update status
+            if(dto.getStatus() != null){
+                user.get().setStatus(dto.getStatus());
+            }
+            
             userRepo.save(user.get());
             return converttoRes(user.get());
         } else {
@@ -133,12 +168,43 @@ public class UserService {
         return false;
     }
 
+<<<<<<< HEAD
     public UserRes converttoRes(User user){
+=======
+    // Cập nhật dealer cho customer (giờ dùng chung field dealer)
+    public UserRes updatePreferredDealer(int userId, Integer dealerId) {
+        Optional<User> userOpt = userRepo.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            
+            if (dealerId == null) {
+                // Xóa dealer
+                user.setDealer(null);
+            } else {
+                // Set dealer
+                Optional<Dealer> dealerOpt = dealerRepo.findById(dealerId);
+                if (dealerOpt.isPresent()) {
+                    user.setDealer(dealerOpt.get());
+                } else {
+                    throw new RuntimeException("Dealer not found with id: " + dealerId);
+                }
+            }
+            
+            userRepo.save(user);
+            return convertUsertoUserRes(user);
+        } else {
+            throw new RuntimeException("User not found with id: " + userId);
+        }
+    }
+
+    public UserRes convertUsertoUserRes(User user){
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         UserRes dto = new UserRes();
         if(user != null){
             dto.setId(user.getId());
             if(user.getUsername() != null){
                 dto.setName(user.getUsername());
+                dto.setUsername(user.getUsername());  // Set both name and username for compatibility
             }
             if(user.getEmail() != null){
                 dto.setEmail(user.getEmail());
@@ -155,6 +221,10 @@ public class UserService {
             if (user.getStatus() != null){
                 dto.setStatus(user.getStatus());
             }
+<<<<<<< HEAD
+=======
+            // Thêm thông tin dealer (dùng cho cả staff và customer)
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
             if(user.getDealer() != null){
                 dto.setDealerName(user.getDealer().getName());
                 dto.setDealerAddress(user.getDealer().getAddress());

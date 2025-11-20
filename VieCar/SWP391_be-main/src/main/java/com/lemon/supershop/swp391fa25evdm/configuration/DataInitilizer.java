@@ -14,16 +14,18 @@ public class DataInitilizer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        Role role1 = new Role("Admin", "Manage the entire system");
-        Role role2 = new Role("Customer", "Customer is king");
-        Role role3 = new Role("EVM Staff", "");
-        Role role4 = new Role("Dealer Manager", "Manage the dealer");
-        Role role5 = new Role("Dealer Staff", "");
+        // Only insert default roles if they don't already exist
+        createRoleIfMissing("Admin", "Manage the entire system");
+        createRoleIfMissing("Customer", "Customer is king");
+        createRoleIfMissing("EVM Staff", "");
+        createRoleIfMissing("Dealer Manager", "Manage the dealer");
+        createRoleIfMissing("Dealer Staff", "");
+    }
 
-        roleRepo.save(role1);
-        roleRepo.save(role2);
-        roleRepo.save(role3);
-        roleRepo.save(role4);
-        roleRepo.save(role5);
+    private void createRoleIfMissing(String name, String description) {
+        boolean exists = roleRepo.findByNameContainingIgnoreCase(name).isPresent();
+        if (!exists) {
+            roleRepo.save(new Role(name, description));
+        }
     }
 }

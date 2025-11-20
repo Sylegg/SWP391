@@ -12,6 +12,7 @@ public class CategoryRes {
     private Boolean isSpecial;
     private String description;
     private String status;
+    private Integer dealerId; // null if created by EVM/Admin, set if created by Dealer Manager
 
     public CategoryRes(){}
 
@@ -93,5 +94,13 @@ public class CategoryRes {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Integer getDealerId() {
+        return dealerId;
+    }
+
+    public void setDealerId(Integer dealerId) {
+        this.dealerId = dealerId;
     }
 }

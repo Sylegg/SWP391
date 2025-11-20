@@ -1,4 +1,4 @@
-package com.lemon.supershop.swp391fa25evdm.product.controller;
+package com.lemon.supershop.swp391fa25evdm.product.Controller;
 
 import java.util.List;
 
@@ -51,6 +51,12 @@ public class ProductController {
     @GetMapping("/search/category/{categoryId}")
     public ResponseEntity<List<ProductRes>> getProductsByCategoryId(@PathVariable Integer categoryId) {
         List<ProductRes> products = productService.getProductByCategoryId(categoryId);
+        return ResponseEntity.ok(products);
+    }
+    
+    @GetMapping("/search/dealerCategory/{dealerCategoryId}")
+    public ResponseEntity<List<ProductRes>> getProductsByDealerCategoryId(@PathVariable int dealerCategoryId) {
+        List<ProductRes> products = productService.getProductByDealerCategoryId(dealerCategoryId);
         return ResponseEntity.ok(products);
     }
 

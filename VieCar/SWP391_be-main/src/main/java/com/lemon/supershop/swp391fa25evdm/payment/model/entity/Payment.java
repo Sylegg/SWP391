@@ -56,7 +56,23 @@ public class Payment {
     private Date paidAt;
 
     @Column(name = "UpdateAt", columnDefinition = "DATETIME2")
+<<<<<<< HEAD
     private Date UpdateAt;
+=======
+    private Date updateAt;
+
+    @Column(name = "Trans_Code", unique = true)
+    private String transactionCode; // VNPay transaction number
+
+    @Column(name = "OrderVnp_Id", unique = true)
+    private String vnpOrderId; // Order reference ID
+
+    @Column(name = "Bank_Code", columnDefinition = "VARCHAR(20)")
+    private String bankCode; // NCB, VIETCOMBANK, etc.
+
+    @Column(name = "Response_Code", columnDefinition = "VARCHAR(5)")
+    private String responseCode; // 00 = success, 24 = cancel, etc.
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 
     @Column(name = "Provider_Response", columnDefinition = "TEXT")
     private String providerResponse; // Raw JSON response from provider
@@ -139,6 +155,17 @@ public class Payment {
         this.preOrder = preOrder;
     }
 
+<<<<<<< HEAD
+=======
+    public Date getUpdateAt() {
+        return updateAt;
+    }
+
+    public void setUpdateAt(Date updateAt) {
+        this.updateAt = updateAt;
+    }
+
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
     public String getTransactionCode() {
         return transactionCode;
     }
@@ -178,6 +205,7 @@ public class Payment {
     public void setProviderResponse(String providerResponse) {
         this.providerResponse = providerResponse;
     }
+<<<<<<< HEAD
 
     public Date getUpdateAt() {
         return UpdateAt;
@@ -186,4 +214,6 @@ public class Payment {
     public void setUpdateAt(Date updateAt) {
         UpdateAt = updateAt;
     }
+=======
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
 }

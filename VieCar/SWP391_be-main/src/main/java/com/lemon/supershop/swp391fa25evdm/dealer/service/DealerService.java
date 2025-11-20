@@ -65,6 +65,12 @@ public class DealerService {
         if (dto.getAddress() !=  null){
             dealer.setAddress(dto.getAddress());
         }
+        if (dto.getLatitude() != null){
+            dealer.setLatitude(dto.getLatitude());
+        }
+        if (dto.getLongitude() != null){
+            dealer.setLongitude(dto.getLongitude());
+        }
         if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()) {
             dealer.setPhone(dto.getPhone());
         }
@@ -102,6 +108,12 @@ public class DealerService {
             if (dto.getAddress() !=  null){
                 dealer.setAddress(dto.getAddress());
             }
+            if (dto.getLatitude() != null){
+                dealer.setLatitude(dto.getLatitude());
+            }
+            if (dto.getLongitude() != null){
+                dealer.setLongitude(dto.getLongitude());
+            }
             if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()) {
                 dealer.setPhone(dto.getPhone());
             }
@@ -134,6 +146,12 @@ public class DealerService {
             }
             if (dealer.getAddress() != null) {
                 dto.setAddress(dealer.getAddress());
+            }
+            if (dealer.getLatitude() != null) {
+                dto.setLatitude(dealer.getLatitude());
+            }
+            if (dealer.getLongitude() != null) {
+                dto.setLongitude(dealer.getLongitude());
             }
             if (dealer.getPhone() != null) {
                 dto.setPhone(dealer.getPhone());

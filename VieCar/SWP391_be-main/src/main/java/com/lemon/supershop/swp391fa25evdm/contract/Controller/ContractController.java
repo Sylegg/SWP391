@@ -1,4 +1,4 @@
-package com.lemon.supershop.swp391fa25evdm.contract.controller;
+package com.lemon.supershop.swp391fa25evdm.contract.Controller;
 
 import java.util.List;
 

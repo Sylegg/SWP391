@@ -12,6 +12,7 @@ import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryReq;
 import com.lemon.supershop.swp391fa25evdm.category.model.dto.CategoryRes;
 import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepository;
+import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 
 @Service
 @Transactional
@@ -19,6 +20,9 @@ public class CategoryService {
 
     @Autowired
     private CategoryRepository categoryRepository;
+    
+    @Autowired
+    private DealerRepo dealerRepo;
 
     public List<CategoryRes> getAllCategories() {
         List<Category> categories = categoryRepository.findAll();
@@ -42,9 +46,19 @@ public class CategoryService {
         if (dto == null) {
             throw new IllegalArgumentException("Category data cannot be null");
         }
-        if (dto.getName() != null && categoryRepository.existsByNameIgnoreCase(dto.getName())) {
-            throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+        
+        // Check for duplicate name within the same dealer
+        if (dto.getName() != null && dto.getDealerId() != null) {
+            if (categoryRepository.existsByNameIgnoreCaseAndDealerId(dto.getName(), dto.getDealerId())) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists for this dealer");
+            }
+        } else if (dto.getName() != null && dto.getDealerId() == null) {
+            // For system-wide categories (no dealerId), check globally
+            if (categoryRepository.existsByNameIgnoreCase(dto.getName())) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+            }
         }
+        
         Category category = convertToEntity(dto);
         categoryRepository.save(category);
         return convertToRes(category);
@@ -57,9 +71,19 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
 
-        Optional<Category> nameCheck = categoryRepository.findByNameIgnoreCase(dto.getName());
-        if (nameCheck.isPresent() && !Objects.equals(nameCheck.get().getId(), id)) {
-            throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+        // Check for duplicate name within the same dealer (exclude current category)
+        if (dto.getName() != null && category.getDealer() != null) {
+            Optional<Category> nameCheck = categoryRepository.findByNameIgnoreCaseAndDealerId(
+                dto.getName(), category.getDealer().getId());
+            if (nameCheck.isPresent() && !Objects.equals(nameCheck.get().getId(), id)) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists for this dealer");
+            }
+        } else if (dto.getName() != null && category.getDealer() == null) {
+            // For system-wide categories (no dealer), check globally
+            Optional<Category> nameCheck = categoryRepository.findByNameIgnoreCase(dto.getName());
+            if (nameCheck.isPresent() && !Objects.equals(nameCheck.get().getId(), id)) {
+                throw new RuntimeException("Category with name '" + dto.getName() + "' already exists");
+            }
         }
 
         category.setName(dto.getName());
@@ -111,6 +135,14 @@ public class CategoryService {
         return categories.stream().map(this::convertToRes).toList();
     }
 
+    public List<CategoryRes> getCategoriesByDealerId(Integer dealerId) {
+        if (dealerId == null || dealerId <= 0) {
+            throw new IllegalArgumentException("Dealer ID must be a positive number");
+        }
+        List<Category> categories = categoryRepository.findByDealerId(dealerId);
+        return categories.stream().map(this::convertToRes).toList();
+    }
+
     // Helper methods for conversion
     private Category convertToEntity(CategoryReq dto) {
         Category category = new Category();
@@ -123,8 +155,18 @@ public class CategoryService {
         category.setBasePrice(dto.getBasePrice());
         category.setWarranty(dto.getWarranty());
         category.setDescription(dto.getDescription());
+<<<<<<< HEAD
         category.setStatus(dto.getStatus());
         category.setSpecial(dto.isSpecial());
+=======
+        category.setStatus(dto.getStatus() != null ? dto.getStatus() : "ACTIVE");
+        
+        // Set dealer if dealerId is provided
+        if (dto.getDealerId() != null && dto.getDealerId() > 0) {
+            dealerRepo.findById(dto.getDealerId()).ifPresent(category::setDealer);
+        }
+        
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
         return category;
     }
 
@@ -173,6 +215,10 @@ public class CategoryService {
             }
             if (category.getStatus() != null){
                 categoryRes.setStatus(category.getStatus());
+            }
+            // Set dealerId if dealer exists
+            if (category.getDealer() != null) {
+                categoryRes.setDealerId(category.getDealer().getId());
             }
             return categoryRes;
         } else {

@@ -1,6 +1,8 @@
 package com.lemon.supershop.swp391fa25evdm.authentication.service;
 
 import com.lemon.supershop.swp391fa25evdm.authentication.model.dto.*;
+import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
+import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.refra.JwtUtil;
 import com.lemon.supershop.swp391fa25evdm.role.model.entity.Role;
 import com.lemon.supershop.swp391fa25evdm.role.repository.RoleRepo;
@@ -21,6 +23,9 @@ public class AuthenService {
 
     @Autowired
     private RoleRepo roleRepo;
+
+    @Autowired
+    private DealerRepo dealerRepo;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -46,7 +51,19 @@ public class AuthenService {
         if (!user.isPresent()) {
             throw new RuntimeException("User not found");
         }
+<<<<<<< HEAD
         if (!user.get().getPassword().equals(dto.getPassword())) {
+=======
+        
+        User user = userOpt.get();
+        
+        // Kiểm tra trạng thái tài khoản
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new RuntimeException("Account inactive");
+        }
+        
+        if (!user.getPassword().equals(dto.getPassword())) {
+>>>>>>> f80fcac20c192e521fe159a9f41c5d8b008885b9
             throw new RuntimeException("Invalid password");
         }
 
@@ -60,6 +77,7 @@ public class AuthenService {
 
     public void register(RegisterReq dto) {
         User user = new User();
+        user.setId(0); // Ensure ID is 0 for new entity (JPA will generate new ID)
         User newUser = converttoEntity(user, dto);
         if (newUser != null) {
             userRepo.save(newUser);
@@ -86,7 +104,7 @@ public class AuthenService {
                 Optional<Role> role = roleRepo.findByNameContainingIgnoreCase(dto.getRoleName());
                 if (role.isPresent()) {
                     user.setRole(role.get());
-                    role.get().addUser(user);
+                    // ❌ REMOVED: role.get().addUser(user); - Causes Hibernate session conflict
                 }
             }
             if (dto.getPhone() != null && PHONE_PATTERN.matcher(dto.getPhone()).matches()){
@@ -107,6 +125,13 @@ public class AuthenService {
             }
             if (dto.getAddress() != null){
                 user.setAddress(dto.getAddress());
+            }
+            // Set dealer if dealerId is provided
+            if (dto.getDealerId() != null && dto.getDealerId() > 0) {
+                Optional<Dealer> dealer = dealerRepo.findById(dto.getDealerId());
+                if (dealer.isPresent()) {
+                    user.setDealer(dealer.get());
+                }
             }
             user.setStatus(UserStatus.ACTIVE);
             return user;

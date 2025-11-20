@@ -10,6 +10,7 @@ public class CategoryReq {
     private Boolean isSpecial;
     private String description;
     private String status;
+    private Integer dealerId; // Optional: null for EVM/Admin categories, set for Dealer Manager categories
 
     public CategoryReq() {
     }
@@ -84,5 +85,13 @@ public class CategoryReq {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Integer getDealerId() {
+        return dealerId;
+    }
+
+    public void setDealerId(Integer dealerId) {
+        this.dealerId = dealerId;
     }
 }
