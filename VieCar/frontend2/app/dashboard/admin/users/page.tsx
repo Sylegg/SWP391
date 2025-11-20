@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 
 // Role types
-type RoleName = 'ADMIN' | 'DEALER_MANAGER' | 'DEALER_STAFF' | 'EVM_STAFF' | 'CUSTOMER';
+type RoleName = 'ADMIN' | 'DEALER_MANAGER' | 'DEALER_STAFF' | 'EVM_STAFF' | 'CUSTOMER' | 'Dealer Manager' | 'Dealer Staff' | 'Admin' | 'EVM Staff' | 'Customer';
 
 interface CreateUserReq {
   username: string;
@@ -376,6 +376,19 @@ export default function AdminUsersPage() {
       toast({
         title: '⚠️ Số điện thoại không hợp lệ',
         description: 'Số điện thoại phải bắt đầu bằng số 0 và có đúng 10 chữ số',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate dealerId for DEALER_MANAGER and DEALER_STAFF roles
+    if ((editFormData.roleName === 'DEALER_MANAGER' || editFormData.roleName === 'DEALER_STAFF' ||
+         editFormData.roleName === 'Dealer Manager' || editFormData.roleName === 'Dealer Staff') && 
+        !editFormData.dealerId) {
+      toast({
+        title: '⚠️ Thiếu thông tin',
+        description: 'Vui lòng chọn đại lý cho vai trò này',
         variant: 'destructive',
         duration: 3000,
       });
@@ -806,7 +819,16 @@ export default function AdminUsersPage() {
                     <Label htmlFor="edit-role">Vai trò *</Label>
                     <Select 
                       value={editFormData.roleName} 
-                      onValueChange={(value) => setEditFormData({ ...editFormData, roleName: value as RoleName })}
+                      onValueChange={(value) => {
+                        const newRole = value as RoleName;
+                        // Reset dealerId if not dealer-related role
+                        if (newRole !== 'DEALER_MANAGER' && newRole !== 'DEALER_STAFF' && 
+                            newRole !== 'Dealer Manager' && newRole !== 'Dealer Staff') {
+                          setEditFormData({ ...editFormData, roleName: newRole, dealerId: undefined });
+                        } else {
+                          setEditFormData({ ...editFormData, roleName: newRole });
+                        }
+                      }}
                       disabled={loadingRoles}
                     >
                       <SelectTrigger>
@@ -850,7 +872,9 @@ export default function AdminUsersPage() {
 
                 {/* Dealer selection - only show for DEALER_MANAGER and DEALER_STAFF */}
                 {(editFormData.roleName === 'DEALER_MANAGER' || 
-                  editFormData.roleName === 'DEALER_STAFF') && (
+                  editFormData.roleName === 'DEALER_STAFF' ||
+                  editFormData.roleName === 'Dealer Manager' ||
+                  editFormData.roleName === 'Dealer Staff') && (
                   <div className="space-y-2">
                     <Label htmlFor="edit-dealer">Đại lý *</Label>
                     <Select 

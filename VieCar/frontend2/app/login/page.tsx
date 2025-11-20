@@ -391,22 +391,10 @@ export default function LoginPage() {
                               <span>Admin</span>
                             </div>
                           </SelectItem>
-                          <SelectItem value="EVM Staff" className="rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <UserCircle className="h-4 w-4 text-cyan-600" />
-                              <span>EVM Staff</span>
-                            </div>
-                          </SelectItem>
                           <SelectItem value="Dealer Manager" className="rounded-lg">
                             <div className="flex items-center gap-2">
                               <Building className="h-4 w-4 text-amber-600" />
                               <span>Dealer Manager</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="Dealer Staff" className="rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-green-600" />
-                              <span>Dealer Staff</span>
                             </div>
                           </SelectItem>
                         </SelectContent>

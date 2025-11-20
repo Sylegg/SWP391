@@ -11,6 +11,7 @@ public class DistributionItemRes {
     private CategoryRes category; // Category object để hiển thị name
     private String color;
     private Integer quantity;
+    private Integer approvedQuantity; // Số lượng EVM duyệt
     private BigDecimal dealerPrice;
 
     public DistributionItemRes() {}
@@ -45,6 +46,14 @@ public class DistributionItemRes {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getApprovedQuantity() {
+        return approvedQuantity;
+    }
+
+    public void setApprovedQuantity(Integer approvedQuantity) {
+        this.approvedQuantity = approvedQuantity;
     }
 
     public BigDecimal getDealerPrice() {

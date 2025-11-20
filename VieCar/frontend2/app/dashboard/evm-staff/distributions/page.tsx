@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
@@ -125,7 +124,6 @@ export default function EvmDistributionsPage() {
     name: string;
     color?: string;
     requested: number;
-    approved: boolean;
     approvedQuantity: number;
     manufacturerPrice: number;
   }[]>([]);
@@ -475,7 +473,6 @@ export default function EvmDistributionsPage() {
       name: it.product?.name || it.category?.name || 'Sản phẩm',
       color: it.color,
       requested: it.quantity || 0,
-      approved: true,
       approvedQuantity: it.quantity || 0,
       manufacturerPrice: 0, // Initialize with 0
     }));
@@ -485,7 +482,7 @@ export default function EvmDistributionsPage() {
   };
 
   const totalRequested = reviewItems.reduce((sum, it) => sum + (it.requested || 0), 0);
-  const totalApproved = reviewItems.reduce((sum, it) => sum + (it.approved ? (it.approvedQuantity || 0) : 0), 0);
+  const totalApproved = reviewItems.reduce((sum, it) => sum + (it.approvedQuantity || 0), 0);
 
   const handleSubmitReview = async () => {
     if (!selectedDistribution) return;
@@ -494,13 +491,14 @@ export default function EvmDistributionsPage() {
       return;
     }
     
-    // Validate quantities and prices for approved items
+    // Validate quantities and prices for items with quantity > 0
     const missingPriceItems: string[] = [];
     const invalidQuantityItems: string[] = [];
     
     for (const it of reviewItems) {
-      if (it.approved) {
-        if (it.approvedQuantity <= 0 || it.approvedQuantity > it.requested) {
+      // Only validate items with approvedQuantity > 0
+      if (it.approvedQuantity > 0) {
+        if (it.approvedQuantity > it.requested) {
           invalidQuantityItems.push(it.name);
         }
         if (!it.manufacturerPrice || it.manufacturerPrice <= 0) {
@@ -512,7 +510,7 @@ export default function EvmDistributionsPage() {
     if (invalidQuantityItems.length > 0) {
       toast({ 
         title: '⚠️ Số lượng không hợp lệ', 
-        description: `Các dòng sau có số lượng không hợp lệ: ${invalidQuantityItems.join(', ')}`, 
+        description: `Các dòng sau có số lượng vượt yêu cầu: ${invalidQuantityItems.join(', ')}`, 
         variant: 'destructive',
         duration: 3000,
       });
@@ -522,33 +520,34 @@ export default function EvmDistributionsPage() {
     if (missingPriceItems.length > 0) {
       toast({ 
         title: '⚠️ Thiếu giá hãng', 
-        description: `Vui lòng nhập giá hãng cho: ${missingPriceItems.join(', ')}`, 
+        description: `Vui lòng nhập giá hãng cho các dòng có số lượng: ${missingPriceItems.join(', ')}`, 
         variant: 'destructive',
         duration: 3000,
       });
       return;
     }
     
-    const approvedQty = reviewItems.filter(i => i.approved).reduce((s, i) => s + (i.approvedQuantity || 0), 0);
+    // Calculate total approved quantity (items with quantity > 0)
+    const approvedQty = reviewItems.reduce((s, i) => s + (i.approvedQuantity || 0), 0);
     if (approvedQty <= 0) {
-      toast({ title: '⚠️ Chưa chọn dòng nào', description: 'Chọn ít nhất 1 dòng để duyệt', variant: 'destructive', duration: 3000 });
+      toast({ title: '⚠️ Chưa nhập số lượng', description: 'Vui lòng nhập số lượng duyệt cho ít nhất 1 dòng', variant: 'destructive', duration: 3000 });
       return;
     }
 
     const requestedQty = selectedDistribution.requestedQuantity || 0;
     const isInsufficientQty = approvedQty < requestedQty;
 
-    // Calculate average manufacturer price from approved items
-    const approvedItems = reviewItems.filter(i => i.approved);
-    const avgManufacturerPrice = approvedItems.length > 0 
-      ? approvedItems.reduce((sum, it) => sum + it.manufacturerPrice, 0) / approvedItems.length 
+    // Calculate average manufacturer price from items with quantity > 0
+    const itemsWithQty = reviewItems.filter(i => i.approvedQuantity > 0);
+    const avgManufacturerPrice = itemsWithQty.length > 0 
+      ? itemsWithQty.reduce((sum, it) => sum + it.manufacturerPrice, 0) / itemsWithQty.length 
       : 0;
 
     // Validate average price
     if (!avgManufacturerPrice || avgManufacturerPrice <= 0) {
       toast({ 
         title: '⚠️ Giá hãng không hợp lệ', 
-        description: 'Vui lòng kiểm tra lại giá hãng của các dòng xe đã chọn', 
+        description: 'Vui lòng kiểm tra lại giá hãng của các dòng xe có số lượng', 
         variant: 'destructive',
         duration: 3000,
       });
@@ -561,16 +560,14 @@ export default function EvmDistributionsPage() {
         approvedQuantity: approvedQty,
         manufacturerPrice: Math.round(avgManufacturerPrice), // Use average price
         evmNotes: `Duyệt theo dòng: ${reviewItems.map(it => 
-          `${it.name}${it.color ? ' ('+it.color+')' : ''}: ${it.approved ? `${it.approvedQuantity}/${it.requested} xe @ ${it.manufacturerPrice.toLocaleString()} VND` : '0/'+it.requested}`
+          `${it.name}${it.color ? ' ('+it.color+')' : ''}: ${it.approvedQuantity > 0 ? `${it.approvedQuantity}/${it.requested} xe @ ${it.manufacturerPrice.toLocaleString()} VND` : '0/'+it.requested}`
         ).join('; ')}${reviewNote ? ` | Ghi chú: ${reviewNote}` : ''}`,
-        // 🔥 GỬI ITEMS VỚI GIÁ HÃNG VÀ SỐ LƯỢNG RIÊNG CHO TỪNG DÒNG
-        items: reviewItems
-          .filter(it => it.approved)
-          .map(it => ({
-            distributionItemId: it.id,
-            dealerPrice: it.manufacturerPrice, // Giá hãng bán cho dealer (backend expects dealerPrice)
-            approvedQuantity: it.approvedQuantity, // Số lượng EVM duyệt
-          })),
+        // 🔥 GỬI TẤT CẢ ITEMS (kể cả items có số lượng 0)
+        items: reviewItems.map(it => ({
+          distributionItemId: it.id,
+          dealerPrice: it.approvedQuantity > 0 ? it.manufacturerPrice : 0, // Giá hãng (0 nếu số lượng = 0)
+          approvedQuantity: it.approvedQuantity || 0, // Số lượng duyệt (có thể là 0)
+        })),
       };
 
       console.log('🔥 Sending approval with items (manufacturerPrice + quantity):', requestData);
@@ -1354,14 +1351,17 @@ export default function EvmDistributionsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="message">Lời nhắn</Label>
+                  <Label htmlFor="message">Lời nhắn cho đại lý</Label>
                   <Textarea
                     id="message"
-                    placeholder="VD: Hãng đang mở đợt phân phối tháng 11, quý đại lý có muốn nhập không?"
+                    placeholder="Hãy nhập lời nhắn của bạn tại đây..."
                     value={inviteForm.message}
                     onChange={(e) => setInviteForm({ ...inviteForm, message: e.target.value })}
-                    rows={3}
+                    rows={4}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Lời nhắn này sẽ được gửi đến đại lý cùng với lời mời nhập hàng
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="deadline">Hạn phản hồi</Label>
@@ -1524,16 +1524,6 @@ export default function EvmDistributionsPage() {
                                 {it.color ? `Màu: ${it.color} • ` : ''}Yêu cầu: {it.requested}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={it.approved}
-                                onCheckedChange={(checked) => {
-                                  const val = Boolean(checked);
-                                  setReviewItems((prev) => prev.map((x) => x.id === it.id ? { ...x, approved: val, approvedQuantity: val ? (x.approvedQuantity || x.requested) : 0 } : x));
-                                }}
-                              />
-                              <span className="text-sm">Duyệt</span>
-                            </div>
                           </div>
                           <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
@@ -1543,7 +1533,7 @@ export default function EvmDistributionsPage() {
                                 min={0}
                                 max={it.requested}
                                 value={it.approvedQuantity}
-                                disabled={!it.approved || selectedDistribution?.isSupplementary}
+                                disabled={selectedDistribution?.isSupplementary}
                                 onChange={(e) => {
                                   const v = Math.max(0, Math.min(it.requested, Number(e.target.value)));
                                   setReviewItems((prev) => prev.map((x) => x.id === it.id ? { ...x, approvedQuantity: v } : x));
@@ -1561,7 +1551,6 @@ export default function EvmDistributionsPage() {
                                 type="text"
                                 placeholder="VD: 50000000 hoặc 50.000.000"
                                 value={it.manufacturerPrice ? it.manufacturerPrice.toLocaleString('vi-VN') : ''}
-                                disabled={!it.approved}
                                 onChange={(e) => {
                                   // Remove all non-digit characters (dots, commas, spaces)
                                   const numericValue = e.target.value.replace(/[^\d]/g, '');
@@ -1599,6 +1588,23 @@ export default function EvmDistributionsPage() {
                                 totalApproved < totalRequested ? 'text-amber-700' : 'text-blue-700'
                               }`}>
                                 Dealer sẽ nhận báo giá và phải xác nhận trước khi lên kế hoạch giao hàng.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Warning when no items approved */}
+                      {totalApproved === 0 && reviewItems.length > 0 && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                          <div className="flex items-start gap-2">
+                            <span className="text-red-600">🚫</span>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-red-800">
+                                Không có dòng nào được duyệt
+                              </p>
+                              <p className="text-xs mt-1 text-red-700">
+                                Bạn cần duyệt ít nhất 1 dòng sản phẩm để gửi báo giá cho dealer. Các dòng không được duyệt sẽ được gửi với số lượng 0.
                               </p>
                             </div>
                           </div>
@@ -1697,7 +1703,7 @@ export default function EvmDistributionsPage() {
 
           {/* Dialog: Distribution Detail - Glass Effect */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-7xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -1750,17 +1756,35 @@ export default function EvmDistributionsPage() {
                     <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-4 rounded-xl border border-green-200/30">
                       <div className="flex items-center gap-2 mb-2">
                         <Package className="h-5 w-5 text-green-600" />
-                        <Label className="text-xs text-green-700 dark:text-green-300 font-semibold uppercase">Tổng số lượng</Label>
+                        <Label className="text-xs text-green-700 dark:text-green-300 font-semibold uppercase">Số lượng</Label>
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-bold text-green-600">
-                          {selectedDistribution.requestedQuantity || selectedDistribution.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0}
-                        </p>
-                        <span className="text-sm text-gray-600">xe</span>
+                      <div className="space-y-1">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-sm text-gray-600">Yêu cầu:</span>
+                          <p className="text-xl font-bold text-blue-600">
+                            {selectedDistribution.requestedQuantity || selectedDistribution.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0}
+                          </p>
+                          <span className="text-xs text-gray-600">xe</span>
+                        </div>
+                        {selectedDistribution.items?.some(it => it.approvedQuantity !== undefined) && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm text-gray-600">Duyệt:</span>
+                            <p className="text-xl font-bold text-green-600">
+                              {selectedDistribution.items?.reduce((s, it) => s + (it.approvedQuantity || 0), 0) || 0}
+                            </p>
+                            <span className="text-xs text-gray-600">xe</span>
+                          </div>
+                        )}
+                        {selectedDistribution.receivedQuantity && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm text-gray-600">Đã nhận:</span>
+                            <p className="text-xl font-bold text-purple-600">
+                              {selectedDistribution.receivedQuantity}
+                            </p>
+                            <span className="text-xs text-gray-600">xe</span>
+                          </div>
+                        )}
                       </div>
-                      {selectedDistribution.receivedQuantity && (
-                        <p className="text-xs text-green-600 mt-1">Đã nhận: {selectedDistribution.receivedQuantity} xe</p>
-                      )}
                     </div>
                   </div>
                   
@@ -1820,65 +1844,64 @@ export default function EvmDistributionsPage() {
                           {selectedDistribution.items.length} loại xe
                         </Badge>
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
+                      <div>
+                        <table className="w-full table-fixed">
                           <thead>
                             <tr className="border-b-2 border-green-300/50">
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">#</th>
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Sản phẩm</th>
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Màu sắc</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-10">#</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Sản phẩm</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-20 whitespace-nowrap">Màu</th>
                               {selectedDistribution.items?.some(it => it.dealerPrice) && (
-                                <th className="text-right py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Giá hãng</th>
+                                <th className="text-right py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-24 whitespace-nowrap">Giá</th>
                               )}
-                              <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Yêu cầu</th>
-                              {selectedDistribution.items?.some(it => it.approvedQuantity) && (
-                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã duyệt</th>
+                              <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">YC</th>
+                              {selectedDistribution.items?.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null) && (
+                                <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">Duyệt</th>
                               )}
                               {selectedDistribution.items?.some(it => it.receivedQuantity) && (
-                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã nhận</th>
+                                <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">Nhận</th>
                               )}
                             </tr>
                           </thead>
                           <tbody>
                             {selectedDistribution.items.map((it, idx) => (
                               <tr key={idx} className="border-b border-green-200/30 hover:bg-green-100/30 dark:hover:bg-green-900/20 transition-colors">
-                                <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-400">{idx + 1}</td>
-                                <td className="py-3 px-3">
-                                  <div className="font-semibold text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
-                                  {it.product?.vinNum && <div className="text-xs text-gray-500 mt-0.5">{it.product.vinNum}</div>}
+                                <td className="py-2 px-2 text-xs text-gray-600 dark:text-gray-400">{idx + 1}</td>
+                                <td className="py-2 px-2 overflow-hidden">
+                                  <div className="font-semibold text-xs text-gray-900 dark:text-white truncate" title={it.product?.name || it.category?.name}>{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
                                 </td>
-                                <td className="py-3 px-3">
-                                  {it.color && (
-                                    <Badge variant="outline" className="text-xs">
+                                <td className="py-2 px-2 overflow-hidden">
+                                  {it.color ? (
+                                    <span className="text-xs text-gray-700 dark:text-gray-300 truncate block" title={it.color}>
                                       🎨 {it.color}
-                                    </Badge>
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">-</span>
                                   )}
                                 </td>
                                 {selectedDistribution.items?.some(item => item.dealerPrice) && (
-                                  <td className="py-3 px-3 text-right">
+                                  <td className="py-2 px-2 text-right">
                                     {it.dealerPrice ? (
-                                      <div className="font-semibold text-amber-700 dark:text-amber-400">
-                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} ₫
+                                      <div className="font-semibold text-xs text-amber-700 dark:text-amber-400 truncate" title={Number(it.dealerPrice).toLocaleString('vi-VN') + ' ₫'}>
+                                        {(Number(it.dealerPrice) / 1000000).toFixed(0)}tr
                                       </div>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
                                   </td>
                                 )}
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-blue-600">{it.quantity || 0}</span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-sm text-blue-600">{it.quantity || 0}</span>
                                 </td>
-                                {selectedDistribution.items?.some(item => item.approvedQuantity) && (
-                                  <td className="py-3 px-3 text-center">
-                                    {it.approvedQuantity ? (
+                                {selectedDistribution.items?.some(item => item.approvedQuantity !== undefined && item.approvedQuantity !== null) && (
+                                  <td className="py-2 px-2 text-center">
+                                    {it.approvedQuantity !== undefined && it.approvedQuantity !== null ? (
                                       <>
-                                        <span className="font-bold text-green-600">{it.approvedQuantity}</span>
-                                        <span className="text-xs text-gray-500 ml-1">xe</span>
-                                        {it.quantity && it.approvedQuantity < it.quantity && (
-                                          <div className="text-xs text-orange-600 mt-0.5">
-                                            Thiếu: {it.quantity - it.approvedQuantity}
-                                          </div>
+                                        <span className={`font-bold text-sm ${it.approvedQuantity > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                          {it.approvedQuantity}
+                                        </span>
+                                        {it.quantity && it.approvedQuantity < it.quantity && it.approvedQuantity > 0 && (
+                                          <div className="text-xs text-orange-600">-{it.quantity - it.approvedQuantity}</div>
                                         )}
                                       </>
                                     ) : (
@@ -1887,12 +1910,9 @@ export default function EvmDistributionsPage() {
                                   </td>
                                 )}
                                 {selectedDistribution.items?.some(item => item.receivedQuantity) && (
-                                  <td className="py-3 px-3 text-center">
+                                  <td className="py-2 px-2 text-center">
                                     {it.receivedQuantity ? (
-                                      <>
-                                        <span className="font-bold text-purple-600">{it.receivedQuantity}</span>
-                                        <span className="text-xs text-gray-500 ml-1">xe</span>
-                                      </>
+                                      <span className="font-bold text-sm text-purple-600">{it.receivedQuantity}</span>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
@@ -1903,29 +1923,26 @@ export default function EvmDistributionsPage() {
                           </tbody>
                           <tfoot>
                             <tr className="border-t-2 border-green-300/50 bg-green-100/50 dark:bg-green-900/30">
-                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-3 px-3 text-sm font-bold text-green-800 dark:text-green-200">
-                                Tổng cộng
+                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-2 px-2 text-xs font-bold text-green-800 dark:text-green-200">
+                                Tổng
                               </td>
-                              <td className="py-3 px-3 text-center">
-                                <span className="font-bold text-blue-600 text-base">
+                              <td className="py-2 px-2 text-center">
+                                <span className="font-bold text-blue-600 text-sm">
                                   {selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)}
                                 </span>
-                                <span className="text-xs text-gray-500 ml-1">xe</span>
                               </td>
-                              {selectedDistribution.items?.some(it => it.approvedQuantity) && (
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-green-600 text-base">
+                              {selectedDistribution.items?.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null) && (
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-green-600 text-sm">
                                     {selectedDistribution.items.reduce((s, it) => s + (it.approvedQuantity || 0), 0)}
                                   </span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
                                 </td>
                               )}
                               {selectedDistribution.items?.some(it => it.receivedQuantity) && (
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-purple-600 text-base">
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-purple-600 text-sm">
                                     {selectedDistribution.items.reduce((s, it) => s + (it.receivedQuantity || 0), 0)}
                                   </span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
                                 </td>
                               )}
                             </tr>

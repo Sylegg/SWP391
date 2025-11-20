@@ -309,19 +309,31 @@ public class DistributionService {
             
             // 🔥 XỬ LÝ GIÁ RIÊNG CHO TỪNG ITEM (nếu có)
             if (req.getItems() != null && !req.getItems().isEmpty() && distribution.getItems() != null) {
+                System.out.println("🔥 Processing items with prices: " + req.getItems().size() + " items");
                 // EVM đã set giá riêng cho từng item
                 for (DistributionItemPriceReq itemPrice : req.getItems()) {
                     if (itemPrice.getDistributionItemId() != null) {
+                        System.out.println("📝 Item ID: " + itemPrice.getDistributionItemId() + 
+                                         ", Price: " + itemPrice.getDealerPrice() + 
+                                         ", Approved Qty: " + itemPrice.getApprovedQuantity());
                         // Tìm DistributionItem tương ứng
                         for (DistributionItem dItem : distribution.getItems()) {
                             if (dItem.getId() == itemPrice.getDistributionItemId()) {
+                                System.out.println("✅ Found matching item ID: " + dItem.getId());
+                                System.out.println("   Old price: " + dItem.getDealerPrice() + ", New price: " + itemPrice.getDealerPrice());
+                                System.out.println("   Old approved qty: " + dItem.getApprovedQuantity() + ", New approved qty: " + itemPrice.getApprovedQuantity());
+                                
                                 // Update dealer price if provided
                                 if (itemPrice.getDealerPrice() != null) {
                                     dItem.setDealerPrice(itemPrice.getDealerPrice());
+                                    System.out.println("   ✅ Updated dealer price to: " + dItem.getDealerPrice());
                                 }
-                                // Update approved quantity if provided
-                                if (itemPrice.getApprovedQuantity() != null && itemPrice.getApprovedQuantity() > 0) {
-                                    dItem.setQuantity(itemPrice.getApprovedQuantity());
+                                // Update approved quantity (lưu vào field approvedQuantity, không phải quantity)
+                                // quantity = số lượng yêu cầu ban đầu (giữ nguyên)
+                                // approvedQuantity = số lượng EVM duyệt (có thể là 0)
+                                if (itemPrice.getApprovedQuantity() != null) {
+                                    dItem.setApprovedQuantity(itemPrice.getApprovedQuantity());
+                                    System.out.println("   ✅ Updated approved quantity to: " + dItem.getApprovedQuantity());
                                 }
                                 break;
                             }
@@ -330,6 +342,7 @@ public class DistributionService {
                 }
                 // Lưu lại các items đã cập nhật giá
                 distributionRepo.save(distribution);
+                System.out.println("💾 Saved distribution items with updated prices and quantities");
             }
             
             // Update category base price with manufacturer price (giá cao nhất để tham khảo)
@@ -384,9 +397,9 @@ public class DistributionService {
                             if (itemPrice.getDealerPrice() != null) {
                                 dItem.setDealerPrice(itemPrice.getDealerPrice());
                             }
-                            // Update approved quantity
-                            if (itemPrice.getApprovedQuantity() != null && itemPrice.getApprovedQuantity() > 0) {
-                                dItem.setQuantity(itemPrice.getApprovedQuantity());
+                            // Update approved quantity (lưu vào field approvedQuantity, không phải quantity)
+                            if (itemPrice.getApprovedQuantity() != null) {
+                                dItem.setApprovedQuantity(itemPrice.getApprovedQuantity());
                             }
                             break;
                         }
@@ -948,6 +961,7 @@ public class DistributionService {
                 
                 ir.setColor(di.getColor());
                 ir.setQuantity(di.getQuantity());
+                ir.setApprovedQuantity(di.getApprovedQuantity()); // 🔥 SET APPROVED QUANTITY
                 ir.setDealerPrice(di.getDealerPrice()); // 🔥 SET DEALER PRICE
                 itemResList.add(ir);
             }
