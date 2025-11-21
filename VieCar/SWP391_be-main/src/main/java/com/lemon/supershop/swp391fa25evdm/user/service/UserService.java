@@ -100,6 +100,13 @@ public class UserService {
                     user.get().setPhone(null); // Cho phép xóa phone
                 } else if(PHONE_PATTERN.matcher(dto.getPhone()).matches()){
                     user.get().setPhone(dto.getPhone());
+                    
+                    // GOOGLE USER AUTO PASSWORD: Nếu user chưa có password (Google login), 
+                    // tự động set password = phone number
+                    if(user.get().getPassword() == null || user.get().getPassword().isEmpty()){
+                        user.get().setPassword(dto.getPhone());
+                        System.out.println("Auto-set password for Google user: " + id + " to phone number");
+                    }
                 }
             }
             
@@ -143,8 +150,18 @@ public class UserService {
                 user.get().setStatus(dto.getStatus());
             }
             
-            userRepo.save(user.get());
-            return convertUsertoUserRes(user.get());
+            User savedUser = userRepo.save(user.get());
+            UserRes userRes = convertUsertoUserRes(savedUser);
+            
+            // GOOGLE USER NOTIFICATION: Nếu vừa set password (Google user hoàn tất profile),
+            // trả về password tạm để frontend hiển thị thông báo
+            if(dto.getPhone() != null && !dto.getPhone().isEmpty() && 
+               savedUser.getPassword() != null && savedUser.getPassword().equals(dto.getPhone())){
+                userRes.setTemporaryPassword(savedUser.getPassword());
+                System.out.println("Returning temporary password for Google user notification");
+            }
+            
+            return userRes;
         } else {
             return null;
         }

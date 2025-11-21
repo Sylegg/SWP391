@@ -14,6 +14,7 @@ public class UserRes {
     private Integer dealerId;
     private String dealerName;
     private String dealerAddress;
+    private String temporaryPassword;  // Only used for Google login profile completion notification
 
     public UserRes() {}
 
@@ -101,5 +102,13 @@ public class UserRes {
 
     public void setDealerAddress(String dealerAddress) {
         this.dealerAddress = dealerAddress;
+    }
+
+    public String getTemporaryPassword() {
+        return temporaryPassword;
+    }
+
+    public void setTemporaryPassword(String temporaryPassword) {
+        this.temporaryPassword = temporaryPassword;
     }
 }
