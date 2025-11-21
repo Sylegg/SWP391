@@ -213,13 +213,21 @@ public class AuthenService {
         user.setId(0); // Ensure ID is 0 for new entity (JPA will generate new ID)
         User newUser = converttoEntity(user, dto);
         if (newUser != null) {
-            // Đặt trạng thái là INACTIVE cho đến khi xác thực email
-            newUser.setStatus(UserStatus.INACTIVE);
-            newUser.setEmailVerified(false);
-            userRepo.save(newUser);
-            
-            // Gửi OTP qua email
-            otpService.generateAndSendOtp(dto.getEmail(), "REGISTER");
+            // Nếu admin tạo user và set emailVerified=true, thì ACTIVE luôn
+            if (dto.getEmailVerified() != null && dto.getEmailVerified()) {
+                newUser.setStatus(UserStatus.ACTIVE);
+                newUser.setEmailVerified(true);
+                userRepo.save(newUser);
+                // Không gửi OTP vì admin đã verify
+            } else {
+                // User tự đăng ký: Đặt trạng thái là INACTIVE cho đến khi xác thực email
+                newUser.setStatus(UserStatus.INACTIVE);
+                newUser.setEmailVerified(false);
+                userRepo.save(newUser);
+                
+                // Gửi OTP qua email
+                otpService.generateAndSendOtp(dto.getEmail(), "REGISTER");
+            }
         }
     }
     

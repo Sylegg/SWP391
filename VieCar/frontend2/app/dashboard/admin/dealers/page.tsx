@@ -354,18 +354,29 @@ export default function AdminDealersPage() {
     if (!selectedDealer) return;
 
     try {
-      await dealerApi.deleteDealer(selectedDealer.id);
+      // Thay vì xóa hẳn, chuyển trạng thái sang INACTIVE
+      const updateData: DealerReq = {
+        name: selectedDealer.name,
+        address: selectedDealer.address,
+        phone: selectedDealer.phone,
+        email: selectedDealer.email,
+        managerId: selectedDealer.managerId,
+        status: DealerStatus.INACTIVE
+      };
+
+      await dealerApi.updateDealer(selectedDealer.id, updateData);
+      
       toast({
-        title: '✅ Xóa thành công',
-        description: `Đã xóa đại lý ${selectedDealer.name}`,
+        title: '✅ Đã vô hiệu hóa',
+        description: `Đại lý ${selectedDealer.name} đã chuyển sang trạng thái không hoạt động`,
       });
       setIsDeleteOpen(false);
       setSelectedDealer(null);
       loadDealers();
     } catch (error: any) {
       toast({
-        title: '❌ Lỗi xóa đại lý',
-        description: error.response?.data?.message || 'Không thể xóa đại lý',
+        title: '❌ Lỗi vô hiệu hóa đại lý',
+        description: error.response?.data?.message || 'Không thể vô hiệu hóa đại lý',
         variant: 'destructive',
       });
     }
@@ -557,15 +568,6 @@ export default function AdminDealersPage() {
                           className="hover:bg-amber-100 dark:hover:bg-amber-900 transition-all duration-300"
                         >
                           <Pencil className="h-4 w-4 text-amber-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openDeleteDialog(dealer)}
-                          title="Xóa"
-                          className="hover:bg-red-100 dark:hover:bg-red-900 transition-all duration-300"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -899,12 +901,12 @@ export default function AdminDealersPage() {
             <DialogContent className="backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-2 border-red-300/30 shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
-                  Xác nhận xóa
+                  Xác nhận vô hiệu hóa
                 </DialogTitle>
                 <DialogDescription>
-                  Bạn có chắc muốn xóa đại lý <strong>{selectedDealer?.name}</strong>?
+                  Bạn có chắc muốn vô hiệu hóa đại lý <strong>{selectedDealer?.name}</strong>?
                   <br />
-                  <span className="text-red-500">Hành động này không thể hoàn tác.</span>
+                  <span className="text-amber-600">Đại lý sẽ chuyển sang trạng thái không hoạt động và có thể kích hoạt lại sau.</span>
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -912,7 +914,7 @@ export default function AdminDealersPage() {
                   Hủy
                 </Button>
                 <Button variant="destructive" onClick={handleDelete}>
-                  Xóa đại lý
+                  Vô hiệu hóa
                 </Button>
               </DialogFooter>
             </DialogContent>

@@ -8,6 +8,7 @@ export interface OrderRes {
   customerPhone?: string;
   customerAddress?: string;
   productName: string;
+  productImage?: string;
   productVin?: string;
   productEngine?: string;
   productBattery?: number;

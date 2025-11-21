@@ -11,6 +11,7 @@ public class UserReq {
     private String roleName;
     private int dealerId;
     private UserStatus status;
+    private Boolean emailVerified;
 
     public UserReq() {
     }
@@ -45,5 +46,17 @@ public class UserReq {
 
     public UserStatus getStatus() {
         return status;
+    }
+
+    public void setStatus(UserStatus status) {
+        this.status = status;
+    }
+
+    public Boolean getEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(Boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 }

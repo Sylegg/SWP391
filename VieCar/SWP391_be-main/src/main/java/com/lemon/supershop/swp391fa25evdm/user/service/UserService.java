@@ -150,6 +150,11 @@ public class UserService {
                 user.get().setStatus(dto.getStatus());
             }
             
+            // Update email verified
+            if(dto.getEmailVerified() != null){
+                user.get().setEmailVerified(dto.getEmailVerified());
+            }
+            
             User savedUser = userRepo.save(user.get());
             UserRes userRes = convertUsertoUserRes(savedUser);
             
@@ -228,17 +233,23 @@ public class UserService {
             if(user.getAddress() != null){
                 dto.setAddress(user.getAddress());
             }
-            if(user.getRole() != null){
+            if(user.getRole() != null && user.getRole().getName() != null){
                 dto.setRole(user.getRole().getName());
             }
             if (user.getStatus() != null){
-                dto.setStatus(user.getStatus());
+                dto.setStatus(user.getStatus().name()); // Convert UserStatus enum to String
             }
+            // Set email verification status
+            dto.setEmailVerified(user.isEmailVerified());
             // Thêm thông tin dealer (dùng cho cả staff và customer)
             if(user.getDealer() != null){
                 dto.setDealerId(user.getDealer().getId());
-                dto.setDealerName(user.getDealer().getName());
-                dto.setDealerAddress(user.getDealer().getAddress());
+                if(user.getDealer().getName() != null){
+                    dto.setDealerName(user.getDealer().getName());
+                }
+                if(user.getDealer().getAddress() != null){
+                    dto.setDealerAddress(user.getDealer().getAddress());
+                }
             }
         }
         return dto;

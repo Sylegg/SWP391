@@ -54,11 +54,6 @@ public class DistributionRes {
     private Integer parentDistributionId;  // ID của đơn gốc nếu đây là đơn bổ sung
     private Boolean isSupplementary;       // True nếu đây là đơn bổ sung số lượng thiếu
 
-    // Payment information
-    private Double paidAmount;             // Số tiền đã thanh toán
-    private String transactionNo;          // Mã giao dịch VNPay
-    private LocalDateTime paidAt;          // Thời gian thanh toán
-
     public DistributionRes() {}
 
     // Getters and Setters
@@ -250,30 +245,6 @@ public class DistributionRes {
 
     public void setIsSupplementary(Boolean isSupplementary) {
         this.isSupplementary = isSupplementary;
-    }
-
-    public Double getPaidAmount() {
-        return paidAmount;
-    }
-
-    public void setPaidAmount(Double paidAmount) {
-        this.paidAmount = paidAmount;
-    }
-
-    public String getTransactionNo() {
-        return transactionNo;
-    }
-
-    public void setTransactionNo(String transactionNo) {
-        this.transactionNo = transactionNo;
-    }
-
-    public LocalDateTime getPaidAt() {
-        return paidAt;
-    }
-
-    public void setPaidAt(LocalDateTime paidAt) {
-        this.paidAt = paidAt;
     }
 }
 

@@ -68,6 +68,7 @@ interface UpdateUserReq {
   phone?: string;
   roleName?: RoleName;
   status?: 'ACTIVE' | 'INACTIVE';
+  emailVerified?: boolean;
   address?: string;
   dealerId?: number;
 }
@@ -306,6 +307,7 @@ export default function AdminUsersPage() {
         phone: createFormData.phone || '',
         address: createFormData.address || '',
         roleName: createFormData.roleName,
+        emailVerified: true, // Admin tạo user thì tự động verify email
       });
       
       toast({
@@ -342,6 +344,7 @@ export default function AdminUsersPage() {
       status: user.status as 'ACTIVE' | 'INACTIVE',
       address: user.address || '',
       dealerId: user.dealerId,
+      emailVerified: user.emailVerified || false,
     });
     setIsEditOpen(true);
   };
@@ -506,11 +509,11 @@ export default function AdminUsersPage() {
                   ))
                 ) : (
                   <>
-                    <SelectItem value="DEALER_MANAGER">Quản lý đại lý</SelectItem>
-                    <SelectItem value="EVM_STAFF">Nhân viên hãng</SelectItem>
-                    <SelectItem value="DEALER_STAFF">Nhân viên đại lý</SelectItem>
-                    <SelectItem value="CUSTOMER">Khách hàng</SelectItem>
-                    <SelectItem value="ADMIN">Quản trị viên</SelectItem>
+                    <SelectItem key="DEALER_MANAGER" value="DEALER_MANAGER">Quản lý đại lý</SelectItem>
+                    <SelectItem key="EVM_STAFF" value="EVM_STAFF">Nhân viên hãng</SelectItem>
+                    <SelectItem key="DEALER_STAFF" value="DEALER_STAFF">Nhân viên đại lý</SelectItem>
+                    <SelectItem key="CUSTOMER" value="CUSTOMER">Khách hàng</SelectItem>
+                    <SelectItem key="ADMIN" value="ADMIN">Quản trị viên</SelectItem>
                   </>
                 )}
               </SelectContent>
@@ -535,20 +538,21 @@ export default function AdminUsersPage() {
                   <TableHead>Số điện thoại</TableHead>
                   <TableHead>Vai trò</TableHead>
                   <TableHead>Trạng thái</TableHead>
+                  <TableHead>Email Verified</TableHead>
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
                       <p className="mt-2 text-muted-foreground">Đang tải...</p>
                     </TableCell>
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Không tìm thấy người dùng
                     </TableCell>
                   </TableRow>
@@ -599,6 +603,11 @@ export default function AdminUsersPage() {
                           )}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <Badge className={user.emailVerified ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}>
+                          {user.emailVerified ? '✓ Đã xác thực' : '✗ Chưa xác thực'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -616,14 +625,6 @@ export default function AdminUsersPage() {
                             className="hover:bg-amber-500/10 hover:text-amber-600"
                           >
                             <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDeleteDialog(user)}
-                            className="hover:bg-red-500/10 hover:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -718,11 +719,11 @@ export default function AdminUsersPage() {
                         ))
                       ) : (
                         <>
-                          <SelectItem value="ADMIN">ADMIN</SelectItem>
-                          <SelectItem value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
-                          <SelectItem value="EVM_STAFF">EVM_STAFF</SelectItem>
-                          <SelectItem value="DEALER_STAFF">DEALER_STAFF</SelectItem>
-                          <SelectItem value="CUSTOMER">CUSTOMER</SelectItem>
+                          <SelectItem key="ADMIN" value="ADMIN">ADMIN</SelectItem>
+                          <SelectItem key="DEALER_MANAGER" value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
+                          <SelectItem key="EVM_STAFF" value="EVM_STAFF">EVM_STAFF</SelectItem>
+                          <SelectItem key="DEALER_STAFF" value="DEALER_STAFF">DEALER_STAFF</SelectItem>
+                          <SelectItem key="CUSTOMER" value="CUSTOMER">CUSTOMER</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -843,11 +844,11 @@ export default function AdminUsersPage() {
                           ))
                         ) : (
                           <>
-                            <SelectItem value="ADMIN">ADMIN</SelectItem>
-                            <SelectItem value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
-                            <SelectItem value="EVM_STAFF">EVM_STAFF</SelectItem>
-                            <SelectItem value="DEALER_STAFF">DEALER_STAFF</SelectItem>
-                            <SelectItem value="CUSTOMER">CUSTOMER</SelectItem>
+                            <SelectItem key="ADMIN" value="ADMIN">ADMIN</SelectItem>
+                            <SelectItem key="DEALER_MANAGER" value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
+                            <SelectItem key="EVM_STAFF" value="EVM_STAFF">EVM_STAFF</SelectItem>
+                            <SelectItem key="DEALER_STAFF" value="DEALER_STAFF">DEALER_STAFF</SelectItem>
+                            <SelectItem key="CUSTOMER" value="CUSTOMER">CUSTOMER</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -865,6 +866,21 @@ export default function AdminUsersPage() {
                       <SelectContent>
                         <SelectItem value="ACTIVE">Hoạt động</SelectItem>
                         <SelectItem value="INACTIVE">Ngừng hoạt động</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email-verified">Xác thực email</Label>
+                    <Select 
+                      value={String(editFormData.emailVerified ?? false)}
+                      onValueChange={(value) => setEditFormData({ ...editFormData, emailVerified: value === 'true' })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem key="verified-true" value="true">✓ Đã xác thực</SelectItem>
+                        <SelectItem key="verified-false" value="false">✗ Chưa xác thực</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -979,6 +995,11 @@ export default function AdminUsersPage() {
                       Email
                     </Label>
                     <p className="font-medium">{selectedUser.email}</p>
+                    <div className="mt-2">
+                      <Badge className={selectedUser.emailVerified ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}>
+                        {selectedUser.emailVerified ? '✓ Email đã xác thực' : '✗ Email chưa xác thực'}
+                      </Badge>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

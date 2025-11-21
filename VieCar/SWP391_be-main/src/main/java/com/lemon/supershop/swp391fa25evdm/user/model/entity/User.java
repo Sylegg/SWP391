@@ -47,7 +47,7 @@ public class User {
     private UserStatus status;
 
     @Column(name = "EmailVerified", columnDefinition = "BIT DEFAULT 0")
-    private boolean emailVerified = false;
+    private Boolean emailVerified = false;  // Changed to Boolean wrapper to handle null values
 
     @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
@@ -221,11 +221,11 @@ public class User {
         this.status = status;
     }
 
-    public boolean isEmailVerified() {
-        return emailVerified;
+    public Boolean isEmailVerified() {
+        return emailVerified != null ? emailVerified : false;
     }
 
-    public void setEmailVerified(boolean emailVerified) {
+    public void setEmailVerified(Boolean emailVerified) {
         this.emailVerified = emailVerified;
     }
 }

@@ -24,7 +24,7 @@ export default function StaffManagementPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<UserRes | null>(null);
-  const [formData, setFormData] = useState({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
+  const [formData, setFormData] = useState({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE", emailVerified: false });
 
   useEffect(() => { 
     if (user?.dealerId) {
@@ -103,19 +103,38 @@ export default function StaffManagementPage() {
     try {
       setLoading(true);
       console.log('🚀 Creating user with dealerId:', user?.dealerId);
-      const newUserData = { ...formData, roleName: "Dealer Staff", dealerId: user?.dealerId };
+      const newUserData = { 
+        ...formData, 
+        roleName: "Dealer Staff", 
+        dealerId: user?.dealerId,
+        emailVerified: true // Dealer Manager tạo user thì tự động verify email
+      };
       console.log('📋 User data:', newUserData);
       
-      const result = await createUser(newUserData);
-      console.log('✅ User created:', result);
+      await createUser(newUserData);
+      console.log('✅ User created successfully');
+      
+      // Reload danh sách để lấy đầy đủ thông tin (bao gồm dealerName và emailVerified)
+      await loadStaff();
       
       toast({ title: "Thành công", description: "Tạo tài khoản nhân viên thành công", duration: 3000 });
       setIsCreateDialogOpen(false);
-      setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
-      loadStaff();
+      setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE", emailVerified: false });
     } catch (error: any) {
       console.error('❌ Create user error:', error);
-      toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể tạo tài khoản", duration: 3000 });
+      let errorMessage = error.message || "Không thể tạo tài khoản";
+      
+      // Xử lý thông báo lỗi cụ thể
+      if (errorMessage.includes("EMAIL_DUPLICATE") || errorMessage.includes("email") || errorMessage.includes("Email")) {
+        errorMessage = "Email này đã tồn tại trong hệ thống. Vui lòng sử dụng email khác.";
+      }
+      
+      toast({ 
+        variant: "destructive", 
+        title: "Lỗi tạo tài khoản", 
+        description: errorMessage, 
+        duration: 4000 
+      });
     } finally {
       setLoading(false);
     }
@@ -148,7 +167,8 @@ export default function StaffManagementPage() {
         email: formData.email || "", 
         phone: formData.phone || "", 
         address: formData.address || "",
-        status: formData.status || "ACTIVE"
+        status: formData.status || "ACTIVE",
+        emailVerified: formData.emailVerified ?? false
       };
       // Chỉ gửi password nếu người dùng nhập mật khẩu mới
       if (formData.password && formData.password.trim() !== "") {
@@ -159,11 +179,14 @@ export default function StaffManagementPage() {
       console.log('📤 Update data:', updates);
       
       await updateUser(selectedStaff.id, updates);
+      
+      // Reload danh sách để lấy đầy đủ thông tin sau khi cập nhật
+      await loadStaff();
+      
       toast({ title: "Thành công", description: "Cập nhật thông tin nhân viên thành công", duration: 3000 });
       setIsEditDialogOpen(false);
       setSelectedStaff(null);
-      setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" });
-      loadStaff();
+      setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE", emailVerified: false });
     } catch (error: any) {
       console.error('❌ Update error:', error);
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể cập nhật thông tin", duration: 3000 });
@@ -177,8 +200,8 @@ export default function StaffManagementPage() {
     try {
       setLoading(true);
       await deleteUser(staffId);
+      await loadStaff();
       toast({ title: "Thành công", description: "Xóa nhân viên thành công", duration: 3000 });
-      loadStaff();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể xóa nhân viên", duration: 3000 });
     } finally {
@@ -277,17 +300,18 @@ export default function StaffManagementPage() {
                     <TableHead>Địa chỉ</TableHead>
                     <TableHead>Đại lý</TableHead>
                     <TableHead>Trạng thái</TableHead>
+                    <TableHead>Email Verified</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">Đang tải...</TableCell>
+                      <TableCell colSpan={8} className="text-center py-8">Đang tải...</TableCell>
                     </TableRow>
                   ) : staff.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Chưa có nhân viên nào. Nhấn "Thêm nhân viên" để tạo tài khoản mới.
                       </TableCell>
                     </TableRow>
@@ -302,6 +326,11 @@ export default function StaffManagementPage() {
                         <TableCell>
                           <Badge variant={s.status === "ACTIVE" ? "default" : "secondary"}>
                             {s.status === "ACTIVE" ? "Hoạt động" : "Không hoạt động"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={s.emailVerified ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}>
+                            {s.emailVerified ? '✓ Đã xác thực' : '✗ Chưa xác thực'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -320,6 +349,7 @@ export default function StaffManagementPage() {
                                   address: s.address || "",
                                   password: "",
                                   status: statusValue,
+                                  emailVerified: s.emailVerified || false,
                                 });
                                 setIsEditDialogOpen(true);
                               }}
@@ -448,7 +478,7 @@ export default function StaffManagementPage() {
                   variant="outline" 
                   onClick={() => { 
                     setIsCreateDialogOpen(false); 
-                    setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" }); 
+                    setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE", emailVerified: false }); 
                   }}
                   className="backdrop-blur-sm"
                 >
@@ -571,23 +601,40 @@ export default function StaffManagementPage() {
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100">Trạng thái</h3>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label className="text-purple-600 dark:text-purple-400 font-medium">Trạng thái hoạt động</Label>
-                    <Select 
-                      value={formData.status || "ACTIVE"} 
-                      onValueChange={(v) => {
-                        console.log('📝 Status changed to:', v);
-                        setFormData({ ...formData, status: v });
-                      }}
-                    >
-                      <SelectTrigger className="w-full backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-purple-200 dark:border-purple-800 focus:border-purple-500 focus:ring-purple-500">
-                        <SelectValue placeholder="Chọn trạng thái" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ACTIVE">Hoạt động</SelectItem>
-                        <SelectItem value="INACTIVE">Không hoạt động</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-purple-600 dark:text-purple-400 font-medium">Trạng thái hoạt động</Label>
+                      <Select 
+                        value={formData.status || "ACTIVE"} 
+                        onValueChange={(v) => {
+                          console.log('📝 Status changed to:', v);
+                          setFormData({ ...formData, status: v });
+                        }}
+                      >
+                        <SelectTrigger className="w-full backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-purple-200 dark:border-purple-800 focus:border-purple-500 focus:ring-purple-500">
+                          <SelectValue placeholder="Chọn trạng thái" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACTIVE">Hoạt động</SelectItem>
+                          <SelectItem value="INACTIVE">Không hoạt động</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-green-600 dark:text-green-400 font-medium">Email Verified</Label>
+                      <Select 
+                        value={String(formData.emailVerified ?? false)}
+                        onValueChange={(value) => setFormData({ ...formData, emailVerified: value === 'true' })}
+                      >
+                        <SelectTrigger className="w-full backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-green-200 dark:border-green-800 focus:border-green-500 focus:ring-green-500">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem key="verified-true" value="true">✓ Đã xác thực</SelectItem>
+                          <SelectItem key="verified-false" value="false">✗ Chưa xác thực</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -598,7 +645,7 @@ export default function StaffManagementPage() {
                   onClick={() => { 
                     setIsEditDialogOpen(false); 
                     setSelectedStaff(null); 
-                    setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE" }); 
+                    setFormData({ username: "", email: "", phone: "", address: "", password: "", status: "ACTIVE", emailVerified: false }); 
                   }}
                   className="backdrop-blur-sm"
                 >

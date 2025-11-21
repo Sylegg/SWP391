@@ -131,6 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('loginMethod', 'normal'); // Đánh dấu đăng nhập thường
     } catch (error) {
       console.error('Login error:', error);
       
@@ -193,6 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('loginMethod'); // Xóa login method
     
     // Set back to Guest after logout
     const guestUser: User = {
@@ -293,6 +295,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Lưu user info vào localStorage để persist
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('loginMethod', 'google'); // Đánh dấu đăng nhập Google
     } catch (error) {
       console.error('Error loading user from token:', error);
     } finally {

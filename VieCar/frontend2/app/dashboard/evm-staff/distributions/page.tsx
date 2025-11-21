@@ -30,7 +30,6 @@ import {
   Car,
   FileText,
   Check,
-  DollarSign,
   TruckIcon,
   CheckCircle,
 } from 'lucide-react';
@@ -1900,7 +1899,7 @@ export default function EvmDistributionsPage() {
                                         <span className={`font-bold text-sm ${it.approvedQuantity > 0 ? 'text-green-600' : 'text-gray-500'}`}>
                                           {it.approvedQuantity}
                                         </span>
-                                        {it.quantity && it.approvedQuantity < it.quantity && it.approvedQuantity > 0 && (
+                                        {selectedDistribution.status !== 'PLANNED' && selectedDistribution.status !== 'COMPLETED' && it.quantity && it.approvedQuantity < it.quantity && it.approvedQuantity > 0 && (
                                           <div className="text-xs text-orange-600">-{it.quantity - it.approvedQuantity}</div>
                                         )}
                                       </>
@@ -1952,43 +1951,6 @@ export default function EvmDistributionsPage() {
                     </div>
                   )}
 
-                  {/* Payment Information */}
-                  {selectedDistribution.paidAmount && selectedDistribution.paidAmount > 0 && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-emerald-50/80 to-teal-50/80 dark:from-emerald-950/80 dark:to-teal-950/80 p-5 rounded-xl border-2 border-emerald-300/50">
-                      <div className="flex items-center gap-2 mb-4">
-                        <DollarSign className="h-5 w-5 text-emerald-600" />
-                        <Label className="text-base font-bold text-emerald-800 dark:text-emerald-200">Thông tin thanh toán</Label>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">💰 Số tiền đã chuyển</p>
-                          <p className="text-lg font-bold text-emerald-600">
-                            {selectedDistribution.paidAmount.toLocaleString('vi-VN')} VND
-                          </p>
-                        </div>
-                        {selectedDistribution.transactionNo && (
-                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
-                            <p className="text-xs text-gray-500 mb-1">🔖 Mã giao dịch</p>
-                            <p className="text-sm font-mono font-semibold text-gray-800 dark:text-gray-200">
-                              {selectedDistribution.transactionNo}
-                            </p>
-                          </div>
-                        )}
-                        {selectedDistribution.paidAt && (
-                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
-                            <p className="text-xs text-gray-500 mb-1">⏰ Thời gian thanh toán</p>
-                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                              {new Date(selectedDistribution.paidAt).toLocaleDateString('vi-VN')}
-                            </p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {new Date(selectedDistribution.paidAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Messages Section - Combined */}
                   {(selectedDistribution.invitationMessage || selectedDistribution.dealerNotes || selectedDistribution.evmNotes) && (
                     <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-yellow-50/80 dark:from-amber-950/80 dark:to-yellow-950/80 p-5 rounded-xl border border-amber-200/30">
@@ -2015,103 +1977,6 @@ export default function EvmDistributionsPage() {
                             <p className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap font-mono text-xs">{selectedDistribution.evmNotes}</p>
                           </div>
                         )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Shortage Summary Section - Table Style */}
-                  {selectedDistribution.items && selectedDistribution.items.some(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity) && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/90 to-emerald-50/90 dark:from-green-950/90 dark:to-emerald-950/90 p-5 rounded-xl border-2 border-green-300/50 shadow-lg">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-5 w-5 text-green-600" />
-                          <Label className="text-lg font-bold text-green-800 dark:text-green-200">
-                            📋 Danh sách sản phẩm
-                          </Label>
-                        </div>
-                        <Badge className="bg-green-600 text-white px-3 py-1">
-                          {selectedDistribution.items?.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity).length} loại xe
-                        </Badge>
-                      </div>
-                      
-                      <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl border border-green-200/50 overflow-hidden">
-                        <table className="w-full">
-                          <thead className="bg-green-100/80 dark:bg-green-900/40">
-                            <tr className="border-b-2 border-green-300/50">
-                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">#</th>
-                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Sản phẩm</th>
-                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Màu sắc</th>
-                              <th className="text-center py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Yêu cầu</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedDistribution.items
-                              ?.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
-                              .map((it, idx) => {
-                                const shortage = (it.quantity || 0) - (it.approvedQuantity || 0);
-                                return (
-                                  <tr 
-                                    key={idx} 
-                                    className="border-b border-green-200/30 hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-colors"
-                                  >
-                                    <td className="py-4 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-                                      {idx + 1}
-                                    </td>
-                                    <td className="py-4 px-4">
-                                      <div className="font-semibold text-base text-gray-900 dark:text-white">
-                                        {it.product?.name || it.category?.name || 'Sản phẩm'}
-                                      </div>
-                                    </td>
-                                    <td className="py-4 px-4">
-                                      {it.color && (
-                                        <div className="flex items-center gap-2">
-                                          <div 
-                                            className="w-4 h-4 rounded-full border-2 border-gray-300"
-                                            style={{ 
-                                              backgroundColor: it.color === 'Đỏ' ? '#ef4444' : 
-                                                             it.color === 'Xanh dương' || it.color === 'Xanh duong' ? '#3b82f6' :
-                                                             it.color === 'Đen' ? '#000000' :
-                                                             it.color === 'Trắng' ? '#ffffff' :
-                                                             it.color === 'Xám' ? '#6b7280' : '#9ca3af'
-                                            }}
-                                          ></div>
-                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            {it.color}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="py-4 px-4 text-center">
-                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-full">
-                                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                          {shortage}
-                                        </span>
-                                        <span className="text-xs text-blue-600 dark:text-blue-400">xe</span>
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                          </tbody>
-                          <tfoot className="bg-green-100/80 dark:bg-green-900/40">
-                            <tr className="border-t-2 border-green-300/50">
-                              <td colSpan={3} className="py-3 px-4 text-base font-bold text-green-900 dark:text-green-100">
-                                Tổng cộng
-                              </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="inline-flex items-center gap-1 px-4 py-1.5 bg-green-600 text-white rounded-full">
-                                  <span className="text-xl font-bold">
-                                    {selectedDistribution.items
-                                      ?.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
-                                      .reduce((sum, it) => sum + ((it.quantity || 0) - (it.approvedQuantity || 0)), 0)
-                                    }
-                                  </span>
-                                  <span className="text-sm">xe</span>
-                                </span>
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
                       </div>
                     </div>
                   )}

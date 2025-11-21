@@ -87,7 +87,10 @@ public class CategoryService {
         }
 
         category.setName(dto.getName());
-        category.setBrand(dto.getBrand());
+        // ✅ Set default brand "VinFast" if null or empty (for update)
+        category.setBrand(dto.getBrand() != null && !dto.getBrand().trim().isEmpty() 
+                         ? dto.getBrand() 
+                         : "VinFast");
     // Removed: version/type
         category.setBasePrice(dto.getBasePrice() != null ? dto.getBasePrice() : category.getBasePrice());
         category.setWarranty(dto.getWarranty() != null ? dto.getWarranty() : category.getWarranty());
@@ -147,7 +150,10 @@ public class CategoryService {
         Category category = new Category();
 
         category.setName(dto.getName());
-        category.setBrand(dto.getBrand());
+        // ✅ Set default brand "VinFast" if null or empty
+        category.setBrand(dto.getBrand() != null && !dto.getBrand().trim().isEmpty() 
+                         ? dto.getBrand() 
+                         : "VinFast");
     // Removed: version/type
         // Handle null Boolean - default to false if null
         category.setSpecial(dto.isSpecial() != null ? dto.isSpecial() : false);

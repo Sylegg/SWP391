@@ -13,6 +13,7 @@ public class OrderRes {
     private String customerPhone;
     private String customerAddress;
     private String productName;
+    private String productImage;
     private String productVin;
     private String productEngine;
     private Double productBattery;
@@ -130,6 +131,9 @@ public class OrderRes {
 
     public String getProductColor() { return productColor; }
     public void setProductColor(String productColor) { this.productColor = productColor; }
+
+    public String getProductImage() { return productImage; }
+    public void setProductImage(String productImage) { this.productImage = productImage; }
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }

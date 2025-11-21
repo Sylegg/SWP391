@@ -1,7 +1,5 @@
 package com.lemon.supershop.swp391fa25evdm.user.model.dto;
 
-import com.lemon.supershop.swp391fa25evdm.user.model.enums.UserStatus;
-
 public class UserRes {
     private int id;
     private String name;
@@ -10,11 +8,12 @@ public class UserRes {
     private String phone;
     private String address;
     private String role;
-    private UserStatus status;
+    private String status;  // Changed from UserStatus to String for JSON serialization
     private Integer dealerId;
     private String dealerName;
     private String dealerAddress;
     private String temporaryPassword;  // Only used for Google login profile completion notification
+    private Boolean emailVerified;  // Email verification status
 
     public UserRes() {}
 
@@ -46,7 +45,7 @@ public class UserRes {
         return role;
     }
 
-    public UserStatus getStatus() {return status;}
+    public String getStatus() {return status;}
 
     public Integer getDealerId() {
         return dealerId;
@@ -84,7 +83,7 @@ public class UserRes {
         this.address = address;
     }
 
-    public void setStatus(UserStatus status) {
+    public void setStatus(String status) {
         this.status = status;
     }
 
@@ -110,5 +109,13 @@ public class UserRes {
 
     public void setTemporaryPassword(String temporaryPassword) {
         this.temporaryPassword = temporaryPassword;
+    }
+
+    public Boolean getEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(Boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 }

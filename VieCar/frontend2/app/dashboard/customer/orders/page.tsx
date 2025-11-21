@@ -32,9 +32,51 @@ export default function CustomerOrdersPage() {
 
   // Fetch orders on mount and when refresh param changes
   useEffect(() => {
+    let isMounted = true;
+    
+    const loadOrders = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setIsLoading(true);
+        const [fetchedOrders, fetchedDealers] = await Promise.all([
+          getOrdersByUserId(parseInt(user.id)),
+          getAllDealers()
+        ]);
+        
+        // Chỉ update state nếu component vẫn còn mounted
+        if (isMounted) {
+          console.log('📦 Fetched orders:', fetchedOrders);
+          console.log('📅 Sample order date:', fetchedOrders[0]?.orderDate);
+          setOrders(fetchedOrders);
+          setDealers(fetchedDealers);
+        }
+      } catch (error) {
+        // Chỉ hiển thị toast nếu component vẫn còn mounted
+        if (isMounted) {
+          console.error('Error fetching orders:', error);
+          toast({
+            title: "Lỗi",
+            description: "Không thể tải danh sách đơn hàng",
+            variant: "destructive",
+            duration: 3000,
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
     if (user?.id) {
-      fetchOrders();
+      loadOrders();
     }
+    
+    // Cleanup function để đánh dấu component đã unmount
+    return () => {
+      isMounted = false;
+    };
   }, [user, searchParams]);
 
   // Kiểm tra xem order có thể thanh toán không
@@ -671,9 +713,9 @@ export default function CustomerOrdersPage() {
             <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-3 text-2xl">
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-xl">
-                      <FileText className="h-6 w-6 text-blue-600" />
+                  <DialogTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                      <FileText className="h-5 w-5 text-blue-600" />
                     </div>
                     Chi tiết đơn hàng #{orderDetail?.orderId}
                   </DialogTitle>
@@ -683,157 +725,179 @@ export default function CustomerOrdersPage() {
                 </DialogHeader>
 
                 {orderDetail && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {/* Order Status */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-xl p-6 border-2 border-blue-200 dark:border-blue-800">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-muted-foreground mb-1">Trạng thái đơn hàng</p>
+                          <p className="text-xs text-muted-foreground mb-1">Trạng thái đơn hàng</p>
                           <div className="flex items-center gap-2">
                             {getStatusIcon(orderDetail.status)}
                             {getStatusBadge(orderDetail.status)}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground mb-1">Mã đơn hàng</p>
-                          <p className="text-xl font-bold text-blue-600">#{orderDetail.orderId}</p>
+                          <p className="text-[10px] text-muted-foreground mb-1">Mã đơn hàng</p>
+                          <p className="text-base font-bold text-blue-600">#{orderDetail.orderId}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Customer Info */}
-                    <Card className="border-2 border-blue-200">
-                      <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950">
-                        <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                            <Eye className="h-5 w-5 text-blue-600" />
+                    <Card className="border border-blue-200">
+                      <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 py-3">
+                        <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300 text-base">
+                          <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                            <Eye className="h-4 w-4 text-blue-600" />
                           </div>
                           Thông tin khách hàng
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-6">
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-                              <p className="text-xs text-muted-foreground mb-1.5">Họ và tên</p>
-                              <p className="font-semibold text-base">{orderDetail.customerName}</p>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Họ và tên</p>
+                              <p className="font-semibold text-sm">{orderDetail.customerName}</p>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-                              <p className="text-xs text-muted-foreground mb-1.5">Email</p>
-                              <p className="font-semibold text-base text-blue-600 dark:text-blue-400">{orderDetail.customerEmail || 'Chưa cập nhật'}</p>
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Email</p>
+                              <p className="font-semibold text-sm text-blue-600 dark:text-blue-400">{orderDetail.customerEmail || 'Chưa cập nhật'}</p>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-                              <p className="text-xs text-muted-foreground mb-1.5">Số điện thoại</p>
-                              <p className="font-semibold text-base">{orderDetail.customerPhone || 'Chưa cập nhật'}</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Số điện thoại</p>
+                              <p className="font-semibold text-sm">{orderDetail.customerPhone || 'Chưa cập nhật'}</p>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-                              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
                                 Đại lý
                               </p>
-                              <p className="font-semibold text-base">{getDealerName(orderDetail.dealerId)}</p>
+                              <p className="font-semibold text-sm">{getDealerName(orderDetail.dealerId)}</p>
                             </div>
                           </div>
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-                            <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                          <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                            <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
                               Địa chỉ
                             </p>
-                            <p className="font-semibold text-base">{orderDetail.customerAddress || 'Chưa cập nhật'}</p>
+                            <p className="font-semibold text-sm">{orderDetail.customerAddress || 'Chưa cập nhật'}</p>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
 
                     {/* Product Info */}
-                    <Card className="border-2 border-green-200">
-                      <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950">
-                        <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
-                          <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                            <Car className="h-5 w-5 text-green-600" />
+                    <Card className="border border-green-200">
+                      <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 py-3">
+                        <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300 text-base">
+                          <div className="p-1.5 bg-green-100 dark:bg-green-900 rounded-lg">
+                            <Car className="h-4 w-4 text-green-600" />
                           </div>
                           Thông tin sản phẩm
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-6">
-                        <div className="space-y-5">
-                          {/* Tên xe */}
-                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                              <Car className="h-3 w-3" />
-                              Tên sản phẩm
-                            </p>
-                            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{orderDetail.productName}</p>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          {/* Hình ảnh và Tên xe */}
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                            {/* Hình ảnh xe */}
+                            {orderDetail.productImage ? (
+                              <div className="lg:col-span-1">
+                                <div className="relative w-full h-32 rounded-lg overflow-hidden border-2 border-blue-200 dark:border-blue-800 shadow-md">
+                                  <img 
+                                    src={orderDetail.productImage} 
+                                    alt={orderDetail.productName}
+                                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="lg:col-span-1">
+                                <div className="w-full h-32 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 border-2 border-blue-200 dark:border-blue-800">
+                                  <Car className="h-12 w-12 text-blue-400 dark:text-blue-300" />
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Tên xe */}
+                            <div className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800 flex flex-col justify-center">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <Car className="h-3 w-3" />
+                                Tên sản phẩm
+                              </p>
+                              <p className="text-base font-bold text-blue-600 dark:text-blue-400">{orderDetail.productName}</p>
+                            </div>
                           </div>
 
                           {/* Số VIN và Số máy */}
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
-                              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-2.5 rounded-lg border border-purple-200 dark:border-purple-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
                                 <FileText className="h-3 w-3" />
                                 Số VIN
                               </p>
-                              <p className="text-base font-bold text-purple-600 dark:text-purple-400 font-mono">{orderDetail.productVin || 'Chưa có'}</p>
+                              <p className="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">{orderDetail.productVin || 'Chưa có'}</p>
                             </div>
-                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
-                              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-2.5 rounded-lg border border-purple-200 dark:border-purple-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
                                 <FileText className="h-3 w-3" />
                                 Số máy
                               </p>
-                              <p className="text-base font-bold text-purple-600 dark:text-purple-400 font-mono">{orderDetail.productEngine || 'Chưa có'}</p>
+                              <p className="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">{orderDetail.productEngine || 'Chưa có'}</p>
                             </div>
                           </div>
 
                           {/* Thông số kỹ thuật */}
-                          <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <p className="text-xs font-semibold text-muted-foreground mb-3">THÔNG SỐ KỸ THUẬT</p>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <p className="text-[10px] font-semibold text-muted-foreground mb-2">THÔNG SỐ KỸ THUẬT</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
                                   <Battery className="h-3 w-3" />
                                   Pin
                                 </p>
-                                <p className="text-sm font-bold text-green-600">{orderDetail.productBattery ? `${orderDetail.productBattery} kWh` : 'N/A'}</p>
+                                <p className="text-xs font-bold text-green-600">{orderDetail.productBattery ? `${orderDetail.productBattery} kWh` : 'N/A'}</p>
                               </div>
-                              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
                                   <Zap className="h-3 w-3" />
                                   Tầm xa
                                 </p>
-                                <p className="text-sm font-bold text-blue-600">{orderDetail.productRange ? `${orderDetail.productRange} km` : 'N/A'}</p>
+                                <p className="text-xs font-bold text-blue-600">{orderDetail.productRange ? `${orderDetail.productRange} km` : 'N/A'}</p>
                               </div>
-                              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <p className="text-xs text-muted-foreground mb-1">Công suất</p>
-                                <p className="text-sm font-bold text-orange-600">{orderDetail.productHP ? `${orderDetail.productHP} HP` : 'N/A'}</p>
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5">Công suất</p>
+                                <p className="text-xs font-bold text-orange-600">{orderDetail.productHP ? `${orderDetail.productHP} HP` : 'N/A'}</p>
                               </div>
-                              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                                <p className="text-xs text-muted-foreground mb-1">Mô-men xoắn</p>
-                                <p className="text-sm font-bold text-red-600">{orderDetail.productTorque ? `${orderDetail.productTorque} Nm` : 'N/A'}</p>
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5">Mô-men xoắn</p>
+                                <p className="text-xs font-bold text-red-600">{orderDetail.productTorque ? `${orderDetail.productTorque} Nm` : 'N/A'}</p>
                               </div>
                             </div>
                           </div>
                           
                           {/* Màu sắc và Giá trị */}
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                              <p className="text-xs text-muted-foreground mb-2">Màu sắc</p>
-                              <p className="text-base font-semibold">{orderDetail.productColor || 'Chưa chọn'}</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Màu sắc</p>
+                              <p className="text-sm font-semibold">{orderDetail.productColor || 'Chưa chọn'}</p>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
                                 <Package className="h-3 w-3" />
                                 Số lượng
                               </p>
-                              <p className="text-base font-semibold">1 xe</p>
+                              <p className="text-sm font-semibold">1 xe</p>
                             </div>
-                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-4 rounded-lg border border-green-200 dark:border-green-800">
-                              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-2.5 rounded-lg border border-green-200 dark:border-green-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
                                 <CreditCard className="h-3 w-3" />
                                 Tổng giá trị
                               </p>
-                              <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                              <p className="text-base font-bold text-green-600 dark:text-green-400">
                                 {new Intl.NumberFormat('vi-VN', {
                                   style: 'currency',
                                   currency: 'VND'
@@ -844,8 +908,8 @@ export default function CustomerOrdersPage() {
 
                           {/* Ghi chú (nếu có) */}
                           {orderDetail.notes && (
-                            <div className="bg-yellow-50 dark:bg-yellow-950 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                            <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
                                 <FileText className="h-3 w-3" />
                                 Ghi chú
                               </p>
@@ -857,20 +921,20 @@ export default function CustomerOrdersPage() {
                     </Card>
 
                     {/* Dates */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                        <CardHeader className="py-2">
+                          <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
                             Ngày đặt hàng
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <p className="font-semibold text-base leading-relaxed">
+                        <CardContent className="py-2">
+                          <p className="font-semibold text-sm leading-relaxed">
                             {formatDate(orderDetail.orderDate, true)}
                           </p>
                           {orderDetail.orderDate && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] text-muted-foreground mt-1">
                               {new Date(orderDetail.orderDate).toLocaleTimeString('vi-VN', {
                                 hour: '2-digit',
                                 minute: '2-digit',
@@ -882,18 +946,18 @@ export default function CustomerOrdersPage() {
                       </Card>
 
                       <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                        <CardHeader className="py-2">
+                          <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
                             <Truck className="h-4 w-4" />
                             Ngày giao dự kiến
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <p className="font-semibold text-base leading-relaxed">
+                        <CardContent className="py-2">
+                          <p className="font-semibold text-sm leading-relaxed">
                             {orderDetail.deliveryDate ? formatDate(orderDetail.deliveryDate, false) : 'Chưa xác định'}
                           </p>
                           {orderDetail.deliveryDate && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] text-muted-foreground mt-1">
                               Dự kiến giao trong giờ hành chính
                             </p>
                           )}
