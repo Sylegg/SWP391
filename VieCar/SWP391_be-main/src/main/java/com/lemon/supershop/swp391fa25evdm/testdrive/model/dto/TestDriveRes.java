@@ -17,10 +17,14 @@ public class TestDriveRes {
     private String specificVIN;
     private UserRes user;
     private DealerRes dealer;
+    private Integer productId; // Product ID - xe đã được phân công
     private String productName;
     private String productModelName; // Customer's requested model name
+    private Integer categoryId; // Category ID
     private String categoryName; // Customer's requested category
     private UserRes escortStaff; // Staff member assigned to accompany
+    private String location; // Dealer address
+    private Integer attemptNumber; // Số lần đăng ký lái thử category này
 
     public TestDriveRes() {
     }
@@ -73,12 +77,28 @@ public class TestDriveRes {
         this.dealer = dealer;
     }
 
+    public Integer getProductId() {
+        return productId;
+    }
+
+    public void setProductId(Integer productId) {
+        this.productId = productId;
+    }
+
     public String getProductName() {
         return productName;
     }
 
     public void setProductName(String productName) {
         this.productName = productName;
+    }
+    
+    public Integer getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Integer categoryId) {
+        this.categoryId = categoryId;
     }
 
     public String getSpecificVIN() {
@@ -111,5 +131,21 @@ public class TestDriveRes {
 
     public void setEscortStaff(UserRes escortStaff) {
         this.escortStaff = escortStaff;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+    
+    public Integer getAttemptNumber() {
+        return attemptNumber;
+    }
+
+    public void setAttemptNumber(Integer attemptNumber) {
+        this.attemptNumber = attemptNumber;
     }
 }

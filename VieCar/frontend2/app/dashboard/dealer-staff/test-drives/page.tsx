@@ -48,6 +48,7 @@ export default function TestDrivesPage() {
   const [testDrives, setTestDrives] = useState<TestDriveRes[]>([]);
   const [products, setProducts] = useState<ProductRes[]>([]);
   const [categories, setCategories] = useState<any[]>([]); // Store categories for name mapping
+  const [productsInUse, setProductsInUse] = useState<number[]>([]); // IDs of products currently assigned
   const [loading, setLoading] = useState(true);
   const [selectedTestDrive, setSelectedTestDrive] = useState<TestDriveRes | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -184,6 +185,15 @@ export default function TestDrivesPage() {
       });
       setFeedbackMap(newFeedbackMap);
       console.log('💬 [loadTestDrives] Feedbacks loaded:', Object.keys(newFeedbackMap).length);
+      
+      // Calculate products in use (APPROVED or IN_PROGRESS status)
+      const inUseProductIds = sorted
+        .filter(td => (td.status === 'APPROVED' || td.status === 'IN_PROGRESS') && td.productId)
+        .map(td => td.productId!)
+        .filter((id, index, self) => self.indexOf(id) === index); // unique
+      
+      setProductsInUse(inUseProductIds);
+      console.log('🔒 [loadTestDrives] Products currently in use:', inUseProductIds);
     } catch (error) {
       console.error('❌ [loadTestDrives] Error loading test drives:', error);
       console.error('❌ [loadTestDrives] Error details:', error);
@@ -204,7 +214,7 @@ export default function TestDrivesPage() {
     }
 
     try {
-      console.log('🔄 Loading products for dealer:', user.dealerId);
+      console.log('🔄 Loading AVAILABLE products for dealer:', user.dealerId);
       
       // First, get all categories for this dealer
       const { getCategoriesByDealerId } = await import('@/lib/categoryApi');
@@ -220,7 +230,7 @@ export default function TestDrivesPage() {
         return;
       }
       
-      // Then load products from all dealer's categories
+      // Load all products and mark which ones are in use
       const { getProductsByCategory } = await import('@/lib/productApi');
       let allProducts: ProductRes[] = [];
       
@@ -1394,8 +1404,8 @@ export default function TestDrivesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      // Chỉ hiển thị xe có status = 'TEST_DRIVE' và match category NAME
-                      const availableVehicles = products.filter(p => {
+                      // Hiển thị tất cả xe có status = 'TEST_DRIVE' và match category NAME
+                      const testDriveVehicles = products.filter(p => {
                         // Bắt buộc phải có status TEST_DRIVE
                         if (p.status !== 'TEST_DRIVE') return false;
                         
@@ -1408,9 +1418,10 @@ export default function TestDrivesPage() {
                         return productCategoryName === selectedTestDrive.categoryName;
                       });
                       
-                      console.log('📋 Available TEST_DRIVE vehicles for assignment:', availableVehicles);
+                      console.log('📋 All TEST_DRIVE vehicles for category:', testDriveVehicles);
+                      console.log('🔒 Products in use:', productsInUse);
                       
-                      if (availableVehicles.length === 0) {
+                      if (testDriveVehicles.length === 0) {
                         return (
                           <SelectItem value="0" disabled>
                             Không có xe lái thử nào trong danh mục này
@@ -1418,42 +1429,105 @@ export default function TestDrivesPage() {
                         );
                       }
                       
-                      return availableVehicles.map(product => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.name} - VIN: {product.vinNum} ✅
-                        </SelectItem>
-                      ));
+                      // Separate available and in-use vehicles
+                      const availableVehicles = testDriveVehicles.filter(p => !productsInUse.includes(p.id));
+                      const inUseVehicles = testDriveVehicles.filter(p => productsInUse.includes(p.id));
+                      
+                      return (
+                        <>
+                          {availableVehicles.map(product => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              ✅ {product.name} - VIN: {product.vinNum}
+                            </SelectItem>
+                          ))}
+                          {inUseVehicles.length > 0 && availableVehicles.length > 0 && (
+                            <SelectItem value="separator" disabled className="text-xs text-muted-foreground">
+                              ───── Xe đang được sử dụng ─────
+                            </SelectItem>
+                          )}
+                          {inUseVehicles.map(product => (
+                            <SelectItem 
+                              key={product.id} 
+                              value={product.id.toString()}
+                              className="text-orange-600 dark:text-orange-400"
+                            >
+                              🔒 {product.name} - VIN: {product.vinNum} (Đang phân công)
+                            </SelectItem>
+                          ))}
+                        </>
+                      );
                     })()}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  ✓ Chỉ hiển thị xe có trạng thái "Lái thử" trong danh mục "{selectedTestDrive.categoryName}"
+                  Danh mục "{selectedTestDrive.categoryName}" - Xe có 🔒 đang được phân công cho khách khác
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                  Tìm thấy {products.filter(p => {
-                    if (p.status !== 'TEST_DRIVE') return false;
-                    if (!selectedTestDrive.categoryName) return false;
-                    const category = categories.find(c => c.id === p.categoryId);
-                    const productCategoryName = category?.name || '';
-                    return productCategoryName === selectedTestDrive.categoryName;
-                  }).length} xe sẵn sàng (match by category NAME)
+                <p className="text-xs space-x-3">
+                  <span className="text-green-600 dark:text-green-400 font-semibold">
+                    ✅ {products.filter(p => {
+                      if (p.status !== 'TEST_DRIVE') return false;
+                      if (!selectedTestDrive.categoryName) return false;
+                      const category = categories.find(c => c.id === p.categoryId);
+                      const productCategoryName = category?.name || '';
+                      return productCategoryName === selectedTestDrive.categoryName && !productsInUse.includes(p.id);
+                    }).length} xe sẵn sàng
+                  </span>
+                  <span className="text-orange-600 dark:text-orange-400 font-semibold">
+                    🔒 {products.filter(p => {
+                      if (p.status !== 'TEST_DRIVE') return false;
+                      if (!selectedTestDrive.categoryName) return false;
+                      const category = categories.find(c => c.id === p.categoryId);
+                      const productCategoryName = category?.name || '';
+                      return productCategoryName === selectedTestDrive.categoryName && productsInUse.includes(p.id);
+                    }).length} xe đang phân công
+                  </span>
                 </p>
               </div>
 
               {/* Auto-assigned Staff Info */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Nhân viên hộ tống</label>
-                <div className="text-sm p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                  <div className="flex items-center gap-2 mb-1">
-                    <User className="h-4 w-4 text-green-600" />
-                    <span className="font-medium text-green-800 dark:text-green-200">
-                      {user?.username || 'Nhân viên hiện tại'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-green-700 dark:text-green-300">
-                    ✓ Tự động gán nhân viên đang xử lý đơn làm người hộ tống
-                  </p>
-                </div>
+                {(() => {
+                  // Check if current staff is busy with another IN_PROGRESS test drive
+                  const staffBusyTestDrive = testDrives.find(td => 
+                    td.escortStaff?.id === user?.userId && 
+                    td.status === 'IN_PROGRESS' &&
+                    td.id !== selectedTestDrive?.id
+                  );
+                  
+                  if (staffBusyTestDrive) {
+                    return (
+                      <div className="text-sm p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-md">
+                        <div className="flex items-center gap-2 mb-1">
+                          <AlertCircle className="h-4 w-4 text-orange-600" />
+                          <span className="font-medium text-orange-800 dark:text-orange-200">
+                            {user?.username || 'Bạn'} đang bận
+                          </span>
+                        </div>
+                        <p className="text-xs text-orange-700 dark:text-orange-300 mb-1">
+                          ⚠️ Đang đi cùng {staffBusyTestDrive.user.name} (đơn #{staffBusyTestDrive.id})
+                        </p>
+                        <p className="text-xs text-orange-600 dark:text-orange-400 font-semibold">
+                          Vui lòng hoàn thành đơn hiện tại trước khi phân công đơn mới
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="text-sm p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                      <div className="flex items-center gap-2 mb-1">
+                        <User className="h-4 w-4 text-green-600" />
+                        <span className="font-medium text-green-800 dark:text-green-200">
+                          {user?.username || 'Nhân viên hiện tại'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        ✓ Tự động gán nhân viên đang xử lý đơn làm người hộ tống
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1468,7 +1542,16 @@ export default function TestDrivesPage() {
             </Button>
             <Button 
               onClick={handleAssignVehicle}
-              disabled={updating || !selectedProductId}
+              disabled={
+                updating || 
+                !selectedProductId ||
+                // Disable if staff is busy with another test drive
+                testDrives.some(td => 
+                  td.escortStaff?.id === user?.userId && 
+                  td.status === 'IN_PROGRESS' &&
+                  td.id !== selectedTestDrive?.id
+                )
+              }
             >
               {updating ? 'Đang xử lý...' : 'Tiếp tục'}
             </Button>

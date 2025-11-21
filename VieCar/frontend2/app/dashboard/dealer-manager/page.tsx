@@ -14,6 +14,7 @@ export default function DealerManagerDashboard() {
     dealerAddress?: string;
   }>({});
   const [loading, setLoading] = useState(true);
+  const [activeTestDrives, setActiveTestDrives] = useState<any[]>([]);
 
   useEffect(() => {
     // Lấy thông tin dealer từ user context
@@ -42,6 +43,27 @@ export default function DealerManagerDashboard() {
       setLoading(false);
     }
   }, [user]);
+  
+  // Poll active test drives every 30 seconds
+  useEffect(() => {
+    const loadActiveTestDrives = async () => {
+      if (!user?.dealerId) return;
+      
+      try {
+        const { getTestDrivesByDealerId } = await import('@/lib/testDriveApi');
+        const testDrives = await getTestDrivesByDealerId(user.dealerId);
+        const active = testDrives.filter(td => td.status === 'IN_PROGRESS');
+        setActiveTestDrives(active);
+      } catch (error) {
+        console.error('Failed to load active test drives:', error);
+      }
+    };
+    
+    loadActiveTestDrives();
+    const interval = setInterval(loadActiveTestDrives, 30000); // Poll every 30s
+    
+    return () => clearInterval(interval);
+  }, [user?.dealerId]);
 
   return (
     <ProtectedRoute allowedRoles={['Dealer Manager', 'Admin']}>
@@ -85,6 +107,42 @@ export default function DealerManagerDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Active Test Drives Alert */}
+          {activeTestDrives.length > 0 && (
+            <div className="backdrop-blur-md bg-gradient-to-br from-orange-50/90 to-amber-50/90 dark:from-orange-950/50 dark:to-amber-950/50 rounded-2xl border-2 border-orange-300/50 dark:border-orange-700/50 shadow-lg p-6 animate-pulse-subtle">
+              <div className="flex items-start space-x-3">
+                <div className="p-2 rounded-lg bg-orange-500/20 backdrop-blur-sm">
+                  <Users className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-orange-900 dark:text-orange-100 mb-2">
+                    🚗 Nhân viên đang lái thử cùng khách ({activeTestDrives.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {activeTestDrives.map(td => (
+                      <div key={td.id} className="flex items-center justify-between p-3 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">
+                              {td.escortStaff?.name || 'Nhân viên'} → {td.user.name}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {td.productName || td.categoryName} • Đơn #{td.id}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded">
+                          Đang lái
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Info Cards with Liquid Glass */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

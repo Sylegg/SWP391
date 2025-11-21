@@ -1845,14 +1845,14 @@ export default function EvmDistributionsPage() {
                         </Badge>
                       </div>
                       <div>
-                        <table className="w-full table-fixed">
+                        <table className="w-full table-auto">
                           <thead>
                             <tr className="border-b-2 border-green-300/50">
                               <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-10">#</th>
                               <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Sản phẩm</th>
-                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-20 whitespace-nowrap">Màu</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Màu sắc</th>
                               {selectedDistribution.items?.some(it => it.dealerPrice) && (
-                                <th className="text-right py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-24 whitespace-nowrap">Giá</th>
+                                <th className="text-right py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Giá hãng</th>
                               )}
                               <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">YC</th>
                               {selectedDistribution.items?.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null) && (
@@ -1867,13 +1867,13 @@ export default function EvmDistributionsPage() {
                             {selectedDistribution.items.map((it, idx) => (
                               <tr key={idx} className="border-b border-green-200/30 hover:bg-green-100/30 dark:hover:bg-green-900/20 transition-colors">
                                 <td className="py-2 px-2 text-xs text-gray-600 dark:text-gray-400">{idx + 1}</td>
-                                <td className="py-2 px-2 overflow-hidden">
-                                  <div className="font-semibold text-xs text-gray-900 dark:text-white truncate" title={it.product?.name || it.category?.name}>{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
+                                <td className="py-2 px-2">
+                                  <div className="font-semibold text-xs text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
                                 </td>
-                                <td className="py-2 px-2 overflow-hidden">
+                                <td className="py-2 px-2">
                                   {it.color ? (
-                                    <span className="text-xs text-gray-700 dark:text-gray-300 truncate block" title={it.color}>
-                                      🎨 {it.color}
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">
+                                      {it.color}
                                     </span>
                                   ) : (
                                     <span className="text-gray-400 text-xs">-</span>
@@ -1882,8 +1882,8 @@ export default function EvmDistributionsPage() {
                                 {selectedDistribution.items?.some(item => item.dealerPrice) && (
                                   <td className="py-2 px-2 text-right">
                                     {it.dealerPrice ? (
-                                      <div className="font-semibold text-xs text-amber-700 dark:text-amber-400 truncate" title={Number(it.dealerPrice).toLocaleString('vi-VN') + ' ₫'}>
-                                        {(Number(it.dealerPrice) / 1000000).toFixed(0)}tr
+                                      <div className="font-semibold text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} VND
                                       </div>
                                     ) : (
                                       <span className="text-gray-400">-</span>
@@ -2136,6 +2136,34 @@ export default function EvmDistributionsPage() {
                               <Badge className="bg-pink-500 text-white text-xs">{idx + 1}</Badge>
                             </div>
                             <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              {product.color && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-pink-600">Màu:</span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style={{
+                                    backgroundColor: product.color.toLowerCase().includes('trắng') || product.color.toLowerCase().includes('white') ? '#f5f5f5' :
+                                                   product.color.toLowerCase().includes('đen') || product.color.toLowerCase().includes('black') ? '#1a1a1a' :
+                                                   product.color.toLowerCase().includes('đỏ') || product.color.toLowerCase().includes('red') ? '#ef4444' :
+                                                   product.color.toLowerCase().includes('xanh dương') || product.color.toLowerCase().includes('blue') ? '#3b82f6' :
+                                                   product.color.toLowerCase().includes('xanh lá') || product.color.toLowerCase().includes('green') ? '#22c55e' :
+                                                   product.color.toLowerCase().includes('vàng') || product.color.toLowerCase().includes('yellow') ? '#eab308' :
+                                                   product.color.toLowerCase().includes('bạc') || product.color.toLowerCase().includes('silver') ? '#d1d5db' :
+                                                   product.color.toLowerCase().includes('xám') || product.color.toLowerCase().includes('gray') || product.color.toLowerCase().includes('grey') ? '#6b7280' :
+                                                   product.color.toLowerCase().includes('cam') || product.color.toLowerCase().includes('orange') ? '#f97316' :
+                                                   product.color.toLowerCase().includes('nâu') || product.color.toLowerCase().includes('brown') ? '#92400e' :
+                                                   product.color.toLowerCase().includes('tím') || product.color.toLowerCase().includes('purple') ? '#a855f7' :
+                                                   product.color.toLowerCase().includes('hồng') || product.color.toLowerCase().includes('pink') ? '#ec4899' : '#94a3b8',
+                                    color: product.color.toLowerCase().includes('đen') || product.color.toLowerCase().includes('black') || 
+                                           product.color.toLowerCase().includes('đỏ') || product.color.toLowerCase().includes('red') ||
+                                           product.color.toLowerCase().includes('xanh dương') || product.color.toLowerCase().includes('blue') ||
+                                           product.color.toLowerCase().includes('xanh lá') || product.color.toLowerCase().includes('green') ||
+                                           product.color.toLowerCase().includes('nâu') || product.color.toLowerCase().includes('brown') ||
+                                           product.color.toLowerCase().includes('tím') || product.color.toLowerCase().includes('purple') ? '#ffffff' : '#000000',
+                                    border: '1px solid rgba(0,0,0,0.1)'
+                                  }}>
+                                    {product.color}
+                                  </span>
+                                </div>
+                              )}
                               {product.vinNum && (
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-semibold text-pink-600">VIN:</span>
@@ -2148,10 +2176,10 @@ export default function EvmDistributionsPage() {
                                   <span className="font-mono text-xs">{product.engineNum}</span>
                                 </div>
                               )}
-                              {product.price && (
+                              {product.manufacturerPrice && (
                                 <div className="flex items-center gap-2 pt-1 border-t border-pink-100">
                                   <span className="text-xs font-semibold text-pink-600">Giá:</span>
-                                  <span className="font-bold text-pink-600">{product.price.toLocaleString('vi-VN')} VND</span>
+                                  <span className="font-bold text-pink-600">{product.manufacturerPrice.toLocaleString('vi-VN')} VND</span>
                                 </div>
                               )}
                             </div>

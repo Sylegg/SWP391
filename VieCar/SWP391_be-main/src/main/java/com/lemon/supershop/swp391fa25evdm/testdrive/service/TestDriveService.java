@@ -7,16 +7,19 @@ import com.lemon.supershop.swp391fa25evdm.category.model.entity.Category;
 import com.lemon.supershop.swp391fa25evdm.category.repository.CategoryRepository;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.dto.DealerRes;
 import com.lemon.supershop.swp391fa25evdm.dealer.model.entity.Dealer;
-import com.lemon.supershop.swp391fa25evdm.dealer.model.enums.DealerStatus;
 import com.lemon.supershop.swp391fa25evdm.dealer.service.DealerService;
 import com.lemon.supershop.swp391fa25evdm.product.model.entity.Product;
+import com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus;
 import com.lemon.supershop.swp391fa25evdm.product.repository.ProductRepo;
+import com.lemon.supershop.swp391fa25evdm.email.service.EmailService;
+import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailabilityCheckRes;
+import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailableSlotsRes;
 import com.lemon.supershop.swp391fa25evdm.user.model.dto.UserRes;
 import com.lemon.supershop.swp391fa25evdm.user.model.entity.User;
 import com.lemon.supershop.swp391fa25evdm.user.service.UserService;
-import com.lemon.supershop.swp391fa25evdm.email.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import com.lemon.supershop.swp391fa25evdm.dealer.repository.DealerRepo;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.TestDriveReq;
 import com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.TestDriveRes;
@@ -36,7 +39,7 @@ public class TestDriveService {
     @Autowired
     private ProductRepo productRepo;
     @Autowired
-    private CategoryRepository categoryRepo;
+    private CategoryRepository categoryRepository;
     @Autowired
     private DealerService dealerService;
     @Autowired
@@ -73,67 +76,57 @@ public class TestDriveService {
         User user = userRepo.findById(req.getUserId())
             .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với ID: " + req.getUserId()));
         
-        // 2️⃣ Validate Dealer exists and is active
+        // 2️⃣ Validate Dealer exists
         if (req.getDealerId() <= 0) {
             throw new IllegalArgumentException("ID đại lý không hợp lệ");
         }
         Dealer dealer = dealerRepo.findById(req.getDealerId())
             .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đại lý với ID: " + req.getDealerId()));
         
-        if (dealer.getStatus() != DealerStatus.ACTIVE) {
-            throw new IllegalArgumentException("Đại lý '" + dealer.getName() + "' hiện không hoạt động");
-        }
-        
-        // 3️⃣ Validate Category exists (customer selects category/model)
+        // 3️⃣ Validate Category exists
         if (req.getCategoryId() <= 0) {
             throw new IllegalArgumentException("Vui lòng chọn mẫu xe muốn lái thử");
         }
-        Category category = categoryRepo.findById(req.getCategoryId())
+        Category category = categoryRepository.findById(req.getCategoryId())
             .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mẫu xe với ID: " + req.getCategoryId()));
         
-        // 4️⃣ Validate schedule date
+        // 4️⃣ Validate Schedule Date
         if (req.getScheduleDate() == null) {
             throw new IllegalArgumentException("Vui lòng chọn ngày và giờ lái thử");
         }
-        
         java.time.LocalDateTime scheduleDateTime = req.getScheduleDate();
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        
         if (scheduleDateTime.isBefore(now)) {
             throw new IllegalArgumentException("Không thể đặt lịch lái thử trong quá khứ");
         }
         
-        // 5️⃣ Check if user already has an active test drive (status != DONE)
+        // 5️⃣ Check if user already has an active test drive
         List<TestDrive> activeTestDrives = testDriveRepository.findByUserId(req.getUserId())
             .stream()
             .filter(td -> !"DONE".equals(td.getStatus()) && !"REJECTED".equals(td.getStatus()) && !"CANCELLED".equals(td.getStatus()))
             .toList();
-        
         if (!activeTestDrives.isEmpty()) {
             throw new IllegalArgumentException("Bạn chỉ có thể đặt 1 lịch lái thử tại một thời điểm. Vui lòng hoàn thành hoặc hủy lịch hiện tại trước.");
         }
         
-        // 6️⃣ Check if user has already completed test drive for this category
-        boolean hasCompletedThisCategory = testDriveRepository.findByUserId(req.getUserId())
+        // 6️⃣ Count completed attempts for this category
+        long completedAttempts = testDriveRepository.findByUserId(req.getUserId())
             .stream()
-            .anyMatch(td -> "DONE".equals(td.getStatus()) && 
-                           td.getCategory() != null && 
-                           td.getCategory().getId() == req.getCategoryId());
+            .filter(td -> "DONE".equals(td.getStatus()) &&
+                    td.getCategory() != null &&
+                    td.getCategory().getId() == req.getCategoryId())
+            .count();
         
-        if (hasCompletedThisCategory) {
-            throw new IllegalArgumentException("Bạn đã lái thử mẫu xe '" + category.getName() + "' thành công rồi. Vui lòng chọn mẫu xe khác.");
-        }
-        
-        // All validations passed, create test drive (product and escortStaff will be set later by dealer staff)
+        // 7️⃣ Create new TestDrive
         TestDrive testDrive = new TestDrive();
         testDrive.setUser(user);
         testDrive.setDealer(dealer);
         testDrive.setCategory(category);
-        testDrive.setProductModelName(req.getProductModelName());
         testDrive.setScheduleDate(scheduleDateTime);
         testDrive.setStatus("PENDING");
         testDrive.setNotes(req.getNotes());
-        // Product and escortStaff will be null until dealer staff assigns them
+        testDrive.setProductModelName(req.getProductModelName());
+        testDrive.setAttemptNumber((int) completedAttempts + 1);
         
         TestDrive savedTestDrive = testDriveRepository.save(testDrive);
         
@@ -141,7 +134,6 @@ public class TestDriveService {
         try {
             sendConfirmationEmail(savedTestDrive);
         } catch (Exception e) {
-            // Log error but don't fail the creation
             System.err.println("Failed to send confirmation email: " + e.getMessage());
         }
         
@@ -149,209 +141,232 @@ public class TestDriveService {
     }
 
     public TestDriveRes updateTestDrive(int id, TestDriveReq req) {
-        // 1️⃣ Validate test drive exists
-        TestDrive existingTestDrive = testDriveRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu lái thử với ID: " + id));
-        
-        String oldStatus = existingTestDrive.getStatus();
-        
-        // 2️⃣ Validate status transition
-        if (req.getStatus() != null && !req.getStatus().equals(oldStatus)) {
-            validateStatusTransition(oldStatus, req.getStatus());
-        }
-        
-        // 3️⃣ If changing schedule date, validate it
-        if (req.getScheduleDate() != null && !req.getScheduleDate().equals(existingTestDrive.getScheduleDate())) {
-            java.time.LocalDateTime newDateTime = req.getScheduleDate();
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
-            
-            if (newDateTime.isBefore(now)) {
-                throw new IllegalArgumentException("Không thể đổi lịch sang thời gian trong quá khứ");
+        Optional<TestDrive> testDrive = testDriveRepository.findById(id);
+        if (testDrive.isPresent()) {
+            String oldStatus = testDrive.get().getStatus();
+            TestDrive testDrive1 = convertToEntity(testDrive.orElse(null), req);
+            testDriveRepository.save(testDrive1);
+
+            // Send status update email if status changed
+            if (req.getStatus() != null && !req.getStatus().equals(oldStatus)) {
+                try {
+                    sendStatusUpdateEmail(testDrive1, oldStatus);
+                    
+                    // Log notification when staff starts test drive (status → IN_PROGRESS)
+                    if ("IN_PROGRESS".equals(req.getStatus())) {
+                        String staffName = testDrive1.getEscortStaff() != null ? 
+                            testDrive1.getEscortStaff().getUsername() : "Nhân viên";
+                        String customerName = testDrive1.getUser() != null ? 
+                            testDrive1.getUser().getUsername() : "khách hàng";
+                        String vehicleName = testDrive1.getProduct() != null ? 
+                            testDrive1.getProduct().getName() : "xe";
+                        
+                        System.out.println("🚗 [TEST DRIVE STARTED] " + 
+                            staffName + " đang đi cùng " + customerName + 
+                            " lái thử " + vehicleName + 
+                            " (Đơn #" + testDrive1.getId() + ")");
+                        
+                        // TODO: Gửi notification đến dealer manager qua WebSocket/SSE
+                        // notificationService.notifyDealerManager(testDrive1.getDealer().getId(), ...);
+                    }
+                    
+                    // Log when test drive completes (status → DONE)
+                    if ("DONE".equals(req.getStatus())) {
+                        String staffName = testDrive1.getEscortStaff() != null ? 
+                            testDrive1.getEscortStaff().getUsername() : "Nhân viên";
+                        System.out.println("✅ [TEST DRIVE COMPLETED] " + 
+                            staffName + " đã hoàn thành lái thử (Đơn #" + testDrive1.getId() + ")");
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed to send status update email: " + e.getMessage());
+                }
             }
-            
-            // Check conflicts if changing schedule
-            java.time.LocalDateTime startTime = newDateTime.minusHours(2);
-            java.time.LocalDateTime endTime = newDateTime.plusHours(2);
-            
-            List<TestDrive> conflicts = testDriveRepository.findConflictingTestDrives(
-                existingTestDrive.getProduct().getId(), startTime, endTime
-            );
-            
-            // Remove self from conflicts
-            conflicts = conflicts.stream()
-                .filter(td -> td.getId() != id)
-                .toList();
-            
-            if (!conflicts.isEmpty()) {
-                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-                String conflictTime = conflicts.get(0).getScheduleDate().format(formatter);
-                throw new IllegalArgumentException(
-                    "Thời gian mới bị trùng với lịch khác vào lúc " + conflictTime + ". Vui lòng chọn thời gian khác."
-                );
-            }
-            
-            existingTestDrive.setScheduleDate(newDateTime);
+            return convertToRes(testDrive1);
         }
-        
-        // 4️⃣ Update other fields
-        if (req.getStatus() != null) {
-            existingTestDrive.setStatus(req.getStatus());
-        }
-        
-        if (req.getNotes() != null) {
-            existingTestDrive.setNotes(req.getNotes());
-        }
-        
-        if (req.getSpecificVIN() != null) {
-            existingTestDrive.setSpecificVIN(req.getSpecificVIN());
-        }
-        
-        TestDrive updatedTestDrive = testDriveRepository.save(existingTestDrive);
-        
-        // Send status update email if status changed
-        if (req.getStatus() != null && !req.getStatus().equals(oldStatus)) {
-            try {
-                sendStatusUpdateEmail(updatedTestDrive, oldStatus);
-            } catch (Exception e) {
-                System.err.println("Failed to send status update email: " + e.getMessage());
-            }
-        }
-        
-        return convertToRes(updatedTestDrive);
+        return null;
     }
-    
-    // Helper method to validate status transitions
-    private void validateStatusTransition(String oldStatus, String newStatus) {
-        // Status flow: PENDING → ASSIGNING → APPROVED → IN_PROGRESS → DONE
-        // Can also: PENDING → REJECTED, any → CANCELLED
-        
-        // Terminal states cannot be changed
-        if ("REJECTED".equals(oldStatus) || "CANCELLED".equals(oldStatus) || "DONE".equals(oldStatus)) {
-            throw new IllegalArgumentException("Không thể thay đổi trạng thái của yêu cầu đã " + 
-                getStatusLabel(oldStatus));
-        }
-        
-        // PENDING can transition to: ASSIGNING, REJECTED, CANCELLED
-        if ("PENDING".equals(oldStatus)) {
-            if (!("ASSIGNING".equals(newStatus) || "REJECTED".equals(newStatus) || "CANCELLED".equals(newStatus))) {
-                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Chờ xác nhận' sang 'Đang chờ phân công', 'Đã từ chối' hoặc 'Đã hủy'");
-            }
-        }
-        
-        // ASSIGNING can transition to: APPROVED, CANCELLED
-        if ("ASSIGNING".equals(oldStatus)) {
-            if (!("APPROVED".equals(newStatus) || "CANCELLED".equals(newStatus))) {
-                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đang chờ phân công' sang 'Đã phê duyệt' hoặc 'Đã hủy'");
-            }
-        }
-        
-        // APPROVED can transition to: IN_PROGRESS, CANCELLED
-        if ("APPROVED".equals(oldStatus)) {
-            if (!("IN_PROGRESS".equals(newStatus) || "CANCELLED".equals(newStatus))) {
-                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đã phê duyệt' sang 'Đang thực hiện' hoặc 'Đã hủy'");
-            }
-        }
-        
-        // IN_PROGRESS can transition to: DONE, CANCELLED
-        if ("IN_PROGRESS".equals(oldStatus)) {
-            if (!("DONE".equals(newStatus) || "CANCELLED".equals(newStatus))) {
-                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đang thực hiện' sang 'Hoàn thành' hoặc 'Đã hủy'");
-            }
-        }
-    }
-    
-    // Helper method to get Vietnamese status label
-    private String getStatusLabel(String status) {
-        return switch (status) {
-            case "PENDING" -> "Chờ xác nhận";
-            case "ASSIGNING" -> "Đang chờ phân công";
-            case "APPROVED" -> "Đã phê duyệt";
-            case "IN_PROGRESS" -> "Đang thực hiện";
-            case "DONE" -> "Hoàn thành";
-            case "REJECTED" -> "Đã từ chối";
-            case "CANCELLED" -> "Đã hủy";
-            default -> status;
-        };
-    }
-    
-    /**
-     * Step 2: Dealer staff assigns vehicle to a pending test drive request
-     */
+
     public TestDriveRes assignVehicleAndStaff(int testDriveId, int productId, int escortStaffId) {
-        // 1️⃣ Validate test drive exists and is PENDING or ASSIGNING
         TestDrive testDrive = testDriveRepository.findById(testDriveId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu lái thử với ID: " + testDriveId));
-        
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu lái thử với ID: " + testDriveId));
+
         if (!"PENDING".equals(testDrive.getStatus()) && !"ASSIGNING".equals(testDrive.getStatus())) {
             throw new IllegalArgumentException("Chỉ có thể phân công xe cho yêu cầu đang ở trạng thái 'Chờ xác nhận' hoặc 'Đang chờ phân công'");
         }
-        
-        // 2️⃣ Validate Product exists and matches category
-        if (productId <= 0) {
-            throw new IllegalArgumentException("ID sản phẩm không hợp lệ");
-        }
-        Product product = productRepo.findById(productId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy xe với ID: " + productId));
-        
-        // ❌ REMOVED: No longer check TEST_DRIVE status - allow any vehicle to be assigned
-        // if (!"TEST_DRIVE".equals(product.getStatus())) {
-        //     throw new IllegalArgumentException("Xe '" + product.getName() + "' hiện không khả dụng cho lái thử. Vui lòng chọn xe khác.");
-        // }
-        
-        // Validate product belongs to the requested category
-        if (product.getCategory().getId() != testDrive.getCategory().getId()) {
-            throw new IllegalArgumentException("Xe '" + product.getName() + "' không thuộc mẫu xe '" + testDrive.getCategory().getName() + "' mà khách hàng đã chọn");
-        }
-        
-        // 3️⃣ Check for conflicting bookings (same product, same time slot ±2 hours)
-        java.time.LocalDateTime scheduleDateTime = testDrive.getScheduleDate();
-        java.time.LocalDateTime startTime = scheduleDateTime.minusHours(2);
-        java.time.LocalDateTime endTime = scheduleDateTime.plusHours(2);
-        
-        List<TestDrive> conflicts = testDriveRepository.findConflictingTestDrives(
-            productId, startTime, endTime
-        );
-        
-        if (!conflicts.isEmpty()) {
-            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-            String conflictTime = conflicts.get(0).getScheduleDate().format(formatter);
-            throw new IllegalArgumentException(
-                "Xe này đã có người đặt lịch trong thời gian này. Vui lòng chọn xe khác hoặc đổi ngày."
+
+        // Check for conflicting bookings BEFORE assigning product
+        // (same product, same time slot ±1 minute, exclude current test drive)
+        if (productId > 0) {
+            java.time.LocalDateTime scheduleDateTime = testDrive.getScheduleDate();
+            java.time.LocalDateTime startTime = scheduleDateTime.minusMinutes(1);
+            java.time.LocalDateTime endTime = scheduleDateTime.plusMinutes(1);
+
+            List<TestDrive> allConflicts = testDriveRepository.findConflictingTestDrives(
+                    productId, startTime, endTime
             );
+            
+            System.out.println("🔍 [CONFLICT CHECK] Product ID: " + productId + 
+                    ", Schedule: " + scheduleDateTime + 
+                    ", Range: " + startTime + " to " + endTime);
+            System.out.println("🔍 [CONFLICT CHECK] Found " + allConflicts.size() + " potential conflicts");
+            
+            List<TestDrive> conflicts = allConflicts.stream()
+                    .filter(td -> td.getId() != testDriveId) // Exclude current test drive
+                    .toList();
+            
+            System.out.println("🔍 [CONFLICT CHECK] After excluding current TD #" + testDriveId + 
+                    ": " + conflicts.size() + " conflicts");
+            
+            if (!conflicts.isEmpty()) {
+                TestDrive conflictTD = conflicts.get(0);
+                System.out.println("❌ [CONFLICT] Test Drive #" + conflictTD.getId() + 
+                        ", Status: " + conflictTD.getStatus() + 
+                        ", Schedule: " + conflictTD.getScheduleDate());
+                
+                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                String conflictTime = conflictTD.getScheduleDate().format(formatter);
+                throw new IllegalArgumentException(
+                        "Xe này đã có người đặt lịch trong thời gian này (Đơn #" + conflictTD.getId() + 
+                        " - " + conflictTime + "). Vui lòng chọn xe khác hoặc đổi ngày."
+                );
+            }
+            
+            System.out.println("✅ [CONFLICT CHECK] No conflicts found, proceeding with assignment");
+            
+            // If no conflict, assign the product
+            Optional<Product> product = productRepo.findById(productId);
+            if (product.isPresent()) {
+                // Validate product belongs to the requested category
+                if (product.get().getCategory().getId() != testDrive.getCategory().getId()) {
+                    throw new IllegalArgumentException("Xe '" + product.get().getName() + "' không thuộc mẫu xe '" + testDrive.getCategory().getName() + "' mà khách hàng đã chọn");
+                }
+                
+                // Validate product status is TEST_DRIVE
+                if (!product.get().getStatus().equals(ProductStatus.TEST_DRIVE)){
+                    throw new IllegalArgumentException("Xe '" + product.get().getName() + "' không có trạng thái 'Lái thử'. Trạng thái hiện tại: " + product.get().getStatus());
+                }
+                
+                // Assign product
+                testDrive.setProduct(product.get());
+                testDrive.setSpecificVIN(product.get().getVinNum());
+            } else {
+                throw new IllegalArgumentException("Không tìm thấy xe với ID: " + productId);
+            }
         }
-        
-        // All validations passed, assign vehicle and escort staff
-        testDrive.setProduct(product);
-        testDrive.setSpecificVIN(product.getVinNum());
-        
-        // Assign escort staff if provided
+
         if (escortStaffId > 0) {
             Optional<User> escortStaff = userRepo.findById(escortStaffId);
             if (escortStaff.isPresent()) {
+                // Check if staff is currently busy with another test drive
+                List<TestDrive> staffActiveTestDrives = testDriveRepository.findAll().stream()
+                    .filter(td -> td.getEscortStaff() != null && 
+                                  td.getEscortStaff().getId() == escortStaffId &&
+                                  "IN_PROGRESS".equals(td.getStatus()))
+                    .toList();
+                
+                if (!staffActiveTestDrives.isEmpty()) {
+                    TestDrive activeTD = staffActiveTestDrives.get(0);
+                    String customerName = activeTD.getUser() != null ? activeTD.getUser().getUsername() : "khách hàng";
+                    throw new IllegalArgumentException(
+                        "Nhân viên " + escortStaff.get().getUsername() + 
+                        " đang bận đi cùng " + customerName + 
+                        " (đơn #" + activeTD.getId() + "). Vui lòng đợi hoàn thành hoặc chọn nhân viên khác."
+                    );
+                }
+                
                 testDrive.setEscortStaff(escortStaff.get());
+                testDrive.setStatus("APPROVED"); // Auto-approve when assigned
             } else {
                 throw new IllegalArgumentException("Không tìm thấy nhân viên hộ tống với ID: " + escortStaffId);
             }
         }
-        
-        testDrive.setStatus("APPROVED"); // Auto-approve when assigned
-        
         TestDrive savedTestDrive = testDriveRepository.save(testDrive);
-        
-        // Send confirmation email about the assignment
-        try {
-            sendAssignmentEmail(savedTestDrive);
-        } catch (Exception e) {
-            System.err.println("Failed to send assignment email: " + e.getMessage());
-        }
-        
+
+//        // Send confirmation email about the assignment
+//        try {
+//            sendAssignmentEmail(savedTestDrive);
+//        } catch (Exception e) {
+//            System.err.println("Failed to send assignment email: " + e.getMessage());
+//        }
+
         return convertToRes(savedTestDrive);
     }
-    
-    // Placeholder for sending assignment confirmation email
-    private void sendAssignmentEmail(TestDrive testDrive) {
-        // TODO: Implement email sending logic
-        System.out.println("Sending assignment email for test drive ID: " + testDrive.getId());
+
+    // Check availability for a specific time
+    public AvailabilityCheckRes checkAvailability(
+            int productId, java.time.LocalDateTime scheduleDate, int durationHours) {
+
+        java.time.LocalDateTime startTime = scheduleDate.minusHours(durationHours);
+        java.time.LocalDateTime endTime = scheduleDate.plusHours(durationHours);
+
+        List<TestDrive> conflicts = testDriveRepository.findConflictingTestDrives(
+                productId, startTime, endTime
+        );
+
+        AvailabilityCheckRes response =
+                new AvailabilityCheckRes();
+
+        if (conflicts.isEmpty()) {
+            response.setAvailable(true);
+            response.setMessage("Xe khả dụng cho thời gian này");
+        } else {
+            response.setAvailable(false);
+            response.setMessage("Xe đã được đặt trong khung giờ này");
+
+            List<AvailabilityCheckRes.ConflictingBooking> bookings =
+                    conflicts.stream().map(td -> {
+                        String customerName = td.getUser() != null ? td.getUser().getUsername() : "Unknown";
+                        return new AvailabilityCheckRes.ConflictingBooking(
+                                td.getId(),
+                                td.getScheduleDate().toString(),
+                                customerName
+                        );
+                    }).toList();
+
+            response.setConflictingBookings(bookings);
+        }
+
+        return response;
+    }
+
+    // Get available time slots for a specific date
+    public AvailableSlotsRes getAvailableSlots(
+            int productId, String dateStr) {
+
+        try {
+            java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
+            java.time.LocalDateTime dateTime = date.atStartOfDay();
+
+            // Get all test drives for this product on this date
+            List<TestDrive> bookedSlots = testDriveRepository.findByProductAndDate(productId, dateTime);
+
+            // Define time slots (8AM - 6PM, 2 hour slots)
+            List<AvailableSlotsRes.TimeSlot> slots = new java.util.ArrayList<>();
+
+            for (int hour = 8; hour < 18; hour += 2) {
+                java.time.LocalDateTime slotStart = date.atTime(hour, 0);
+                java.time.LocalDateTime slotEnd = slotStart.plusHours(2);
+
+                // Check if this slot is booked
+                boolean isBooked = bookedSlots.stream().anyMatch(td -> {
+                    java.time.LocalDateTime tdTime = td.getScheduleDate();
+                    return !tdTime.isBefore(slotStart) && tdTime.isBefore(slotEnd);
+                });
+
+                String label = String.format("%02d:00 - %02d:00", hour, hour + 2);
+                slots.add(new AvailableSlotsRes.TimeSlot(
+                        slotStart.toString(),
+                        slotEnd.toString(),
+                        !isBooked,
+                        label
+                ));
+            }
+
+            return new AvailableSlotsRes(dateStr, slots);
+
+        } catch (Exception e) {
+            return new AvailableSlotsRes(dateStr, new java.util.ArrayList<>());
+        }
     }
 
     public boolean deleteTestDrive(int id) {
@@ -366,50 +381,87 @@ public class TestDriveService {
     //tham chiếu đến một phương thức của object và sử dụng nó như một biểu thức lambda.
     //không cần thêm logic
     private TestDrive convertToEntity(TestDrive testDrive, TestDriveReq req) {
-        if (testDrive != null && req != null) {
-            if (req.getScheduleDate() != null) {
-                testDrive.setScheduleDate(req.getScheduleDate());
-            }
-            if (req.getStatus() != null) {
-                testDrive.setStatus(req.getStatus());
-            } else {
-                // Set default status if not provided
-                testDrive.setStatus("PENDING");
-            }
-            if (req.getNotes() != null && !req.getNotes().isEmpty()) {
-                testDrive.setNotes(req.getNotes());
-            }
-            if (req.getSpecificVIN() != null && !req.getSpecificVIN().isEmpty()) {
-                testDrive.setSpecificVIN(req.getSpecificVIN());
-            }
-            if (req.getUserId() > 0){
-                Optional<User> user = userRepo.findById(req.getUserId());
-                if (user.isPresent()) {
-                    testDrive.setUser(user.get());
-                    if (user.get().getTestDrives() != null) {
-                        user.get().getTestDrives().add(testDrive);
-                    }
-                }
-            }
-            if (req.getDealerId() > 0){
-                Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
-                if (dealer.isPresent()) {
-                    testDrive.setDealer(dealer.get());
-                    if (dealer.get().getTestDrives() != null) {
-                        dealer.get().getTestDrives().add(testDrive);
-                    }
-                }
-            }
-            if (req.getProductId() > 0){
-                Optional<Product> product = productRepo.findById(req.getProductId());
-                if (product.isPresent()) {
-                    // Remove status constraint - allow any product to be test driven
-                    testDrive.setProduct(product.get());
-                }
-            }
-            return testDrive;
+        if (testDrive == null || req == null) {
+            return null;
         }
-        return null;
+
+        // Update status (with validation if changing)
+        if (req.getStatus() != null) {
+            String oldStatus = testDrive.getStatus();
+            if (oldStatus != null && !req.getStatus().equals(oldStatus)) {
+                validateStatusTransition(oldStatus, req.getStatus());
+            }
+            testDrive.setStatus(req.getStatus());
+        }
+
+        // Update notes if provided
+        if (req.getNotes() != null) {
+            testDrive.setNotes(req.getNotes());
+        }
+
+        // Update user - only if provided and not already set
+        if (req.getUserId() > 0) {
+            Optional<User> user = userRepo.findById(req.getUserId());
+            if (user.isPresent()) {
+                testDrive.setUser(user.get());
+            } else {
+                throw new IllegalArgumentException("ID người dùng không hợp lệ");
+            }
+        }
+
+        // Update dealer - only if provided and not already set
+        if (req.getDealerId() > 0) {
+            Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
+            if (dealer.isPresent()) {
+                testDrive.setDealer(dealer.get());
+            } else {
+                throw new IllegalArgumentException("ID đại lý không hợp lệ");
+            }
+        }
+
+        // Update category - only if provided
+        if (req.getCategoryId() > 0) {
+            Optional<Category> category = categoryRepository.findById(req.getCategoryId());
+            if (category.isPresent()) {
+                testDrive.setCategory(category.get());
+            } else {
+                throw new IllegalArgumentException("Vui lòng chọn mẫu xe muốn lái thử");
+            }
+        }
+
+        // Update schedule date - only if provided
+        if (req.getScheduleDate() != null) {
+            java.time.LocalDateTime scheduleDateTime = req.getScheduleDate();
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            if (scheduleDateTime.isBefore(now)) {
+                throw new IllegalArgumentException("Không thể đặt lịch lái thử trong quá khứ");
+            }
+            testDrive.setScheduleDate(scheduleDateTime);
+        }
+
+        // Update product model name if provided
+        if (req.getProductModelName() != null) {
+            testDrive.setProductModelName(req.getProductModelName());
+        }
+
+        // Update product if provided
+        if (req.getProductId() > 0) {
+            Optional<Product> product = productRepo.findById(req.getProductId());
+            if (product.isPresent()) {
+                testDrive.setProduct(product.get());
+                testDrive.setSpecificVIN(product.get().getVinNum());
+            }
+        }
+
+        // Update escort staff if provided
+        if (req.getEscortStaffId() > 0) {
+            Optional<User> escortStaff = userRepo.findById(req.getEscortStaffId());
+            if (escortStaff.isPresent()) {
+                testDrive.setEscortStaff(escortStaff.get());
+            }
+        }
+        
+        return testDrive;
     }
 
     //lambda expression: (parameters) -> expression
@@ -427,12 +479,6 @@ public class TestDriveService {
             if (testDrive.getNotes() != null) {
                 res.setNotes(testDrive.getNotes());
             }
-            if (testDrive.getSpecificVIN() != null) {
-                res.setSpecificVIN(testDrive.getSpecificVIN());
-            }
-            if (testDrive.getProductModelName() != null) {
-                res.setProductModelName(testDrive.getProductModelName());
-            }
             if (testDrive.getUser() != null) {
                 Optional<User> user = userRepo.findById(testDrive.getUser().getId());
                 if (user.isPresent()){
@@ -445,104 +491,38 @@ public class TestDriveService {
                 if (dealer.isPresent()){
                     DealerRes dealerRes = dealerService.convertDealertoDealerRes(dealer.get());
                     res.setDealer(dealerRes);
+                    res.setLocation(dealerRes.getAddress());
                 }
-            }
-            if (testDrive.getCategory() != null) {
-                res.setCategoryName(testDrive.getCategory().getName());
             }
             if (testDrive.getProduct() != null) {
                 Optional<Product> product = productRepo.findById(testDrive.getProduct().getId());
                 if (product.isPresent()){
+                    res.setProductId(product.get().getId());
                     res.setProductName(product.get().getName());
                 }
             }
+            if (testDrive.getProductModelName() != null) {
+                res.setProductModelName(testDrive.getProductModelName());
+            }
+            if (testDrive.getCategory() != null){
+                res.setCategoryId(testDrive.getCategory().getId());
+                res.setCategoryName(testDrive.getCategory().getName());
+            }
             if (testDrive.getEscortStaff() != null) {
-                Optional<User> staff = userRepo.findById(testDrive.getEscortStaff().getId());
-                if (staff.isPresent()){
-                    UserRes staffRes = userService.convertUsertoUserRes(staff.get());
-                    res.setEscortStaff(staffRes);
+                Optional<User> escort = userRepo.findById(testDrive.getEscortStaff().getId());
+                if (escort.isPresent()){
+                    UserRes escortRes = userService.convertUsertoUserRes(escort.get());
+                    res.setEscortStaff(escortRes);
                 }
             }
+            if (testDrive.getSpecificVIN() != null) {
+                res.setSpecificVIN(testDrive.getSpecificVIN());
+            }
+            // Set attempt number (số lần đăng ký)
+            res.setAttemptNumber(testDrive.getAttemptNumber());
             return res;
         }
         return null;
-    }
-
-    // Check availability for a specific time
-    public com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailabilityCheckRes checkAvailability(
-            int productId, java.time.LocalDateTime scheduleDate, int durationHours) {
-        
-        java.time.LocalDateTime startTime = scheduleDate.minusHours(durationHours);
-        java.time.LocalDateTime endTime = scheduleDate.plusHours(durationHours);
-        
-        List<TestDrive> conflicts = testDriveRepository.findConflictingTestDrives(
-            productId, startTime, endTime
-        );
-        
-        com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailabilityCheckRes response = 
-            new com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailabilityCheckRes();
-        
-        if (conflicts.isEmpty()) {
-            response.setAvailable(true);
-            response.setMessage("Xe khả dụng cho thời gian này");
-        } else {
-            response.setAvailable(false);
-            response.setMessage("Xe đã được đặt trong khung giờ này");
-            
-            List<com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailabilityCheckRes.ConflictingBooking> bookings = 
-                conflicts.stream().map(td -> {
-                    String customerName = td.getUser() != null ? td.getUser().getUsername() : "Unknown";
-                    return new com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailabilityCheckRes.ConflictingBooking(
-                        td.getId(),
-                        td.getScheduleDate().toString(),
-                        customerName
-                    );
-                }).toList();
-            
-            response.setConflictingBookings(bookings);
-        }
-        
-        return response;
-    }
-
-    // Get available time slots for a specific date
-    public com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailableSlotsRes getAvailableSlots(
-            int productId, String dateStr) {
-        
-        try {
-            java.time.LocalDate date = java.time.LocalDate.parse(dateStr);
-            java.time.LocalDateTime dateTime = date.atStartOfDay();
-            
-            // Get all test drives for this product on this date
-            List<TestDrive> bookedSlots = testDriveRepository.findByProductAndDate(productId, dateTime);
-            
-            // Define time slots (8AM - 6PM, 2 hour slots)
-            List<com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailableSlotsRes.TimeSlot> slots = new java.util.ArrayList<>();
-            
-            for (int hour = 8; hour < 18; hour += 2) {
-                java.time.LocalDateTime slotStart = date.atTime(hour, 0);
-                java.time.LocalDateTime slotEnd = slotStart.plusHours(2);
-                
-                // Check if this slot is booked
-                boolean isBooked = bookedSlots.stream().anyMatch(td -> {
-                    java.time.LocalDateTime tdTime = td.getScheduleDate();
-                    return !tdTime.isBefore(slotStart) && tdTime.isBefore(slotEnd);
-                });
-                
-                String label = String.format("%02d:00 - %02d:00", hour, hour + 2);
-                slots.add(new com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailableSlotsRes.TimeSlot(
-                    slotStart.toString(),
-                    slotEnd.toString(),
-                    !isBooked,
-                    label
-                ));
-            }
-            
-            return new com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailableSlotsRes(dateStr, slots);
-            
-        } catch (Exception e) {
-            return new com.lemon.supershop.swp391fa25evdm.testdrive.model.dto.AvailableSlotsRes(dateStr, new java.util.ArrayList<>());
-        }
     }
 
     // Helper method to send confirmation email
@@ -550,57 +530,111 @@ public class TestDriveService {
         if (testDrive.getUser() == null || testDrive.getUser().getEmail() == null) {
             return;
         }
-        
+
         String customerEmail = testDrive.getUser().getEmail();
         String customerName = testDrive.getUser().getUsername();
-        
+
         // Use category name instead of product name (product is assigned later by staff)
-        String vehicleInfo = testDrive.getProduct() != null 
-            ? testDrive.getProduct().getName() 
-            : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện");
-            
+        String vehicleInfo = testDrive.getProduct() != null
+                ? testDrive.getProduct().getName()
+                : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện");
+
         String dealerName = testDrive.getDealer() != null ? testDrive.getDealer().getName() : "Unknown";
-        
+
         java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
         java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
-        
+
         String scheduleDate = testDrive.getScheduleDate().format(dateFormatter);
         String scheduleTime = testDrive.getScheduleDate().format(timeFormatter);
-        
+
         emailService.sendTestDriveConfirmation(
-            customerEmail,
-            customerName,
-            vehicleInfo,
-            dealerName,
-            scheduleDate,
-            scheduleTime
+                customerEmail,
+                customerName,
+                vehicleInfo,
+                dealerName,
+                scheduleDate,
+                scheduleTime
         );
     }
-    
+
     // Helper method to send status update email
     private void sendStatusUpdateEmail(TestDrive testDrive, String oldStatus) {
         if (testDrive.getUser() == null || testDrive.getUser().getEmail() == null) {
             return;
         }
-        
+
         String customerEmail = testDrive.getUser().getEmail();
         String customerName = testDrive.getUser().getUsername();
-        
+
         // Use category name if product not assigned yet
-        String vehicleInfo = testDrive.getProduct() != null 
-            ? testDrive.getProduct().getName() 
-            : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện");
-            
+        String vehicleInfo = testDrive.getProduct() != null
+                ? testDrive.getProduct().getName()
+                : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện");
+
         String status = testDrive.getStatus();
         String notes = testDrive.getNotes();
-        
+
         emailService.sendTestDriveStatusUpdate(
-            customerEmail,
-            customerName,
-            vehicleInfo,
-            status,
-            notes
+                customerEmail,
+                customerName,
+                vehicleInfo,
+                status,
+                notes
         );
+    }
+
+    // Helper method to validate status transitions
+    private void validateStatusTransition(String oldStatus, String newStatus) {
+        // Status flow: PENDING → ASSIGNING → APPROVED → IN_PROGRESS → DONE
+        // Can also: PENDING → REJECTED, any → CANCELLED
+
+        // Terminal states cannot be changed
+        if ("REJECTED".equals(oldStatus) || "CANCELLED".equals(oldStatus) || "DONE".equals(oldStatus)) {
+            throw new IllegalArgumentException("Không thể thay đổi trạng thái của yêu cầu đã " +
+                    getStatusLabel(oldStatus));
+        }
+
+        // PENDING can transition to: ASSIGNING, REJECTED, CANCELLED
+        if ("PENDING".equals(oldStatus)) {
+            if (!("ASSIGNING".equals(newStatus) || "REJECTED".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Chờ xác nhận' sang 'Đang chờ phân công', 'Đã từ chối' hoặc 'Đã hủy'");
+            }
+        }
+
+        // ASSIGNING can transition to: APPROVED, CANCELLED
+        if ("ASSIGNING".equals(oldStatus)) {
+            if (!("APPROVED".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đang chờ phân công' sang 'Đã phê duyệt' hoặc 'Đã hủy'");
+            }
+        }
+
+        // APPROVED can transition to: IN_PROGRESS, CANCELLED
+        if ("APPROVED".equals(oldStatus)) {
+            if (!("IN_PROGRESS".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đã phê duyệt' sang 'Đang thực hiện' hoặc 'Đã hủy'");
+            }
+        }
+
+        // IN_PROGRESS can transition to: DONE, CANCELLED
+        if ("IN_PROGRESS".equals(oldStatus)) {
+            if (!("DONE".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đang thực hiện' sang 'Hoàn thành' hoặc 'Đã hủy'");
+            }
+        }
+    }
+
+    // Helper method to get Vietnamese status label
+    private String getStatusLabel(String status) {
+        return switch (status) {
+            case "PENDING" -> "Chờ xác nhận";
+            case "ASSIGNING" -> "Đang chờ phân công";
+            case "APPROVED" -> "Đã phê duyệt";
+            case "IN_PROGRESS" -> "Đang thực hiện";
+            case "DONE" -> "Hoàn thành";
+            case "REJECTED" -> "Đã từ chối";
+            case "CANCELLED" -> "Đã hủy";
+            default -> status;
+        };
     }
 
     /**
@@ -609,89 +643,92 @@ public class TestDriveService {
      * @return ICS file content as string
      */
     public String generateIcsFile(int testDriveId) {
-        TestDrive testDrive = testDriveRepository.findById(testDriveId)
-            .orElseThrow(() -> new RuntimeException("TestDrive not found with id: " + testDriveId));
-        
-        // Use category name if product not assigned yet
-        String vehicleName = testDrive.getProduct() != null 
-            ? testDrive.getProduct().getName() 
-            : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Test Drive");
-            
-        String dealerName = testDrive.getDealer() != null ? testDrive.getDealer().getName() : "";
-        String dealerAddress = testDrive.getDealer() != null ? testDrive.getDealer().getAddress() : "";
-        String description = testDrive.getNotes() != null ? testDrive.getNotes() : "";
-        
-        // Format datetime for ICS (yyyyMMdd'T'HHmmss)
-        java.time.format.DateTimeFormatter icsFormatter = 
-            java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
-        
-        java.time.LocalDateTime startTime = testDrive.getScheduleDate();
-        java.time.LocalDateTime endTime = startTime.plusHours(2); // Default 2 hour duration
-        
-        String startTimeStr = startTime.format(icsFormatter);
-        String endTimeStr = endTime.format(icsFormatter);
-        
-        // Generate unique ID for the event
-        String uid = "testdrive-" + testDriveId + "@evdm.com";
-        
-        // Current timestamp for DTSTAMP
-        String now = java.time.LocalDateTime.now().format(icsFormatter);
-        
-        // Build ICS content
-        StringBuilder ics = new StringBuilder();
-        ics.append("BEGIN:VCALENDAR\r\n");
-        ics.append("VERSION:2.0\r\n");
-        ics.append("PRODID:-//EVDM//Test Drive Calendar//EN\r\n");
-        ics.append("CALSCALE:GREGORIAN\r\n");
-        ics.append("METHOD:PUBLISH\r\n");
-        ics.append("X-WR-CALNAME:EVDM Test Drive\r\n");
-        ics.append("X-WR-TIMEZONE:Asia/Ho_Chi_Minh\r\n");
-        
-        ics.append("BEGIN:VEVENT\r\n");
-        ics.append("UID:").append(uid).append("\r\n");
-        ics.append("DTSTAMP:").append(now).append("\r\n");
-        ics.append("DTSTART:").append(startTimeStr).append("\r\n");
-        ics.append("DTEND:").append(endTimeStr).append("\r\n");
-        ics.append("SUMMARY:").append(escapeIcsText("Lái thử " + vehicleName)).append("\r\n");
-        ics.append("LOCATION:").append(escapeIcsText(dealerName + ", " + dealerAddress)).append("\r\n");
-        
-        // Build description with details
-        StringBuilder desc = new StringBuilder();
-        desc.append("Lái thử xe: ").append(vehicleName).append("\\n");
-        desc.append("Đại lý: ").append(dealerName).append("\\n");
-        desc.append("Địa chỉ: ").append(dealerAddress).append("\\n");
-        if (!description.isEmpty()) {
-            desc.append("Ghi chú: ").append(description).append("\\n");
+
+        if (testDriveId > 0) {
+            Optional<TestDrive> testDrive = testDriveRepository.findById(testDriveId);
+            if (!testDrive.isPresent()) {
+                throw new RuntimeException("TestDrive not found with id: " + testDriveId);
+            } else {
+
+
+                // Use category name if product not assigned yet
+                String vehicleName = testDrive.get().getProduct() != null
+                        ? testDrive.get().getProduct().getName()
+                        : (testDrive.get().getCategory() != null ? testDrive.get().getCategory().getName() : "Test Drive");
+
+                String dealerName = testDrive.get().getDealer() != null ? testDrive.get().getDealer().getName() : "";
+                String dealerAddress = testDrive.get().getDealer() != null ? testDrive.get().getDealer().getAddress() : "";
+                String description = testDrive.get().getNotes() != null ? testDrive.get().getNotes() : "";
+
+                // Format datetime for ICS (yyyyMMdd'T'HHmmss)
+                java.time.format.DateTimeFormatter icsFormatter =
+                        java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
+
+                java.time.LocalDateTime startTime = testDrive.get().getScheduleDate();
+                java.time.LocalDateTime endTime = startTime.plusHours(2); // Default 2 hour duration
+
+                String startTimeStr = startTime.format(icsFormatter);
+                String endTimeStr = endTime.format(icsFormatter);
+
+                // Generate unique ID for the event
+                String uid = "testdrive-" + testDriveId + "@evdm.com";
+
+                // Current timestamp for DTSTAMP
+                String now = java.time.LocalDateTime.now().format(icsFormatter);
+
+                // Build ICS content
+                StringBuilder ics = new StringBuilder();
+                ics.append("BEGIN:VCALENDAR\r\n");
+                ics.append("VERSION:2.0\r\n");
+                ics.append("PRODID:-//EVDM//Test Drive Calendar//EN\r\n");
+                ics.append("CALSCALE:GREGORIAN\r\n");
+                ics.append("METHOD:PUBLISH\r\n");
+                ics.append("X-WR-CALNAME:EVDM Test Drive\r\n");
+                ics.append("X-WR-TIMEZONE:Asia/Ho_Chi_Minh\r\n");
+
+                ics.append("BEGIN:VEVENT\r\n");
+                ics.append("UID:").append(uid).append("\r\n");
+                ics.append("DTSTAMP:").append(now).append("\r\n");
+                ics.append("DTSTART:").append(startTimeStr).append("\r\n");
+                ics.append("DTEND:").append(endTimeStr).append("\r\n");
+                ics.append("SUMMARY:").append(escapeIcsText("Lái thử " + vehicleName)).append("\r\n");
+                ics.append("LOCATION:").append(escapeIcsText(dealerName + ", " + dealerAddress)).append("\r\n");
+
+                // Build description with details
+                StringBuilder desc = new StringBuilder();
+                desc.append("Lái thử xe: ").append(vehicleName).append("\\n");
+                desc.append("Đại lý: ").append(dealerName).append("\\n");
+                desc.append("Địa chỉ: ").append(dealerAddress).append("\\n");
+                if (!description.isEmpty()) {
+                    desc.append("Ghi chú: ").append(description).append("\\n");
+                }
+                desc.append("\\nTrạng thái: ").append(testDrive.get().getStatus());
+
+                ics.append("DESCRIPTION:").append(escapeIcsText(desc.toString())).append("\r\n");
+                ics.append("STATUS:CONFIRMED\r\n");
+                ics.append("SEQUENCE:0\r\n");
+
+                // Add reminder (30 minutes before)
+                ics.append("BEGIN:VALARM\r\n");
+                ics.append("TRIGGER:-PT30M\r\n");
+                ics.append("ACTION:DISPLAY\r\n");
+                ics.append("DESCRIPTION:Nhắc nhở: Lái thử ").append(vehicleName).append(" sau 30 phút nữa\r\n");
+                ics.append("END:VALARM\r\n");
+
+                ics.append("END:VEVENT\r\n");
+                ics.append("END:VCALENDAR\r\n");
+                return ics.toString();
+            }
         }
-        desc.append("\\nTrạng thái: ").append(testDrive.getStatus());
-        
-        ics.append("DESCRIPTION:").append(escapeIcsText(desc.toString())).append("\r\n");
-        ics.append("STATUS:CONFIRMED\r\n");
-        ics.append("SEQUENCE:0\r\n");
-        
-        // Add reminder (30 minutes before)
-        ics.append("BEGIN:VALARM\r\n");
-        ics.append("TRIGGER:-PT30M\r\n");
-        ics.append("ACTION:DISPLAY\r\n");
-        ics.append("DESCRIPTION:Nhắc nhở: Lái thử ").append(vehicleName).append(" sau 30 phút nữa\r\n");
-        ics.append("END:VALARM\r\n");
-        
-        ics.append("END:VEVENT\r\n");
-        ics.append("END:VCALENDAR\r\n");
-        
-        return ics.toString();
+        return null;
     }
-    
-    /**
-     * Escape special characters in ICS text fields
-     */
+
     private String escapeIcsText(String text) {
         if (text == null) return "";
         return text.replace("\\", "\\\\")
-                   .replace(",", "\\,")
-                   .replace(";", "\\;")
-                   .replace("\n", "\\n")
-                   .replace("\r", "");
+                .replace(",", "\\,")
+                .replace(";", "\\;")
+                .replace("\n", "\\n")
+                .replace("\r", "");
     }
-
 }

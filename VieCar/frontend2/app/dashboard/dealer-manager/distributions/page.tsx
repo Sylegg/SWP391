@@ -725,7 +725,7 @@ export default function DealerDistributionsPage() {
           color: it.color,
           ordered: approvedQty, // Số lượng EVM đã duyệt (calculated or from API)
           received: approvedQty, // Mặc định = số đã duyệt
-          price: it.dealerPrice || 0, // Giá hãng bán cho dealer
+          price: it.dealerPrice || 0, // Giá hãng bán cho dealer (cố định tại thời điểm tạo đơn)
         };
       });
       
@@ -1728,61 +1728,58 @@ export default function DealerDistributionsPage() {
                         <table className="w-full table-auto">
                           <thead>
                             <tr className="border-b-2 border-green-300/50">
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">#</th>
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Sản phẩm</th>
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Màu sắc</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-10">#</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Sản phẩm</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Màu sắc</th>
                               {selectedDistribution.items?.some(it => it.dealerPrice) && (
-                                <th className="text-right py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Giá hãng</th>
+                                <th className="text-right py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Giá hãng</th>
                               )}
-                              <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Yêu cầu</th>
+                              <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">YC</th>
                               {selectedDistribution.items.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null) && (
-                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã duyệt</th>
+                                <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">Duyệt</th>
                               )}
                               {selectedDistribution.items.some(it => it.receivedQuantity !== undefined && it.receivedQuantity !== null) && (
-                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã nhận</th>
+                                <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">Nhận</th>
                               )}
                             </tr>
                           </thead>
                           <tbody>
                             {selectedDistribution.items.map((it, idx) => (
                               <tr key={idx} className="border-b border-green-200/30 hover:bg-green-100/30 dark:hover:bg-green-900/20 transition-colors">
-                                <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-400">{idx + 1}</td>
-                                <td className="py-3 px-3">
-                                  <div className="font-semibold text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
-                                  {it.product?.vinNum && <div className="text-xs text-gray-500 mt-0.5">{it.product.vinNum}</div>}
+                                <td className="py-2 px-2 text-xs text-gray-600 dark:text-gray-400">{idx + 1}</td>
+                                <td className="py-2 px-2">
+                                  <div className="font-semibold text-xs text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
                                 </td>
-                                <td className="py-3 px-3">
-                                  {it.color && (
-                                    <Badge variant="outline" className="text-xs">
-                                      🎨 {it.color}
-                                    </Badge>
+                                <td className="py-2 px-2">
+                                  {it.color ? (
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">
+                                      {it.color}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">-</span>
                                   )}
                                 </td>
                                 {selectedDistribution.items?.some(item => item.dealerPrice) && (
-                                  <td className="py-3 px-3 text-right">
+                                  <td className="py-2 px-2 text-right">
                                     {it.dealerPrice ? (
-                                      <div className="font-semibold text-amber-700 dark:text-amber-400">
-                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} ₫
+                                      <div className="font-semibold text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} VND
                                       </div>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
                                   </td>
                                 )}
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-blue-600">{it.quantity || 0}</span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-sm text-blue-600">{it.quantity || 0}</span>
                                 </td>
                                 {selectedDistribution.items?.some(item => item.approvedQuantity !== undefined && item.approvedQuantity !== null) && (
-                                  <td className="py-3 px-3 text-center">
+                                  <td className="py-2 px-2 text-center">
                                     {it.approvedQuantity !== undefined && it.approvedQuantity !== null ? (
                                       <>
-                                        <span className="font-bold text-green-600">{it.approvedQuantity}</span>
-                                        <span className="text-xs text-gray-500 ml-1">xe</span>
-                                        {it.quantity && it.approvedQuantity < it.quantity && (
-                                          <div className="text-xs text-orange-600 mt-0.5">
-                                            Thiếu: {it.quantity - it.approvedQuantity}
-                                          </div>
+                                        <span className="font-bold text-sm text-green-600">{it.approvedQuantity}</span>
+                                        {it.quantity && it.approvedQuantity < it.quantity && it.approvedQuantity > 0 && (
+                                          <div className="text-xs text-orange-600">-{it.quantity - it.approvedQuantity}</div>
                                         )}
                                       </>
                                     ) : (
@@ -1791,12 +1788,9 @@ export default function DealerDistributionsPage() {
                                   </td>
                                 )}
                                 {selectedDistribution.items?.some(item => item.receivedQuantity !== undefined && item.receivedQuantity !== null) && (
-                                  <td className="py-3 px-3 text-center">
+                                  <td className="py-2 px-2 text-center">
                                     {it.receivedQuantity !== undefined && it.receivedQuantity !== null ? (
-                                      <>
-                                        <span className="font-bold text-purple-600">{it.receivedQuantity}</span>
-                                        <span className="text-xs text-gray-500 ml-1">xe</span>
-                                      </>
+                                      <span className="font-bold text-sm text-purple-600">{it.receivedQuantity}</span>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
@@ -1807,29 +1801,26 @@ export default function DealerDistributionsPage() {
                           </tbody>
                           <tfoot>
                             <tr className="border-t-2 border-green-300/50 bg-green-100/50 dark:bg-green-900/30">
-                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-3 px-3 text-sm font-bold text-green-800 dark:text-green-200">
-                                Tổng cộng
+                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-2 px-2 text-xs font-bold text-green-800 dark:text-green-200">
+                                Tổng
                               </td>
-                              <td className="py-3 px-3 text-center">
-                                <span className="font-bold text-blue-600 text-base">
+                              <td className="py-2 px-2 text-center">
+                                <span className="font-bold text-blue-600 text-sm">
                                   {selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)}
                                 </span>
-                                <span className="text-xs text-gray-500 ml-1">xe</span>
                               </td>
                               {selectedDistribution.items.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null) && (
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-green-600 text-base">
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-green-600 text-sm">
                                     {selectedDistribution.items.reduce((s, it) => s + (it.approvedQuantity || 0), 0)}
                                   </span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
                                 </td>
                               )}
                               {selectedDistribution.items.some(it => it.receivedQuantity !== undefined && it.receivedQuantity !== null) && (
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-purple-600 text-base">
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-purple-600 text-sm">
                                     {selectedDistribution.items.reduce((s, it) => s + (it.receivedQuantity || 0), 0)}
                                   </span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
                                 </td>
                               )}
                             </tr>
@@ -2023,6 +2014,34 @@ export default function DealerDistributionsPage() {
                               <Badge className="bg-pink-500 text-white text-xs">{idx + 1}</Badge>
                             </div>
                             <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              {product.color && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-pink-600">Màu:</span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style={{
+                                    backgroundColor: product.color.toLowerCase().includes('trắng') || product.color.toLowerCase().includes('white') ? '#f5f5f5' :
+                                                   product.color.toLowerCase().includes('đen') || product.color.toLowerCase().includes('black') ? '#1a1a1a' :
+                                                   product.color.toLowerCase().includes('đỏ') || product.color.toLowerCase().includes('red') ? '#ef4444' :
+                                                   product.color.toLowerCase().includes('xanh dương') || product.color.toLowerCase().includes('blue') ? '#3b82f6' :
+                                                   product.color.toLowerCase().includes('xanh lá') || product.color.toLowerCase().includes('green') ? '#22c55e' :
+                                                   product.color.toLowerCase().includes('vàng') || product.color.toLowerCase().includes('yellow') ? '#eab308' :
+                                                   product.color.toLowerCase().includes('bạc') || product.color.toLowerCase().includes('silver') ? '#d1d5db' :
+                                                   product.color.toLowerCase().includes('xám') || product.color.toLowerCase().includes('gray') || product.color.toLowerCase().includes('grey') ? '#6b7280' :
+                                                   product.color.toLowerCase().includes('cam') || product.color.toLowerCase().includes('orange') ? '#f97316' :
+                                                   product.color.toLowerCase().includes('nâu') || product.color.toLowerCase().includes('brown') ? '#92400e' :
+                                                   product.color.toLowerCase().includes('tím') || product.color.toLowerCase().includes('purple') ? '#a855f7' :
+                                                   product.color.toLowerCase().includes('hồng') || product.color.toLowerCase().includes('pink') ? '#ec4899' : '#94a3b8',
+                                    color: product.color.toLowerCase().includes('đen') || product.color.toLowerCase().includes('black') || 
+                                           product.color.toLowerCase().includes('đỏ') || product.color.toLowerCase().includes('red') ||
+                                           product.color.toLowerCase().includes('xanh dương') || product.color.toLowerCase().includes('blue') ||
+                                           product.color.toLowerCase().includes('xanh lá') || product.color.toLowerCase().includes('green') ||
+                                           product.color.toLowerCase().includes('nâu') || product.color.toLowerCase().includes('brown') ||
+                                           product.color.toLowerCase().includes('tím') || product.color.toLowerCase().includes('purple') ? '#ffffff' : '#000000',
+                                    border: '1px solid rgba(0,0,0,0.1)'
+                                  }}>
+                                    {product.color}
+                                  </span>
+                                </div>
+                              )}
                               {product.vinNum && (
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-semibold text-pink-600">VIN:</span>
@@ -2035,10 +2054,10 @@ export default function DealerDistributionsPage() {
                                   <span className="font-mono text-xs">{product.engineNum}</span>
                                 </div>
                               )}
-                              {product.price && (
+                              {product.manufacturerPrice && (
                                 <div className="flex items-center gap-2 pt-1 border-t border-pink-100">
                                   <span className="text-xs font-semibold text-pink-600">Giá:</span>
-                                  <span className="font-bold text-pink-600">{product.price.toLocaleString('vi-VN')} VND</span>
+                                  <span className="font-bold text-pink-600">{product.manufacturerPrice.toLocaleString('vi-VN')} VND</span>
                                 </div>
                               )}
                               {product.stockInDate && (

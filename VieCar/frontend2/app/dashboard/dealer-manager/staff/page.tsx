@@ -124,6 +124,14 @@ export default function StaffManagementPage() {
   const handleEdit = async () => {
     if (!selectedStaff) return;
     
+    if (!formData.username.trim()) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng nhập tên đăng nhập", duration: 3000 });
+      return;
+    }
+    if (!validateUsername(formData.username)) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Tên đăng nhập chỉ được chứa chữ cái và khoảng trắng", duration: 3000 });
+      return;
+    }
     if (formData.phone && !validatePhone(formData.phone)) {
       toast({ variant: "destructive", title: "Lỗi", description: "Số điện thoại phải có 10 số và bắt đầu bằng số 0", duration: 3000 });
       return;
@@ -477,12 +485,17 @@ export default function StaffManagementPage() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-gray-600 dark:text-gray-400 font-medium">Tên đăng nhập</Label>
+                      <Label className="text-orange-600 dark:text-orange-400 font-medium">Tên đăng nhập *</Label>
                       <Input 
+                        placeholder="Nhập họ tên (VD: Nguyễn Văn A)" 
                         value={formData.username} 
-                        disabled 
-                        className="backdrop-blur-sm bg-gray-100/80 dark:bg-gray-800/80"
+                        onChange={e => {
+                          const value = e.target.value.replace(/[^a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s]/g, '');
+                          setFormData({ ...formData, username: value });
+                        }}
+                        className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border-orange-200 dark:border-orange-800 focus:border-orange-500 focus:ring-orange-500"
                       />
+                      <p className="text-xs text-gray-500">Chỉ chữ cái (có dấu) và khoảng trắng, không chứa số hay ký tự</p>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-orange-600 dark:text-orange-400 font-medium">Mật khẩu mới (để trống nếu không đổi)</Label>
