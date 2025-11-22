@@ -112,6 +112,22 @@ public class TestDriveController {
 
     // ============ Status Management APIs ============
 
+    /**
+     * Confirm test drive request (PENDING -> ASSIGNING)
+     * Staff confirms they received the request and will assign vehicle soon
+     */
+    @PutMapping("/{id}/confirm")
+    public ResponseEntity<TestDriveRes> confirmTestDrive(@PathVariable int id) {
+        TestDriveReq req = new TestDriveReq();
+        req.setStatus("ASSIGNING");
+        TestDriveRes result = testDriveService.updateTestDrive(id, req);
+        if (result != null) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PutMapping("/{id}/approve")
     public ResponseEntity<TestDriveRes> approveTestDrive(@PathVariable int id) {
         TestDriveReq req = new TestDriveReq();

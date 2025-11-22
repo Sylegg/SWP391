@@ -158,10 +158,7 @@ export default function DealerManagerDashboard() {
                   <div className="w-2 h-2 rounded-full bg-purple-500 mt-2 shadow-lg shadow-purple-500/50"></div>
                   <span className="text-gray-700 dark:text-gray-300">Kiểm tra đơn phân phối mới</span>
                 </li>
-                <li className="flex items-start space-x-3 p-3 rounded-lg bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm hover:bg-white/60 dark:hover:bg-gray-800/60 transition-colors">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 mt-2 shadow-lg shadow-indigo-500/50"></div>
-                  <span className="text-gray-700 dark:text-gray-300">Xem báo cáo tồn kho</span>
-                </li>
+
                 <li className="flex items-start space-x-3 p-3 rounded-lg bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm hover:bg-white/60 dark:hover:bg-gray-800/60 transition-colors">
                   <div className="w-2 h-2 rounded-full bg-violet-500 mt-2 shadow-lg shadow-violet-500/50"></div>
                   <span className="text-gray-700 dark:text-gray-300">Quản lý nhân viên và phân công</span>

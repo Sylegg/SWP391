@@ -336,6 +336,14 @@ export default function AdminUsersPage() {
   const openEditDialog = (user: UserRes) => {
     setSelectedUser(user);
     const userRole = typeof user.role === 'string' ? user.role : user.role?.name || user.roleName || 'CUSTOMER';
+    
+    console.log('🔍 Opening edit dialog for user:', {
+      username: user.username,
+      role: userRole,
+      dealerId: user.dealerId,
+      dealerName: user.dealerName
+    });
+    
     setEditFormData({
       username: user.username,
       email: user.email || '',
@@ -343,7 +351,7 @@ export default function AdminUsersPage() {
       roleName: userRole as RoleName,
       status: user.status as 'ACTIVE' | 'INACTIVE',
       address: user.address || '',
-      dealerId: user.dealerId,
+      dealerId: user.dealerId || undefined, // Ensure undefined instead of null
       emailVerified: user.emailVerified || false,
     });
     setIsEditOpen(true);
@@ -385,20 +393,22 @@ export default function AdminUsersPage() {
       return;
     }
 
-    // Validate dealerId for DEALER_MANAGER and DEALER_STAFF roles
-    if ((editFormData.roleName === 'DEALER_MANAGER' || editFormData.roleName === 'DEALER_STAFF' ||
-         editFormData.roleName === 'Dealer Manager' || editFormData.roleName === 'Dealer Staff') && 
-        !editFormData.dealerId) {
-      toast({
-        title: '⚠️ Thiếu thông tin',
-        description: 'Vui lòng chọn đại lý cho vai trò này',
-        variant: 'destructive',
-        duration: 3000,
-      });
-      return;
+    // Validate dealerId for DEALER_STAFF role (required)
+    // DEALER_MANAGER can optionally have no dealer
+    if (editFormData.roleName === 'DEALER_STAFF' || editFormData.roleName === 'Dealer Staff') {
+      if (!editFormData.dealerId) {
+        toast({
+          title: '⚠️ Thiếu thông tin',
+          description: 'Nhân viên đại lý phải thuộc về một đại lý cụ thể',
+          variant: 'destructive',
+          duration: 3000,
+        });
+        return;
+      }
     }
 
     try {
+      console.log('📤 Updating user with data:', editFormData);
       await updateUser(selectedUser.id, editFormData);
       toast({
         title: '✅ Cập nhật thành công',
@@ -894,14 +904,15 @@ export default function AdminUsersPage() {
                   <div className="space-y-2">
                     <Label htmlFor="edit-dealer">Đại lý *</Label>
                     <Select 
-                      value={editFormData.dealerId?.toString() || ''} 
-                      onValueChange={(value) => setEditFormData({ ...editFormData, dealerId: value ? parseInt(value) : undefined })}
+                      value={editFormData.dealerId?.toString() || 'none'} 
+                      onValueChange={(value) => setEditFormData({ ...editFormData, dealerId: value === 'none' ? undefined : parseInt(value) })}
                       disabled={loadingDealers}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={loadingDealers ? "Đang tải..." : "Chọn đại lý"} />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">-- Chọn đại lý --</SelectItem>
                         {dealers.length > 0 ? (
                           dealers.map((dealer) => (
                             <SelectItem key={dealer.id} value={dealer.id.toString()}>
@@ -909,7 +920,7 @@ export default function AdminUsersPage() {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="" disabled>
+                          <SelectItem value="empty" disabled>
                             Không có đại lý nào
                           </SelectItem>
                         )}

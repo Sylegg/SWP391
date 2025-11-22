@@ -71,17 +71,7 @@ const navigationItems: NavigationItem[] = [
     icon: Users,
     section: "staff"
   },
-  {
-    title: "📊 BÁO CÁO & THỐNG KÊ",
-    isHeader: true,
-    section: "reports"
-  },
-  {
-    title: "Dashboard báo cáo",
-    href: "/dashboard/dealer-manager/reports",
-    icon: BarChart3,
-    section: "reports"
-  }
+
 ];
 
 export default function DealerManagerLayout({ children }: DealerManagerLayoutProps) {

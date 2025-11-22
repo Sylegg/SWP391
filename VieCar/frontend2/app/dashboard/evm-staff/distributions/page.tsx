@@ -1201,9 +1201,8 @@ export default function EvmDistributionsPage() {
                         )}
                         
                         {/* Button: Tạo đơn bổ sung nếu số lượng duyệt < yêu cầu */}
-                        {!dist.isSupplementary && (dist.status === DistributionStatus.PRICE_SENT || 
-                          dist.status === DistributionStatus.PRICE_REJECTED ||
-                          dist.status === DistributionStatus.CONFIRMED ||
+                        {/* CHỈ HIỂN THỊ KHI ĐÃ XÁC NHẬN (CONFIRMED trở đi) */}
+                        {!dist.isSupplementary && (dist.status === DistributionStatus.CONFIRMED ||
                           dist.status === DistributionStatus.PRICE_ACCEPTED ||
                           dist.status === DistributionStatus.PLANNED ||
                           dist.status === DistributionStatus.COMPLETED) && (() => {
@@ -1895,14 +1894,9 @@ export default function EvmDistributionsPage() {
                                 {selectedDistribution.items?.some(item => item.approvedQuantity !== undefined && item.approvedQuantity !== null) && (
                                   <td className="py-2 px-2 text-center">
                                     {it.approvedQuantity !== undefined && it.approvedQuantity !== null ? (
-                                      <>
-                                        <span className={`font-bold text-sm ${it.approvedQuantity > 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                                          {it.approvedQuantity}
-                                        </span>
-                                        {selectedDistribution.status !== 'PLANNED' && selectedDistribution.status !== 'COMPLETED' && it.quantity && it.approvedQuantity < it.quantity && it.approvedQuantity > 0 && (
-                                          <div className="text-xs text-orange-600">-{it.quantity - it.approvedQuantity}</div>
-                                        )}
-                                      </>
+                                      <span className={`font-bold text-sm ${it.approvedQuantity > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                        {it.approvedQuantity}
+                                      </span>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}

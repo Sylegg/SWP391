@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   getTestDrivesByDealerId, 
   updateTestDrive, 
+  confirmTestDrive,
   assignVehicleAndStaff,
   TestDriveRes,
   TestDriveStatus
@@ -299,8 +300,50 @@ export default function TestDrivesPage() {
     }
   };
 
-  // Handler for opening assignment dialog
+  // Handler for confirming test drive (PENDING -> ASSIGNING)
+  const handleConfirmTestDrive = async (testDrive: TestDriveRes) => {
+    try {
+      setUpdating(true);
+      const result = await confirmTestDrive(testDrive.id);
+      
+      toast({
+        title: '✅ Đã xác nhận đơn lái thử',
+        description: (
+          <div className="mt-2 space-y-1">
+            <p className="font-semibold">Khách hàng: {testDrive.user.name}</p>
+            <p>Mẫu xe: {testDrive.categoryName}</p>
+            <p>Thời gian: {new Date(testDrive.scheduleDate).toLocaleString('vi-VN')}</p>
+            <p className="text-blue-600 font-semibold mt-2">⏳ Vui lòng phân công xe tiếp theo</p>
+          </div>
+        ),
+        duration: 6000,
+      });
+      
+      loadTestDrives();
+    } catch (error) {
+      console.error('❌ Failed to confirm:', error);
+      toast({
+        title: '❌ Không thể xác nhận đơn',
+        description: 'Vui lòng thử lại sau',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Handler for opening assignment dialog (only for ASSIGNING status)
   const handleOpenAssignDialog = (testDrive: TestDriveRes) => {
+    // Kiểm tra trạng thái trước khi mở dialog
+    if (testDrive.status !== TestDriveStatus.ASSIGNING) {
+      toast({
+        title: 'Chú ý',
+        description: 'Vui lòng xác nhận đơn trước khi phân công xe.',
+        variant: 'default',
+      });
+      return;
+    }
+    
     console.log('🚗 Opening assign dialog for:', testDrive);
     console.log('📋 Category ID:', testDrive.categoryId);
     console.log('📋 Category Name:', testDrive.categoryName);
@@ -468,20 +511,20 @@ export default function TestDrivesPage() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      PENDING: { label: 'Chờ xác nhận', variant: 'default' as const, icon: AlertCircle, color: 'text-yellow-600' },
-      ASSIGNING: { label: 'Đang chờ phân công', variant: 'default' as const, icon: AlertCircle, color: 'text-orange-600' },
-      APPROVED: { label: 'Đã phân công', variant: 'default' as const, icon: CheckCircle, color: 'text-green-600' },
-      IN_PROGRESS: { label: 'Đang lái thử', variant: 'default' as const, icon: Car, color: 'text-blue-600' },
-      DONE: { label: 'Hoàn thành', variant: 'default' as const, icon: CheckCircle, color: 'text-gray-600' },
-      REJECTED: { label: 'Đã từ chối', variant: 'destructive' as const, icon: XCircle, color: 'text-red-600' },
-      CANCELLED: { label: 'Đã hủy', variant: 'destructive' as const, icon: XCircle, color: 'text-red-600' },
+      PENDING: { label: 'Chờ xác nhận', variant: 'secondary' as const, icon: AlertCircle, color: 'text-yellow-600', bgColor: 'bg-yellow-100 dark:bg-yellow-900' },
+      ASSIGNING: { label: 'Chờ phân công', variant: 'secondary' as const, icon: AlertCircle, color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900' },
+      APPROVED: { label: 'Đã xác nhận', variant: 'default' as const, icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-500' },
+      IN_PROGRESS: { label: 'Đang lái thử', variant: 'default' as const, icon: Car, color: 'text-blue-600', bgColor: 'bg-blue-500' },
+      DONE: { label: 'Hoàn thành', variant: 'default' as const, icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500' },
+      REJECTED: { label: 'Đã từ chối', variant: 'destructive' as const, icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-500' },
+      CANCELLED: { label: 'Đã hủy', variant: 'outline' as const, icon: XCircle, color: 'text-gray-600', bgColor: 'bg-gray-500' },
     };
     const config = badges[status as keyof typeof badges] || badges.PENDING;
     const Icon = config.icon;
     
     return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className={`h-3 w-3 ${config.color}`} />
+      <Badge variant={config.variant} className={`gap-1 ${config.bgColor}`}>
+        <Icon className={`h-3 w-3`} />
         {config.label}
       </Badge>
     );
@@ -1032,12 +1075,57 @@ export default function TestDrivesPage() {
                     {testDrive.status === TestDriveStatus.PENDING && (
                       <>
                         <Button 
-                          onClick={() => handleOpenAssignDialog(testDrive)}
+                          onClick={() => handleConfirmTestDrive(testDrive)}
                           size="sm"
                           className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
+                          disabled={updating}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Xác nhận đơn
+                        </Button>
+                        <Button 
+                          onClick={async () => {
+                            try {
+                              setUpdating(true);
+                              await updateTestDrive(testDrive.id, {
+                                status: TestDriveStatus.REJECTED,
+                                notes: 'Đại lý từ chối yêu cầu',
+                              });
+                              toast({
+                                title: 'Đã từ chối',
+                                description: 'Đã từ chối yêu cầu lái thử',
+                              });
+                              loadTestDrives();
+                            } catch (error) {
+                              toast({
+                                title: 'Lỗi',
+                                description: 'Không thể từ chối yêu cầu',
+                                variant: 'destructive',
+                              });
+                            } finally {
+                              setUpdating(false);
+                            }
+                          }}
+                          size="sm"
+                          variant="destructive"
+                          disabled={updating}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Từ chối
+                        </Button>
+                      </>
+                    )}
+                    
+                    {testDrive.status === TestDriveStatus.ASSIGNING && (
+                      <>
+                        <Button 
+                          onClick={() => handleOpenAssignDialog(testDrive)}
+                          size="sm"
+                          className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 shadow-md"
+                          disabled={updating}
                         >
                           <Car className="h-4 w-4 mr-2" />
-                          Phân công xe ngay
+                          Phân công xe
                         </Button>
                         <Button 
                           onClick={async () => {
@@ -1069,17 +1157,6 @@ export default function TestDrivesPage() {
                           Hủy yêu cầu
                         </Button>
                       </>
-                    )}
-                    
-                    {testDrive.status === TestDriveStatus.ASSIGNING && (
-                      <Button 
-                        onClick={() => handleOpenAssignDialog(testDrive)}
-                        size="sm"
-                        className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 shadow-md"
-                      >
-                        <AlertCircle className="h-4 w-4 mr-2" />
-                        Phân công xe
-                      </Button>
                     )}
                     
                     {testDrive.status === TestDriveStatus.APPROVED && (

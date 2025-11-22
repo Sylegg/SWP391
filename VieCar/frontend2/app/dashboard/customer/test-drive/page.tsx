@@ -359,9 +359,9 @@ function TestDrivePage() {
   const getStatusBadge = (status: TestDriveStatus) => {
     switch (status) {
       case TestDriveStatus.PENDING:
-        return <Badge variant="secondary">Chờ phân công</Badge>;
+        return <Badge variant="secondary">Chờ xác nhận</Badge>;
       case TestDriveStatus.ASSIGNING:
-        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">Đang phân công</Badge>;
+        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">Chờ phân công</Badge>;
       case TestDriveStatus.APPROVED:
         return <Badge variant="default" className="bg-green-500">Đã xác nhận</Badge>;
       case TestDriveStatus.IN_PROGRESS:
@@ -590,8 +590,8 @@ function TestDrivePage() {
                         </Button>
                       )}
 
-                      {/* PENDING Status - Show cancel button */}
-                      {testDrive.status === TestDriveStatus.PENDING && (
+                      {/* PENDING or ASSIGNING Status - Show cancel button */}
+                      {(testDrive.status === TestDriveStatus.PENDING || testDrive.status === TestDriveStatus.ASSIGNING) && (
                         <Button
                           variant="destructive"
                           size="sm"

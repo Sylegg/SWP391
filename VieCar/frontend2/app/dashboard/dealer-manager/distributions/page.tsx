@@ -893,7 +893,7 @@ export default function DealerDistributionsPage() {
                 <div>
                   <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">Tổng sản phẩm</p>
                   <p className="text-3xl font-bold mt-2 text-purple-600">{stats.totalProducts}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Đã nhận tất cả</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tất cả xe</p>
                 </div>
                 <Package className="h-10 w-10 text-purple-500 opacity-70" />
               </div>
@@ -1785,12 +1785,7 @@ export default function DealerDistributionsPage() {
                                 {selectedDistribution.items?.some(item => item.approvedQuantity !== undefined && item.approvedQuantity !== null) && (
                                   <td className="py-2 px-2 text-center">
                                     {it.approvedQuantity !== undefined && it.approvedQuantity !== null ? (
-                                      <>
-                                        <span className="font-bold text-sm text-green-600">{it.approvedQuantity}</span>
-                                        {selectedDistribution.status !== 'PLANNED' && selectedDistribution.status !== 'COMPLETED' && it.quantity && it.approvedQuantity < it.quantity && it.approvedQuantity > 0 && (
-                                          <div className="text-xs text-orange-600">-{it.quantity - it.approvedQuantity}</div>
-                                        )}
-                                      </>
+                                      <span className="font-bold text-sm text-green-600">{it.approvedQuantity}</span>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
