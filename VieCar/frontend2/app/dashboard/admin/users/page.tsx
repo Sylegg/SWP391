@@ -351,11 +351,7 @@ export default function AdminUsersPage() {
       roleName: userRole as RoleName,
       status: user.status as 'ACTIVE' | 'INACTIVE',
       address: user.address || '',
-<<<<<<< HEAD
       dealerId: user.dealerId || undefined, // Ensure undefined instead of null
-=======
-      dealerId: user.dealerId,
->>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
       emailVerified: user.emailVerified || false,
     });
     setIsEditOpen(true);
@@ -397,7 +393,6 @@ export default function AdminUsersPage() {
       return;
     }
 
-<<<<<<< HEAD
     // Validate dealerId for DEALER_STAFF role (required)
     // DEALER_MANAGER can optionally have no dealer
     if (editFormData.roleName === 'DEALER_STAFF' || editFormData.roleName === 'Dealer Staff') {
@@ -410,19 +405,6 @@ export default function AdminUsersPage() {
         });
         return;
       }
-=======
-    // Validate dealerId for DEALER_MANAGER and DEALER_STAFF roles
-    if ((editFormData.roleName === 'DEALER_MANAGER' || editFormData.roleName === 'DEALER_STAFF' ||
-         editFormData.roleName === 'Dealer Manager' || editFormData.roleName === 'Dealer Staff') && 
-        !editFormData.dealerId) {
-      toast({
-        title: '⚠️ Thiếu thông tin',
-        description: 'Vui lòng chọn đại lý cho vai trò này',
-        variant: 'destructive',
-        duration: 3000,
-      });
-      return;
->>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
     }
 
     try {

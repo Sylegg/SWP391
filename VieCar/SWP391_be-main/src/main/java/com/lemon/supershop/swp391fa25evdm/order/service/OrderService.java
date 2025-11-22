@@ -180,10 +180,57 @@ public class OrderService {
                 if ("Đã giao".equals(dto.getStatus()) && !dto.getStatus().equals(oldStatus)) {
                     try {
                         Product product = order.get().getProduct();
+                        User customer = order.get().getUser();
                         if (product != null) {
                             product.setStatus(ProductStatus.SOLDOUT); // Đánh dấu xe đã bán
                             productRepo.save(product);
                             System.out.println("Updated product status to SOLDOUT for product ID: " + product.getId());
+                            
+                            // Send congratulations email to customer
+                            if (customer != null && customer.getEmail() != null) {
+                                try {
+                                    String customerName = customer.getUsername();
+                                    String customerEmail = customer.getEmail();
+                                    String productName = product.getName() != null ? product.getName() : "N/A";
+                                    String vinNum = product.getVinNum() != null ? product.getVinNum() : "N/A";
+                                    String color = product.getColor() != null ? product.getColor() : "N/A";
+                                    double totalPrice = order.get().getTotal();
+                                    String formattedPrice = String.format("%,.0f", totalPrice);
+                                    
+                                    String subject = "🎉 Chúc mừng bạn đã mua xe thành công - VinFast";
+                                    String body = String.format(
+                                        "Kính gửi quý khách %s,\n\n" +
+                                        "Chúc mừng bạn đã hoàn tất thủ tục mua xe tại VinFast!\n\n" +
+                                        "📋 THÔNG TIN XE:\n" +
+                                        "- Mẫu xe: %s\n" +
+                                        "- Màu sắc: %s\n" +
+                                        "- Số khung (VIN): %s\n" +
+                                        "- Tổng giá trị: %s VNĐ\n\n" +
+                                        "✅ XÁC NHẬN THANH TOÁN:\n" +
+                                        "Chúng tôi xác nhận đã nhận đủ số tiền thanh toán cho xe của quý khách.\n\n" +
+                                        "🎊 CẢM ƠN QUÝ KHÁCH:\n" +
+                                        "Cảm ơn quý khách đã tin tưởng và lựa chọn sản phẩm của VinFast. " +
+                                        "Chúng tôi tin rằng chiếc xe này sẽ đồng hành cùng quý khách trên mọi hành trình.\n\n" +
+                                        "💼 HỖ TRỢ SAU BÁN HÀNG:\n" +
+                                        "Nếu cần hỗ trợ hoặc tư vấn thêm về bảo hành, bảo dưỡng, vui lòng liên hệ với chúng tôi bất cứ lúc nào.\n\n" +
+                                        "Chúc quý khách lái xe an toàn và may mắn!\n\n" +
+                                        "Trân trọng,\n" +
+                                        "Đội ngũ VinFast",
+                                        customerName,
+                                        productName,
+                                        color,
+                                        vinNum,
+                                        formattedPrice
+                                    );
+                                    
+                                    emailService.sendSimpleEmail(customerEmail, subject, body);
+                                    System.out.println("Congratulations email sent to: " + customerEmail);
+                                } catch (Exception emailEx) {
+                                    System.err.println("Failed to send congratulations email: " + emailEx.getMessage());
+                                    emailEx.printStackTrace();
+                                    // Don't throw - allow order update to succeed even if email fails
+                                }
+                            }
                             
                             // Cancel all other orders with the same VIN/Engine number (in separate try-catch)
                             try {
