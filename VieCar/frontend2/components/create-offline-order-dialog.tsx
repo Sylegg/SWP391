@@ -58,9 +58,9 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
   const [selectedProduct, setSelectedProduct] = useState<ProductRes | null>(null);
   const [notes, setNotes] = useState<string>('');
 
-  // Color variants (filtered from products)
-  const [availableColors, setAvailableColors] = useState<string[]>([]);
-  const [selectedColor, setSelectedColor] = useState<string>('');
+  // Selected model and vehicles list
+  const [selectedModelName, setSelectedModelName] = useState<string>('');
+  const [availableVehicles, setAvailableVehicles] = useState<ProductRes[]>([]);
 
   // Load data when dialog opens
   useEffect(() => {
@@ -136,8 +136,8 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
     });
     setSelectedProduct(null);
     setNotes('');
-    setAvailableColors([]);
-    setSelectedColor('');
+    setSelectedModelName('');
+    setAvailableVehicles([]);
   };
 
   // Handle customer selection
@@ -168,45 +168,25 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
     }
   };
 
-  // Handle product selection (by model/name)
-  const handleProductChange = (productId: string) => {
-    const product = products.find(p => p.id === parseInt(productId));
-    if (product) {
-      setSelectedProduct(product);
-      
-      // Get available colors for this model
-      const modelProducts = products.filter(p => p.name === product.name);
-      const colors = [...new Set(modelProducts.map(p => p.color).filter(Boolean))] as string[];
-      setAvailableColors(colors);
-      
-      // Auto-select first color and update selectedProduct to match that color
-      if (colors.length > 0) {
-        const firstColor = colors[0];
-        setSelectedColor(firstColor);
-        
-        // Update selectedProduct to the one with the first color
-        const productWithColor = modelProducts.find(p => p.color === firstColor);
-        if (productWithColor) {
-          setSelectedProduct(productWithColor);
-        }
-      }
-    }
+  // Handle product model selection - show list of vehicles
+  const handleProductChange = (modelName: string) => {
+    setSelectedModelName(modelName);
+    setSelectedProduct(null); // Reset selected vehicle
+    
+    // Get all vehicles of this model
+    const modelVehicles = products.filter(p => p.name === modelName);
+    setAvailableVehicles(modelVehicles);
+    
+    console.log('🚗 Selected model:', modelName);
+    console.log('🚗 Available vehicles:', modelVehicles.length);
   };
 
-  // Handle color selection - update selectedProduct to match the selected color
-  const handleColorChange = (color: string) => {
-    setSelectedColor(color);
-    
-    if (selectedProduct) {
-      // Find product with the same name but different color
-      const productWithColor = products.find(
-        p => p.name === selectedProduct.name && p.color === color
-      );
-      
-      if (productWithColor) {
-        console.log('🎨 Color changed, updating product:', productWithColor);
-        setSelectedProduct(productWithColor);
-      }
+  // Handle specific vehicle selection
+  const handleVehicleChange = (productId: string) => {
+    const vehicle = availableVehicles.find(v => v.id === parseInt(productId));
+    if (vehicle) {
+      setSelectedProduct(vehicle);
+      console.log('✅ Selected vehicle:', vehicle);
     }
   };
 
@@ -216,7 +196,6 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
 
     console.log('🔍 Submit - customerInfo:', customerInfo);
     console.log('🔍 Submit - selectedProduct:', selectedProduct);
-    console.log('🔍 Submit - selectedColor:', selectedColor);
 
     // Validate customer info - bắt buộc điền đủ thông tin bao gồm cả địa chỉ
     if (!customerInfo.name || !customerInfo.email || !customerInfo.phone || !customerInfo.address) {
@@ -231,16 +210,7 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
     if (!selectedProduct) {
       toast({
         title: 'Thiếu thông tin',
-        description: 'Vui lòng chọn sản phẩm.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!selectedColor) {
-      toast({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng chọn màu sắc.',
+        description: 'Vui lòng chọn xe cụ thể từ danh sách.',
         variant: 'destructive',
       });
       return;
@@ -281,15 +251,11 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
       console.log('✅ UserId:', userId);
       console.log('✅ DealerId:', dealerId);
 
-      // Find product with selected color
-      const productWithColor = products.find(
-        p => p.name === selectedProduct.name && p.color === selectedColor
-      );
-
+      // selectedProduct đã là xe cụ thể với VIN, dùng trực tiếp
       const orderData: OrderReq = {
         userId: userId,
         dealerId: dealerId,
-        productId: productWithColor?.id || selectedProduct.id,
+        productId: selectedProduct.id,
         quantity: 1,
         notes: notes || undefined
       };
@@ -656,43 +622,56 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <Label htmlFor="product">Mẫu xe *</Label>
-                      <Select onValueChange={handleProductChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn mẫu xe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {productModels.map((product) => (
-                            <SelectItem key={product.id} value={product.id.toString()}>
-                              {product.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {selectedProduct && (
-                    <>
+                    <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="color">Màu sắc *</Label>
-                        <Select 
-                          value={selectedColor}
-                          onValueChange={handleColorChange}
-                        >
+                        <Label htmlFor="product">Mẫu xe *</Label>
+                        <Select onValueChange={handleProductChange} value={selectedModelName}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Chọn màu sắc" />
+                            <SelectValue placeholder="Chọn mẫu xe" />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableColors.map((color) => (
-                              <SelectItem key={color} value={color}>
-                                {color}
+                            {productModels.map((product) => (
+                              <SelectItem key={product.id} value={product.name}>
+                                {product.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Danh sách xe cụ thể sau khi chọn mẫu */}
+                      {availableVehicles.length > 0 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="vehicle">Chọn xe cụ thể *</Label>
+                          <Select onValueChange={handleVehicleChange} value={selectedProduct?.id.toString()}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Chọn xe từ danh sách" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableVehicles.map((vehicle) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {vehicle.color} - VIN: {vehicle.vinNum}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Động cơ: {vehicle.engineNum}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Có {availableVehicles.length} xe {selectedModelName} sẵn có
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedProduct && (
+                    <>
 
                       {/* Product Details */}
                       <div className="bg-muted p-4 rounded-lg space-y-3">
@@ -716,7 +695,7 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
                             <div className="font-semibold">{selectedProduct.name}</div>
                             
                             <div className="font-medium text-muted-foreground">Màu sắc:</div>
-                            <div className="font-semibold">{selectedColor}</div>
+                            <div className="font-semibold">{selectedProduct.color}</div>
                             
                             <div className="font-medium text-muted-foreground">Số VIN:</div>
                             <div className="font-mono text-xs">{selectedProduct.vinNum}</div>
