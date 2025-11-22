@@ -20,6 +20,7 @@ export interface TestDriveRes {
   productModelName?: string;  // NEW: Tên model customer nhập
   categoryId?: number;         // NEW: Category ID
   categoryName?: string;       // NEW: Category name
+  productId?: number;          // NEW: Product ID - xe đã được phân công
   user: {
     userId: number;
     name: string;
@@ -39,6 +40,7 @@ export interface TestDriveRes {
     email: string;
     phone: string;
   };
+  attemptNumber?: number;      // NEW: Số lần đăng ký lái thử category này (1, 2, 3...)
 }
 
 export interface TestDriveReq {

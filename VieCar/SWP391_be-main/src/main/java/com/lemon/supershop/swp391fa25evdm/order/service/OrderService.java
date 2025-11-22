@@ -184,6 +184,52 @@ public class OrderService {
                             product.setStatus(ProductStatus.SOLDOUT); // Đánh dấu xe đã bán
                             productRepo.save(product);
                             System.out.println("Updated product status to SOLDOUT for product ID: " + product.getId());
+                            
+                            // Cancel all other orders with the same VIN/Engine number (in separate try-catch)
+                            try {
+                                String vinNum = product.getVinNum();
+                                String engineNum = product.getEngineNum();
+                                if (vinNum != null || engineNum != null) {
+                                    List<Order> allOrders = orderRepo.findAll();
+                                    List<Order> otherOrders = new ArrayList<>();
+                                    
+                                    for (Order o : allOrders) {
+                                        if (o.getId() == orderId) continue; // Skip current order
+                                        if (o.getProduct() == null) continue;
+                                        
+                                        Product p = o.getProduct();
+                                        boolean sameVin = vinNum != null && vinNum.equals(p.getVinNum());
+                                        boolean sameEngine = engineNum != null && engineNum.equals(p.getEngineNum());
+                                        
+                                        if (sameVin || sameEngine) {
+                                            String status = o.getStatus();
+                                            if (!"Đã giao".equals(status) && !"Đã hủy".equals(status)) {
+                                                otherOrders.add(o);
+                                            }
+                                        }
+                                    }
+                                    
+                                    for (Order otherOrder : otherOrders) {
+                                        otherOrder.setStatus("Đã hủy");
+                                        String cancelNote = "Xe đã được bán cho khách hàng khác (VIN: " + vinNum + ", Số máy: " + engineNum + ")";
+                                        if (otherOrder.getShipAddress() != null && !otherOrder.getShipAddress().isEmpty()) {
+                                            otherOrder.setShipAddress(otherOrder.getShipAddress() + " | " + cancelNote);
+                                        } else {
+                                            otherOrder.setShipAddress(cancelNote);
+                                        }
+                                        orderRepo.save(otherOrder);
+                                        System.out.println("Auto-cancelled order ID " + otherOrder.getId() + " due to vehicle being sold");
+                                    }
+                                    
+                                    if (!otherOrders.isEmpty()) {
+                                        System.out.println("Auto-cancelled " + otherOrders.size() + " order(s) with same VIN/Engine");
+                                    }
+                                }
+                            } catch (Exception cancelEx) {
+                                System.err.println("Failed to auto-cancel other orders: " + cancelEx.getMessage());
+                                cancelEx.printStackTrace();
+                                // Don't throw - allow main order update to succeed
+                            }
                         }
                     } catch (Exception e) {
                         System.err.println("Failed to update product status to SOLDOUT: " + e.getMessage());
@@ -327,15 +373,32 @@ public class OrderService {
         OrderRes orderRes = new OrderRes();
         if (order != null){
             orderRes.setOrderId(order.getId());
+            
+            // Customer information
             if (order.getUser() != null){
                 orderRes.setCustomerName(order.getUser().getUsername());
+                orderRes.setCustomerEmail(order.getUser().getEmail());
+                orderRes.setCustomerPhone(order.getUser().getPhone());
+                orderRes.setCustomerAddress(order.getUser().getAddress());
             }
+            
             if (order.getContract() != null){
                 orderRes.setContracts(order.getContract());
             }
+            
+            // Product information
             if (order.getProduct() != null){
                 orderRes.setProductName(order.getProduct().getName());
+                orderRes.setProductImage(order.getProduct().getImage());
+                orderRes.setProductVin(order.getProduct().getVinNum());
+                orderRes.setProductEngine(order.getProduct().getEngineNum());
+                orderRes.setProductBattery(order.getProduct().getBattery());
+                orderRes.setProductRange(order.getProduct().getRange());
+                orderRes.setProductHP(order.getProduct().getHp());
+                orderRes.setProductTorque(order.getProduct().getTorque());
+                orderRes.setProductColor(order.getProduct().getColor());
             }
+            
             if (order.getDealer() != null){
                 orderRes.setDealerId(order.getDealer().getId());
             }
@@ -355,6 +418,10 @@ public class OrderService {
                 orderRes.setDeliveryDate(order.getDeliveryDate());
             } else if (order.getShipAt() != null){
                 orderRes.setDeliveryDate(order.getShipAt());
+            }
+            // Notes from shipAddress field (workaround)
+            if (order.getShipAddress() != null){
+                orderRes.setNotes(order.getShipAddress());
             }
         }
         return orderRes;

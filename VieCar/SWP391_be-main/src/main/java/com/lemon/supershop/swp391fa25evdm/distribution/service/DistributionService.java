@@ -309,19 +309,31 @@ public class DistributionService {
             
             // 🔥 XỬ LÝ GIÁ RIÊNG CHO TỪNG ITEM (nếu có)
             if (req.getItems() != null && !req.getItems().isEmpty() && distribution.getItems() != null) {
+                System.out.println("🔥 Processing items with prices: " + req.getItems().size() + " items");
                 // EVM đã set giá riêng cho từng item
                 for (DistributionItemPriceReq itemPrice : req.getItems()) {
                     if (itemPrice.getDistributionItemId() != null) {
+                        System.out.println("📝 Item ID: " + itemPrice.getDistributionItemId() + 
+                                         ", Price: " + itemPrice.getDealerPrice() + 
+                                         ", Approved Qty: " + itemPrice.getApprovedQuantity());
                         // Tìm DistributionItem tương ứng
                         for (DistributionItem dItem : distribution.getItems()) {
                             if (dItem.getId() == itemPrice.getDistributionItemId()) {
+                                System.out.println("✅ Found matching item ID: " + dItem.getId());
+                                System.out.println("   Old price: " + dItem.getDealerPrice() + ", New price: " + itemPrice.getDealerPrice());
+                                System.out.println("   Old approved qty: " + dItem.getApprovedQuantity() + ", New approved qty: " + itemPrice.getApprovedQuantity());
+                                
                                 // Update dealer price if provided
                                 if (itemPrice.getDealerPrice() != null) {
                                     dItem.setDealerPrice(itemPrice.getDealerPrice());
+                                    System.out.println("   ✅ Updated dealer price to: " + dItem.getDealerPrice());
                                 }
-                                // Update approved quantity if provided
-                                if (itemPrice.getApprovedQuantity() != null && itemPrice.getApprovedQuantity() > 0) {
-                                    dItem.setQuantity(itemPrice.getApprovedQuantity());
+                                // Update approved quantity (lưu vào field approvedQuantity, không phải quantity)
+                                // quantity = số lượng yêu cầu ban đầu (giữ nguyên)
+                                // approvedQuantity = số lượng EVM duyệt (có thể là 0)
+                                if (itemPrice.getApprovedQuantity() != null) {
+                                    dItem.setApprovedQuantity(itemPrice.getApprovedQuantity());
+                                    System.out.println("   ✅ Updated approved quantity to: " + dItem.getApprovedQuantity());
                                 }
                                 break;
                             }
@@ -330,6 +342,7 @@ public class DistributionService {
                 }
                 // Lưu lại các items đã cập nhật giá
                 distributionRepo.save(distribution);
+                System.out.println("💾 Saved distribution items with updated prices and quantities");
             }
             
             // Update category base price with manufacturer price (giá cao nhất để tham khảo)
@@ -384,9 +397,9 @@ public class DistributionService {
                             if (itemPrice.getDealerPrice() != null) {
                                 dItem.setDealerPrice(itemPrice.getDealerPrice());
                             }
-                            // Update approved quantity
-                            if (itemPrice.getApprovedQuantity() != null && itemPrice.getApprovedQuantity() > 0) {
-                                dItem.setQuantity(itemPrice.getApprovedQuantity());
+                            // Update approved quantity (lưu vào field approvedQuantity, không phải quantity)
+                            if (itemPrice.getApprovedQuantity() != null) {
+                                dItem.setApprovedQuantity(itemPrice.getApprovedQuantity());
                             }
                             break;
                         }
@@ -510,6 +523,13 @@ public class DistributionService {
         
         Distribution distribution = opt.get();
         
+        // ✅ LOG: Kiểm tra distribution có phải đơn bổ sung không
+        System.out.println("📦 ConfirmReceived - Distribution ID: " + id);
+        System.out.println("   IsSupplementary: " + distribution.getIsSupplementary());
+        System.out.println("   ParentDistributionId: " + distribution.getParentDistributionId());
+        System.out.println("   Items count: " + (distribution.getItems() != null ? distribution.getItems().size() : 0));
+        System.out.println("   Request items count: " + (req.getItems() != null ? req.getItems().size() : 0));
+        
         // Validate status
         if (!"PLANNED".equals(distribution.getStatus())) {
             throw new RuntimeException("Invalid status. Expected PLANNED, got: " + distribution.getStatus());
@@ -520,18 +540,36 @@ public class DistributionService {
         if (req.getItems() != null && distribution.getItems() != null) {
             // Build map for quick lookup of order quantities by distributionItemId
             java.util.Map<Integer, DistributionItem> orderMap = new java.util.HashMap<>();
+            System.out.println("📦 Building orderMap from distribution items:");
             for (DistributionItem di : distribution.getItems()) {
+                if (di.getId() == 0) {
+                    System.err.println("   ⚠️ WARNING: DistributionItem has ID = 0! This will cause lookup failure.");
+                    System.err.println("      Item details: Qty=" + di.getQuantity() + ", Color=" + di.getColor() + 
+                                     ", CategoryId=" + di.getCategoryId() + 
+                                     ", ProductId=" + (di.getProduct() != null ? di.getProduct().getId() : "null"));
+                }
                 orderMap.put(di.getId(), di);
+                System.out.println("   - Item ID: " + di.getId() + " | Qty: " + di.getQuantity() + 
+                                 " | Color: " + di.getColor() + " | CategoryId: " + di.getCategoryId());
             }
 
             // Validate and sum received, and auto-create products
             int calcSum = 0;
+            System.out.println("📦 Processing received items from request:");
             for (DistributionReceivedItemReq ir : req.getItems()) {
-                if (ir == null || ir.getDistributionItemId() == null) continue;
+                if (ir == null || ir.getDistributionItemId() == null) {
+                    System.out.println("   ⏭️ Skipping null item or null distributionItemId");
+                    continue;
+                }
+                System.out.println("   🔍 Looking up DistributionItemId: " + ir.getDistributionItemId());
                 DistributionItem orderedItem = orderMap.get(ir.getDistributionItemId());
                 if (orderedItem == null) {
-                    throw new RuntimeException("Distribution item not found: " + ir.getDistributionItemId());
+                    System.err.println("   ❌ ERROR: Distribution item not found: " + ir.getDistributionItemId());
+                    System.err.println("      Available IDs in orderMap: " + orderMap.keySet());
+                    throw new RuntimeException("Distribution item not found: " + ir.getDistributionItemId() + 
+                                             ". Available IDs: " + orderMap.keySet());
                 }
+                System.out.println("   ✅ Found item: ID=" + orderedItem.getId() + " | Qty=" + orderedItem.getQuantity());
                 int orderedQty = orderedItem.getQuantity() != null ? orderedItem.getQuantity() : 0;
                 int recv = ir.getReceivedQuantity() != null ? ir.getReceivedQuantity() : 0;
                 if (recv < 0) recv = 0;
@@ -541,6 +579,8 @@ public class DistributionService {
                 calcSum += recv;
 
                 if (recv > 0) {
+                    System.out.println("   ✅ Creating " + recv + " products for item ID: " + orderedItem.getId());
+                    
                     // Lấy template từ item.product HOẶC tìm từ categoryId
                     Product template = orderedItem.getProduct();
                     Category category = null;
@@ -588,6 +628,7 @@ public class DistributionService {
                             p.setBattery(Math.max(0, template.getBattery()));
                             p.setHp(Math.max(0, template.getHp()));
                             p.setTorque(Math.max(0, template.getTorque()));
+                            p.setRange(Math.max(0, template.getRange()));
                             p.setImage(template.getImage());
                             p.setDescription(template.getDescription());
                             if (template.getCategory() != null) {
@@ -597,10 +638,8 @@ public class DistributionService {
                             // Không có template → tạo từ category
                             p.setName(category.getName());
                             p.setCategory(category);
-                            p.setBattery(0);
-                            p.setHp(0);
-                            p.setTorque(0);
-                            p.setRange(0);
+                            // ✅ TỰ ĐỘNG SET THÔNG SỐ KỸ THUẬT dựa trên tên xe
+                            setDefaultSpecsByProductName(p, category.getName());
                         }
                         
                         // ✅ SET MANUFACTURER PRICE (chỉ set 1 lần duy nhất, không được đổi)
@@ -623,7 +662,6 @@ public class DistributionService {
                         String uniqueCode = generateUniqueCode();
                         p.setVinNum("VIN-" + uniqueCode);
                         p.setEngineNum("ENG-" + uniqueCode);
-                        p.setRange(0);
                         // Manufacture date giữ nguyên theo template hoặc set hôm nay
                         p.setManufacture_date(new java.util.Date());
                         // Tự động set ngày nhập kho = actualDeliveryDate (nếu có) hoặc ngày hiện tại
@@ -633,7 +671,8 @@ public class DistributionService {
                         p.setStockInDate(stockIn);
                         // 🔧 SỬA: Set INACTIVE khi nhập kho - Dealer staff sẽ đăng lên showroom sau
                         p.setStatus(com.lemon.supershop.swp391fa25evdm.product.model.enums.ProductStatus.INACTIVE);
-                        productRepo.save(p);
+                        Product savedProduct = productRepo.save(p);
+                        System.out.println("      ✅ Saved Product ID: " + savedProduct.getId() + " | VIN: " + savedProduct.getVinNum());
                     }
                 }
             }
@@ -948,6 +987,7 @@ public class DistributionService {
                 
                 ir.setColor(di.getColor());
                 ir.setQuantity(di.getQuantity());
+                ir.setApprovedQuantity(di.getApprovedQuantity()); // 🔥 SET APPROVED QUANTITY
                 ir.setDealerPrice(di.getDealerPrice()); // 🔥 SET DEALER PRICE
                 itemResList.add(ir);
             }
@@ -988,11 +1028,6 @@ public class DistributionService {
         // Set supplementary fields
         res.setParentDistributionId(distribution.getParentDistributionId());
         res.setIsSupplementary(distribution.getIsSupplementary());
-        
-        // Set payment information
-        res.setPaidAmount(distribution.getPaidAmount());
-        res.setTransactionNo(distribution.getTransactionNo());
-        res.setPaidAt(distribution.getPaidAt());
         
         return res;
     }
@@ -1087,6 +1122,7 @@ public class DistributionService {
         }
 
         // Tạo supplementary items với số lượng = số lượng thiếu
+        System.out.println("🔍 Creating supplementary items from parent items (count: " + parent.getItems().size() + ")");
         for (DistributionItem parentItem : parent.getItems()) {
             // Tìm số lượng đã duyệt từ evmNotes
             // Ưu tiên Product name, fallback về Category name (load từ categoryId)
@@ -1128,11 +1164,17 @@ public class DistributionService {
                 // Clone item với số lượng = số lượng thiếu
                 DistributionItem suppItem = new DistributionItem();
                 suppItem.setProduct(parentItem.getProduct());
+                suppItem.setCategoryId(parentItem.getCategoryId());
                 suppItem.setColor(parentItem.getColor());
                 suppItem.setQuantity(shortage);
                 suppItem.setDealerPrice(parentItem.getDealerPrice());
                 supplementaryItems.add(suppItem);
                 totalShortage += shortage;
+                
+                System.out.println("   ➕ Added supplementary item: " + itemKey + " | Shortage: " + shortage + 
+                                 " | ProductID: " + (parentItem.getProduct() != null ? parentItem.getProduct().getId() : "null") +
+                                 " | CategoryID: " + parentItem.getCategoryId() +
+                                 " | DealerPrice: " + (parentItem.getDealerPrice() != null ? parentItem.getDealerPrice() : "null"));
             }
         }
 
@@ -1170,12 +1212,6 @@ public class DistributionService {
         supplementary.setParentDistributionId(parentDistributionId);
         supplementary.setIsSupplementary(true);
         
-        // Set items
-        for (DistributionItem item : supplementaryItems) {
-            item.setDistribution(supplementary);
-        }
-        supplementary.setItems(supplementaryItems);
-        
         // Set quantities
         supplementary.setRequestedQuantity(totalShortage);
         
@@ -1187,12 +1223,112 @@ public class DistributionService {
         String suppNote = "Đơn bổ sung cho đơn gốc #" + parentDistributionId + " (" + totalShortage + " xe thiếu)";
         supplementary.setEvmNotes(suppNote);
         
-        // Save
+        // ✅ QUAN TRỌNG: Save distribution TRƯỚC để có ID, sau đó mới set items
         distributionRepo.save(supplementary);
+        
+        // Set items AFTER distribution has been saved (to avoid foreign key issues)
+        for (DistributionItem item : supplementaryItems) {
+            item.setDistribution(supplementary);
+        }
+        supplementary.setItems(supplementaryItems);
+        
+        // Save again to persist items AND flush to ensure IDs are generated
+        supplementary = distributionRepo.saveAndFlush(supplementary);
         
         System.out.println("✅ Tạo đơn bổ sung thành công: ID=" + supplementary.getId() + 
                          ", Parent=" + parentDistributionId + ", Shortage=" + totalShortage + " xe");
+        System.out.println("   Items persisted: " + (supplementary.getItems() != null ? supplementary.getItems().size() : 0));
+        
+        // ✅ LOG: Verify items have IDs
+        if (supplementary.getItems() != null) {
+            for (DistributionItem item : supplementary.getItems()) {
+                System.out.println("   📦 Item ID: " + item.getId() + " | Qty: " + item.getQuantity() + 
+                                 " | Color: " + item.getColor() + 
+                                 " | CategoryId: " + item.getCategoryId() + 
+                                 " | ProductId: " + (item.getProduct() != null ? item.getProduct().getId() : "null"));
+            }
+        }
+        
+        // ✅ VERIFY: Load lại từ DB để đảm bảo items đã được lưu
+        Distribution verifyDist = distributionRepo.findById(supplementary.getId()).orElse(null);
+        if (verifyDist != null && verifyDist.getItems() != null) {
+            System.out.println("   ✅ VERIFIED: Distribution has " + verifyDist.getItems().size() + " items in DB");
+            for (DistributionItem item : verifyDist.getItems()) {
+                System.out.println("      - Item ID: " + item.getId() + " | Qty: " + item.getQuantity() + 
+                                 " | ProductID: " + (item.getProduct() != null ? item.getProduct().getId() : "null") +
+                                 " | CategoryID: " + item.getCategoryId());
+            }
+        } else {
+            System.err.println("   ❌ WARNING: Items NOT found in DB after save!");
+        }
         
         return convertToRes(supplementary);
+    }
+    
+    /**
+     * ✅ TỰ ĐỘNG SET THÔNG SỐ KỸ THUẬT cho sản phẩm dựa trên tên xe
+     * Dữ liệu dựa trên thông số thực tế của VinFast
+     */
+    private void setDefaultSpecsByProductName(Product product, String productName) {
+        if (productName == null) return;
+        
+        String nameLower = productName.toLowerCase().trim();
+        
+        // VinFast VF3 - Mini City Car
+        if (nameLower.contains("vf3") || nameLower.contains("vf 3")) {
+            product.setBattery(19); // kWh
+            product.setRange(210); // km
+            product.setHp(43); // HP
+            product.setTorque(110); // Nm
+        }
+        // VinFast VF5 - Compact SUV
+        else if (nameLower.contains("vf5") || nameLower.contains("vf 5")) {
+            product.setBattery(37); // kWh
+            product.setRange(326); // km
+            product.setHp(134); // HP
+            product.setTorque(135); // Nm
+        }
+        // VinFast VF6 - Mid-size SUV
+        else if (nameLower.contains("vf6") || nameLower.contains("vf 6")) {
+            product.setBattery(59); // kWh
+            product.setRange(388); // km
+            product.setHp(174); // HP
+            product.setTorque(250); // Nm
+        }
+        // VinFast VF7 - Mid-size SUV
+        else if (nameLower.contains("vf7") || nameLower.contains("vf 7")) {
+            product.setBattery(75); // kWh
+            product.setRange(450); // km
+            product.setHp(201); // HP
+            product.setTorque(310); // Nm
+        }
+        // VinFast VF8 - Full-size SUV
+        else if (nameLower.contains("vf8") || nameLower.contains("vf 8")) {
+            product.setBattery(87); // kWh
+            product.setRange(471); // km
+            product.setHp(402); // HP (Dual motor)
+            product.setTorque(620); // Nm
+        }
+        // VinFast VF9 - Premium Full-size SUV
+        else if (nameLower.contains("vf9") || nameLower.contains("vf 9")) {
+            product.setBattery(123); // kWh
+            product.setRange(594); // km
+            product.setHp(402); // HP (Dual motor)
+            product.setTorque(640); // Nm
+        }
+        // VinFast VF e34 - Compact Electric SUV
+        else if (nameLower.contains("e34") || nameLower.contains("vfe34")) {
+            product.setBattery(42); // kWh
+            product.setRange(318); // km
+            product.setHp(147); // HP
+            product.setTorque(242); // Nm
+        }
+        // Default fallback - nếu không match dòng xe nào
+        else {
+            product.setBattery(50); // kWh
+            product.setRange(350); // km
+            product.setHp(150); // HP
+            product.setTorque(250); // Nm
+        }
     }
 }

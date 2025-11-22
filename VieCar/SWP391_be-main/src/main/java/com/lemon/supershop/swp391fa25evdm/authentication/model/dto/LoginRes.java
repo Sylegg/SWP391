@@ -9,6 +9,7 @@ public class LoginRes {
     private Integer dealerId;
     private String dealerName;
     private String dealerAddress;
+    private Boolean isNewUser;  // Flag để phân biệt user mới cần điền thông tin
 
     public LoginRes(String token, String refreshToken, String username, String role) {
         this.token = token;
@@ -74,5 +75,13 @@ public class LoginRes {
 
     public void setDealerAddress(String dealerAddress) {
         this.dealerAddress = dealerAddress;
+    }
+
+    public Boolean getIsNewUser() {
+        return isNewUser;
+    }
+
+    public void setIsNewUser(Boolean isNewUser) {
+        this.isNewUser = isNewUser;
     }
 }

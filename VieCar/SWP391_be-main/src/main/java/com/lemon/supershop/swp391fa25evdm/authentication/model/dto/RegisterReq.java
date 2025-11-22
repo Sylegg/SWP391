@@ -9,6 +9,7 @@ public class RegisterReq {
     private String password;
     private String confirmPassword;
     private Integer dealerId;
+    private Boolean emailVerified;
 
     public RegisterReq() {}
 
@@ -42,5 +43,9 @@ public class RegisterReq {
 
     public Integer getDealerId() {
         return dealerId;
+    }
+
+    public Boolean getEmailVerified() {
+        return emailVerified;
     }
 }

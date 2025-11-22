@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
@@ -94,6 +95,12 @@ function HeroAutoplayVideo({ src, poster }: { src: string; poster?: string }) {
 }
 
 export function HeroSection() {
+  const router = useRouter();
+
+  const handleTestDrive = () => {
+    router.push('/dashboard/customer/test-drive');
+  };
+
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <Image
@@ -120,7 +127,7 @@ export function HeroSection() {
             </div>
 
             <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <Button size="lg" className="bg-yellow-400 text-black hover:bg-yellow-500">
+              <Button size="lg" className="bg-yellow-400 text-black hover:bg-yellow-500" onClick={handleTestDrive}>
                 Đăng ký lái ngay
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

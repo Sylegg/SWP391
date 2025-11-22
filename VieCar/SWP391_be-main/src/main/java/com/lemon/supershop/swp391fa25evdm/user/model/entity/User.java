@@ -46,6 +46,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 
+    @Column(name = "EmailVerified", columnDefinition = "BIT DEFAULT 0")
+    private Boolean emailVerified = false;  // Changed to Boolean wrapper to handle null values
+
     @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
     private Date createAt;
@@ -216,5 +219,13 @@ public class User {
 
     public void setStatus(UserStatus status) {
         this.status = status;
+    }
+
+    public Boolean isEmailVerified() {
+        return emailVerified != null ? emailVerified : false;
+    }
+
+    public void setEmailVerified(Boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 }

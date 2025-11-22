@@ -29,6 +29,10 @@ public class DistributionItem {
     @Column(name = "Quantity", columnDefinition = "INT")
     private Integer quantity;
 
+    // Approved Quantity by EVM Staff (số lượng EVM duyệt - có thể khác quantity)
+    @Column(name = "ApprovedQuantity", columnDefinition = "INT")
+    private Integer approvedQuantity;
+
     // Dealer Price per line (đơn giá hãng bán cho đại lý)
     @Column(name = "DealerPrice", precision = 18, scale = 2)
     private BigDecimal dealerPrice;
@@ -73,6 +77,14 @@ public class DistributionItem {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getApprovedQuantity() {
+        return approvedQuantity;
+    }
+
+    public void setApprovedQuantity(Integer approvedQuantity) {
+        this.approvedQuantity = approvedQuantity;
     }
 
     public BigDecimal getDealerPrice() {

@@ -8,9 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { getAllProducts, ProductRes } from '@/lib/productApi';
 import { createOrder, OrderReq } from '@/lib/orderApi';
 import { getUsersByRole, UserRes, createUser, UserReq } from '@/lib/userApi';
+import { getDealerCategoriesByDealerId, DealerCategoryRes } from '@/lib/categoryApi';
 import { ShoppingCart, Loader2, UserPlus, ArrowRight, ArrowLeft } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -33,6 +35,7 @@ interface CreateOfflineOrderDialogProps {
 
 export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: CreateOfflineOrderDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // State
   const [loading, setLoading] = useState(false);
@@ -76,11 +79,39 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
       const customersData = await getUsersByRole('Customer');
       setCustomers(customersData);
 
-      // Load products
+      // Load products - filter by dealer's categories
+      if (!user?.dealerId) {
+        console.error('❌ User dealerId not found');
+        toast({
+          title: 'Lỗi',
+          description: 'Không tìm thấy thông tin đại lý. Vui lòng đăng nhập lại.',
+          variant: 'destructive',
+        });
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
+      // 1. Load categories created by this dealer (Categories, not DealerCategories)
+      const { getCategoriesByDealerId } = await import('@/lib/categoryApi');
+      const dealerCategories = await getCategoriesByDealerId(user.dealerId);
+      const categoryIds = dealerCategories.map(c => c.id);
+      
+      console.log('🏪 Dealer ID:', user.dealerId);
+      console.log('🏪 Categories:', categoryIds);
+
+      // 2. Load all products and filter by categoryId
       const productsData = await getAllProducts();
-      // Filter only active products
-      const activeProducts = productsData.filter(p => p.status === 'ACTIVE');
-      setProducts(activeProducts);
+      console.log('📦 All products:', productsData.length);
+      
+      const dealerProducts = productsData.filter(p => 
+        p.status === 'ACTIVE' && 
+        categoryIds.includes(p.categoryId)
+      );
+      
+      console.log('✅ Filtered products:', dealerProducts.length);
+      
+      setProducts(dealerProducts);
     } catch (error) {
       console.error('Failed to load data:', error);
       toast({
@@ -148,9 +179,33 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
       const colors = [...new Set(modelProducts.map(p => p.color).filter(Boolean))] as string[];
       setAvailableColors(colors);
       
-      // Auto-select first color
+      // Auto-select first color and update selectedProduct to match that color
       if (colors.length > 0) {
-        setSelectedColor(colors[0]);
+        const firstColor = colors[0];
+        setSelectedColor(firstColor);
+        
+        // Update selectedProduct to the one with the first color
+        const productWithColor = modelProducts.find(p => p.color === firstColor);
+        if (productWithColor) {
+          setSelectedProduct(productWithColor);
+        }
+      }
+    }
+  };
+
+  // Handle color selection - update selectedProduct to match the selected color
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    
+    if (selectedProduct) {
+      // Find product with the same name but different color
+      const productWithColor = products.find(
+        p => p.name === selectedProduct.name && p.color === color
+      );
+      
+      if (productWithColor) {
+        console.log('🎨 Color changed, updating product:', productWithColor);
+        setSelectedProduct(productWithColor);
       }
     }
   };
@@ -591,21 +646,32 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
 
                   <h3 className="font-semibold text-lg pt-4">Chọn sản phẩm</h3>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="product">Mẫu xe *</Label>
-                    <Select onValueChange={handleProductChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn mẫu xe" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {productModels.map((product) => (
-                          <SelectItem key={product.id} value={product.id.toString()}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {productModels.length === 0 ? (
+                    <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        ⚠️ Đại lý của bạn chưa có sản phẩm nào sẵn sàng bán.
+                      </p>
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                        Vui lòng liên hệ Dealer Manager để nhập xe vào danh mục của đại lý.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="product">Mẫu xe *</Label>
+                      <Select onValueChange={handleProductChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn mẫu xe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {productModels.map((product) => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {product.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {selectedProduct && (
                     <>
@@ -613,7 +679,7 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
                         <Label htmlFor="color">Màu sắc *</Label>
                         <Select 
                           value={selectedColor}
-                          onValueChange={setSelectedColor}
+                          onValueChange={handleColorChange}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Chọn màu sắc" />
@@ -629,20 +695,88 @@ export function CreateOfflineOrderDialog({ open, onOpenChange, onSuccess }: Crea
                       </div>
 
                       {/* Product Details */}
-                      <div className="bg-muted p-4 rounded-lg space-y-2">
-                        <h4 className="font-semibold">Thông số kỹ thuật</h4>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>Pin: {selectedProduct.battery} kWh</div>
-                          <div>Quãng đường: {selectedProduct.range} km</div>
-                          <div>Công suất: {selectedProduct.hp} HP</div>
-                          <div>Mô-men xoắn: {selectedProduct.torque} Nm</div>
+                      <div className="bg-muted p-4 rounded-lg space-y-3">
+                        <h4 className="font-semibold text-lg">Thông số kỹ thuật</h4>
+                        
+                        {/* Hình ảnh sản phẩm */}
+                        {selectedProduct.image && (
+                          <div className="w-full h-48 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+                            <img 
+                              src={selectedProduct.image} 
+                              alt={selectedProduct.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+
+                        {/* Thông tin cơ bản */}
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <div className="font-medium text-muted-foreground">Tên xe:</div>
+                            <div className="font-semibold">{selectedProduct.name}</div>
+                            
+                            <div className="font-medium text-muted-foreground">Màu sắc:</div>
+                            <div className="font-semibold">{selectedColor}</div>
+                            
+                            <div className="font-medium text-muted-foreground">Số VIN:</div>
+                            <div className="font-mono text-xs">{selectedProduct.vinNum}</div>
+                            
+                            <div className="font-medium text-muted-foreground">Số động cơ:</div>
+                            <div className="font-mono text-xs">{selectedProduct.engineNum}</div>
+                            
+                            <div className="font-medium text-muted-foreground">Ngày sản xuất:</div>
+                            <div>{selectedProduct.manufacture_date 
+                              ? new Date(selectedProduct.manufacture_date).toLocaleDateString('vi-VN')
+                              : 'Chưa có thông tin'}
+                            </div>
+                            
+                            {selectedProduct.stockInDate && (
+                              <>
+                                <div className="font-medium text-muted-foreground">Ngày nhập kho:</div>
+                                <div>{new Date(selectedProduct.stockInDate).toLocaleDateString('vi-VN')}</div>
+                              </>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Thông số kỹ thuật động cơ */}
                         <div className="pt-2 border-t border-border">
-                          <div className="text-xl font-bold text-primary">
-                            Giá bán: {totalPrice.toLocaleString('vi-VN')} VNĐ
+                          <h5 className="font-semibold text-sm mb-2">Động cơ & Hiệu suất</h5>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Pin:</span>
+                              <span className="ml-2 font-semibold">{selectedProduct.battery} kWh</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Quãng đường:</span>
+                              <span className="ml-2 font-semibold">{selectedProduct.range} km</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Công suất:</span>
+                              <span className="ml-2 font-semibold">{selectedProduct.hp} HP</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Mô-men xoắn:</span>
+                              <span className="ml-2 font-semibold">{selectedProduct.torque} Nm</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mô tả */}
+                        {selectedProduct.description && (
+                          <div className="pt-2 border-t border-border">
+                            <h5 className="font-semibold text-sm mb-1">Mô tả:</h5>
+                            <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
+                          </div>
+                        )}
+
+                        {/* Giá bán */}
+                        <div className="pt-2 border-t border-border">
+                          <div className="text-2xl font-bold text-primary">
+                            {totalPrice.toLocaleString('vi-VN')} VNĐ
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Mỗi đơn hàng chỉ được mua 1 xe
+                            💡 Mỗi đơn hàng chỉ được mua 1 xe
                           </p>
                         </div>
                       </div>

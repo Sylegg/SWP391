@@ -1,5 +1,6 @@
 "use client"
 import React from "react"
+import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react"
@@ -71,10 +72,10 @@ const brands: BrandGroup[] = [
     products: [
       { id: "vf3", name: "VinFast VF 3", image: "/xe%20oto%20vinfast/VF3.jpg", price: "299.000.000đ" },
       { id: "vf5", name: "VinFast VF 5", image: "/xe%20oto%20vinfast/VF5.jpg", price: "529.000.000đ" },
-      { id: "vf6", name: "VinFast VF 6 ECO", image: "/xe%20oto%20vinfast/VF6.jpg", price: "694.000.000đ" },
-      { id: "vf7", name: "VinFast VF 7 EC", image: "/xe%20oto%20vinfast/VF7.jpg", price: "799.000.000đ" },
-      { id: "vf8", name: "VinFast VF 8 ECO", image: "/xe%20oto%20vinfast/VF8.jpg", price: "1.019.000.000đ" },
-      { id: "vf9", name: "VinFast VF 9 ECO", image: "/xe%20oto%20vinfast/VF9.jpg", price: "1.499.000.000đ" },
+      { id: "vf6", name: "VinFast VF 6", image: "/xe%20oto%20vinfast/VF6.jpg", price: "694.000.000đ" },
+      { id: "vf7", name: "VinFast VF 7", image: "/xe%20oto%20vinfast/VF7.jpg", price: "799.000.000đ" },
+      { id: "vf8", name: "VinFast VF 8", image: "/xe%20oto%20vinfast/VF8.jpg", price: "1.019.000.000đ" },
+      { id: "vf9", name: "VinFast VF 9", image: "/xe%20oto%20vinfast/VF9.jpg", price: "1.499.000.000đ" },
       { id: "limogreen", name: "VinFast Limo Green", image: "/xe%20oto%20vinfast/LimoGreen.jpg", price: "749.000.000đ" },
     ],
   },
@@ -82,6 +83,12 @@ const brands: BrandGroup[] = [
 
 // Small, reusable card for a product
 function ProductCard({ product }: { product: Product }) {
+  const router = useRouter();
+
+  const handleTestDrive = () => {
+    router.push('/dashboard/customer/test-drive');
+  };
+
   return (
     <Card className="w-[260px] shrink-0 snap-start overflow-hidden">
       <div className="relative aspect-[4/3] overflow-hidden bg-white">
@@ -94,18 +101,8 @@ function ProductCard({ product }: { product: Product }) {
       </div>
       <div className="p-4">
         <div className="mt-1 line-clamp-2 text-base font-semibold leading-snug">{product.name}</div>
-        <div className="mt-2 flex items-baseline gap-2">
-          {product.oldPrice ? (
-            <span className="text-sm text-muted-foreground line-through">{product.oldPrice}</span>
-          ) : null}
-          <span className="text-lg font-bold text-red-600">{product.price}</span>
-        </div>
-        {product.colorPrice ? (
-          <div className="mt-1 text-sm text-muted-foreground">{product.colorPrice}</div>
-        ) : null}
-        <div className="mt-3 flex gap-2">
-          <Button size="sm" className="flex-1">Xem chi tiết</Button>
-          <Button size="sm" variant="outline" className="flex-1 bg-transparent">Thêm vào giỏ</Button>
+        <div className="mt-4">
+          <Button size="sm" className="w-full" onClick={handleTestDrive}>Đăng ký lái thử xe</Button>
         </div>
       </div>
     </Card>

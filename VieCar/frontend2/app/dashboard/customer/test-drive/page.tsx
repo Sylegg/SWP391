@@ -672,15 +672,14 @@ function TestDrivePage() {
                             <SelectItem 
                               key={category.id} 
                               value={category.id.toString()}
-                              disabled={isCompleted}
                             >
                               <div className="flex items-center justify-between w-full">
-                                <span className={isCompleted ? 'text-muted-foreground line-through' : ''}>
+                                <span>
                                   {category.name}
                                 </span>
                                 {isCompleted && (
-                                  <Badge variant="secondary" className="ml-2 text-xs">
-                                    Đã lái thử
+                                  <Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-300">
+                                    ✓ Đã lái thử
                                   </Badge>
                                 )}
                               </div>
@@ -691,10 +690,10 @@ function TestDrivePage() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Chọn loại xe, nhân viên sẽ chọn xe cụ thể và người đi cùng cho bạn. 
+                    Chọn loại xe, nhân viên sẽ chọn xe cụ thể và người đi cùng cho bạn.
                     {completedCategoryIds.size > 0 && (
-                      <span className="text-amber-600 font-medium">
-                        Các xe đã lái thử thành công không thể chọn lại.
+                      <span className="text-green-600 font-medium">
+                        {' '}Bạn có thể đăng ký lái thử lại các loại xe đã lái.
                       </span>
                     )}
                   </p>
@@ -809,6 +808,19 @@ function TestDrivePage() {
 
               {selectedTestDriveForDetail && (
                 <div className="space-y-4">
+                  {/* Attempt Number Badge - Show if this is 2nd+ attempt */}
+                  {selectedTestDriveForDetail.attemptNumber && selectedTestDriveForDetail.attemptNumber > 1 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-blue-100 dark:bg-blue-800 rounded-full p-1">
+                          <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                          Lần lái thử thứ {selectedTestDriveForDetail.attemptNumber} cho danh mục này
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {/* Vehicle & Staff Info Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Assigned Vehicle Card */}
@@ -916,7 +928,7 @@ function TestDrivePage() {
                           <li>Vui lòng đến <strong>đúng giờ hẹn</strong> để được phục vụ tốt nhất</li>
                           <li>Mang theo <strong>CCCD/CMND</strong> và <strong>Giấy phép lái xe</strong> hợp lệ</li>
                           <li>Nếu cần thay đổi, vui lòng liên hệ trước <strong>24 giờ</strong></li>
-                          <li>Thời gian lái thử dự kiến: <strong>30-60 phút</strong></li>
+                          <li>Thời gian lái thử dự kiến: <strong>15-20 phút</strong></li>
                           <li>Nhân viên sẽ hỗ trợ bạn trong suốt quá trình trải nghiệm</li>
                         </ul>
                       </div>

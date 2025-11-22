@@ -144,11 +144,6 @@ export interface DistributionRes {
   // Supplementary order fields
   parentDistributionId?: number;      // ID của đơn gốc nếu đây là đơn bổ sung
   isSupplementary?: boolean;          // True nếu đây là đơn bổ sung số lượng thiếu
-  
-  // Payment information
-  paidAmount?: number;                // Số tiền đã thanh toán
-  transactionNo?: string;             // Mã giao dịch VNPay
-  paidAt?: string;                    // Thời gian thanh toán (ISO string)
 }
 
 /**
@@ -177,7 +172,7 @@ export const getDistributionStatusLabel = (status: DistributionStatus): string =
     [DistributionStatus.ACCEPTED]: 'Đã chấp nhận',
     [DistributionStatus.DECLINED]: 'Đã từ chối',
     [DistributionStatus.PENDING]: 'Chờ duyệt',
-    [DistributionStatus.CONFIRMED]: 'Đã thanh toán',
+    [DistributionStatus.CONFIRMED]: 'Xác nhận',
     [DistributionStatus.CANCELED]: 'Đã hủy',
     [DistributionStatus.PRICE_SENT]: 'Chờ xác nhận giá',
     [DistributionStatus.PRICE_ACCEPTED]: 'Đã chấp nhận giá',

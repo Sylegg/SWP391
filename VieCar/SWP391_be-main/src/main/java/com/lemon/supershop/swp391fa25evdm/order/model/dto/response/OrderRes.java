@@ -9,12 +9,24 @@ public class OrderRes {
     private int orderId;
     private int dealerId;
     private String customerName;
+    private String customerEmail;
+    private String customerPhone;
+    private String customerAddress;
     private String productName;
+    private String productImage;
+    private String productVin;
+    private String productEngine;
+    private Double productBattery;
+    private Integer productRange;
+    private Integer productHP;
+    private Integer productTorque;
+    private String productColor;
     private List<Contract> contracts;
     private double totalPrice;
     private String status;
     private Date orderDate;
     private Date deliveryDate;
+    private String notes;
 
     public OrderRes(){}
 
@@ -89,4 +101,40 @@ public class OrderRes {
     public void setDeliveryDate(Date deliveryDate) {
         this.deliveryDate = deliveryDate;
     }
+
+    public String getCustomerEmail() { return customerEmail; }
+    public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }
+
+    public String getCustomerPhone() { return customerPhone; }
+    public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+
+    public String getCustomerAddress() { return customerAddress; }
+    public void setCustomerAddress(String customerAddress) { this.customerAddress = customerAddress; }
+
+    public String getProductVin() { return productVin; }
+    public void setProductVin(String productVin) { this.productVin = productVin; }
+
+    public String getProductEngine() { return productEngine; }
+    public void setProductEngine(String productEngine) { this.productEngine = productEngine; }
+
+    public Double getProductBattery() { return productBattery; }
+    public void setProductBattery(Double productBattery) { this.productBattery = productBattery; }
+
+    public Integer getProductRange() { return productRange; }
+    public void setProductRange(Integer productRange) { this.productRange = productRange; }
+
+    public Integer getProductHP() { return productHP; }
+    public void setProductHP(Integer productHP) { this.productHP = productHP; }
+
+    public Integer getProductTorque() { return productTorque; }
+    public void setProductTorque(Integer productTorque) { this.productTorque = productTorque; }
+
+    public String getProductColor() { return productColor; }
+    public void setProductColor(String productColor) { this.productColor = productColor; }
+
+    public String getProductImage() { return productImage; }
+    public void setProductImage(String productImage) { this.productImage = productImage; }
+
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
 }

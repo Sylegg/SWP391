@@ -18,8 +18,10 @@ export function Header() {
   const router = useRouter()
 
   const handleLogout = () => {
+    const loginMethod = localStorage.getItem('loginMethod')
     logout()
-    router.push('/')
+    // Google login về homepage, login thường về login page
+    router.push(loginMethod === 'google' ? '/' : '/login')
   }
 
   useEffect(() => {
@@ -44,8 +46,6 @@ export function Header() {
       { href: "#home", label: "Trang chủ" },
       { href: "#vehicles", label: "Xe điện" },
       { href: "#services", label: "Dịch vụ" },
-      { href: "#about", label: "Giới thiệu" },
-      { href: "#contact", label: "Liên hệ" },
     ],
     []
   )

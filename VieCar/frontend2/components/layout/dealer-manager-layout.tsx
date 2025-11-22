@@ -92,8 +92,10 @@ export default function DealerManagerLayout({ children }: DealerManagerLayoutPro
   const hasDealer = user?.dealerId || localStorage.getItem('dealerId');
 
   const handleLogout = () => {
+    const loginMethod = localStorage.getItem('loginMethod');
     logout();
-    router.push('/');
+    // Google login về homepage, login thường về login page
+    router.push(loginMethod === 'google' ? '/' : '/login');
   };
 
   return (

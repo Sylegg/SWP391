@@ -32,6 +32,9 @@ public class TestDrive {
     
     @Column(name = "product_model_name", columnDefinition = "NVARCHAR(100)")
     private String productModelName; // Model name chosen by customer (e.g., "VF8", "VF9")
+    
+    @Column(name = "attempt_number", columnDefinition = "INT DEFAULT 1", nullable = false)
+    private Integer attemptNumber = 1; // Số lần đăng ký lái thử category này (1 = lần đầu, 2 = lần 2, ...)
 
     @Column(insertable = false, updatable = false, name = "Create_at", columnDefinition = "DATETIME2 DEFAULT GETDATE()" )
     @Temporal(TemporalType.TIMESTAMP)
@@ -40,6 +43,10 @@ public class TestDrive {
     @PrePersist
     protected void onCreate() {
         this.createAt = new Date();
+        // Set default attemptNumber nếu null
+        if (this.attemptNumber == null) {
+            this.attemptNumber = 1;
+        }
     }
 
     // ===== Relation =====
@@ -161,5 +168,13 @@ public class TestDrive {
 
     public void setProductModelName(String productModelName) {
         this.productModelName = productModelName;
+    }
+    
+    public Integer getAttemptNumber() {
+        return attemptNumber;
+    }
+
+    public void setAttemptNumber(Integer attemptNumber) {
+        this.attemptNumber = attemptNumber;
     }
 }

@@ -11,6 +11,7 @@ export interface UserReq {
   roleName: string;
   dealerId?: number;
   status?: string;  // "ACTIVE" or "INACTIVE"
+  emailVerified?: boolean;  // Email verification status for admin
 }
 
 export interface UserRes {
@@ -23,6 +24,7 @@ export interface UserRes {
   role?: string | { name: string };  // Support both string and object format
   roleName?: string;  // Keep for backward compatibility
   status?: string;
+  emailVerified?: boolean;  // Email verification status
   dealerId?: number;
   dealerName?: string;
   dealerAddress?: string;
@@ -123,7 +125,7 @@ export async function getDealerStaffByDealerId(dealerId: number): Promise<UserRe
 export async function createUser(user: UserReq): Promise<UserRes> {
   const token = localStorage.getItem('token');
   
-  // Step 1: Register user with RegisterReq format (now includes dealerId)
+  // Step 1: Register user with RegisterReq format (now includes dealerId and emailVerified)
   const registerReq = {
     username: user.username,
     password: user.password,
@@ -133,6 +135,7 @@ export async function createUser(user: UserReq): Promise<UserRes> {
     address: user.address || '',
     roleName: user.roleName,
     dealerId: user.dealerId || null, // Include dealerId in registration
+    emailVerified: user.emailVerified || false, // Include emailVerified status
   };
   
   console.log('🚀 Creating user with data:', registerReq);
@@ -149,16 +152,17 @@ export async function createUser(user: UserReq): Promise<UserRes> {
   console.log('📡 Register response status:', registerResponse.status);
   
   if (!registerResponse.ok) {
-    let errorText = 'Unknown error';
+    // Đọc response body một lần duy nhất
+    const errorText = await registerResponse.text();
+    console.error('❌ Register error:', errorText);
+    
+    // Parse error message
     try {
-      const errorData = await registerResponse.json();
-      errorText = JSON.stringify(errorData);
-      console.error('❌ Register error JSON:', errorData);
-    } catch {
-      errorText = await registerResponse.text();
-      console.error('❌ Register error text:', errorText);
+      const errorData = JSON.parse(errorText);
+      throw new Error(errorData.message || errorText || 'Failed to create user');
+    } catch (parseError) {
+      throw new Error(errorText || 'Failed to create user');
     }
-    throw new Error(errorText || 'Failed to create user');
   }
   
   // Register returns only string message

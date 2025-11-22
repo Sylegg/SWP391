@@ -358,11 +358,11 @@ export default function OrderPage() {
                         <span>Đã chọn</span>
                       </div>
                       
-                      <div className="p-6">
-                        <div className="flex flex-col lg:flex-row gap-6">
+                      <div className="p-4">
+                        <div className="flex flex-col lg:flex-row gap-4">
                           {/* Product Image - Larger and more prominent */}
                           {productDetails.image ? (
-                            <div className="relative w-full lg:w-64 h-48 lg:h-56 flex-shrink-0 group">
+                            <div className="relative w-full lg:w-48 h-36 lg:h-40 flex-shrink-0 group">
                               <img 
                                 src={productDetails.image} 
                                 alt={productDetails.name}
@@ -371,24 +371,24 @@ export default function OrderPage() {
                               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent rounded-xl"></div>
                             </div>
                           ) : (
-                            <div className="w-full lg:w-64 h-48 lg:h-56 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-xl shadow-2xl">
-                              <Car className="h-24 w-24 text-blue-400 dark:text-blue-300" />
+                            <div className="w-full lg:w-48 h-36 lg:h-40 flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-xl shadow-2xl">
+                              <Car className="h-16 w-16 text-blue-400 dark:text-blue-300" />
                             </div>
                           )}
 
                           {/* Product Info */}
-                          <div className="flex-1 space-y-4">
+                          <div className="flex-1 space-y-3">
                             {/* Tên xe và thông tin cơ bản */}
-                            <div className="space-y-3">
-                              <h3 className="font-bold text-2xl text-gray-900 dark:text-white">
+                            <div className="space-y-2">
+                              <h3 className="font-bold text-xl text-gray-900 dark:text-white">
                                 {productDetails.name}
                               </h3>
                               
                               {/* Badges - Color and VIN */}
                               <div className="flex flex-wrap gap-2">
                                 {productDetails.color && (
-                                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-xl">
-                                    <span className="text-lg">🎨</span>
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg">
+                                    <span className="text-base">🎨</span>
                                     <div className="flex flex-col">
                                       <span className="text-[10px] text-purple-600 dark:text-purple-300 font-medium">Màu sắc</span>
                                       <span className="text-sm font-bold text-purple-700 dark:text-purple-200">{productDetails.color}</span>
@@ -396,8 +396,8 @@ export default function OrderPage() {
                                   </div>
                                 )}
                                 {productDetails.vinNum && (
-                                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-100 to-slate-100 dark:from-gray-800 dark:to-slate-800 rounded-xl">
-                                    <span className="text-lg">🔑</span>
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-gray-100 to-slate-100 dark:from-gray-800 dark:to-slate-800 rounded-lg">
+                                    <span className="text-base">🔑</span>
                                     <div className="flex flex-col">
                                       <span className="text-[10px] text-gray-600 dark:text-gray-300 font-medium">Số VIN</span>
                                       <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-200">{productDetails.vinNum}</span>
@@ -408,53 +408,53 @@ export default function OrderPage() {
                             </div>
 
                             {/* Thông số kỹ thuật - Grid 2 cột */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-2">
                               {productDetails.battery && productDetails.battery > 0 && (
-                                <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 p-3.5 rounded-xl border border-orange-200 dark:border-orange-800 shadow-sm">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xl">🔋</span>
-                                    <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">Dung lượng pin</span>
+                                <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 p-2.5 rounded-lg border border-orange-200 dark:border-orange-800 shadow-sm">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-base">🔋</span>
+                                    <span className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold">Dung lượng pin</span>
                                   </div>
-                                  <p className="text-lg font-bold text-orange-700 dark:text-orange-300">{productDetails.battery} kWh</p>
+                                  <p className="text-base font-bold text-orange-700 dark:text-orange-300">{productDetails.battery} kWh</p>
                                 </div>
                               )}
                               {productDetails.range && productDetails.range > 0 && (
-                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-3.5 rounded-xl border border-green-200 dark:border-green-800 shadow-sm">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xl">⚡</span>
-                                    <span className="text-xs text-green-600 dark:text-green-400 font-semibold">Quãng đường</span>
+                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-2.5 rounded-lg border border-green-200 dark:border-green-800 shadow-sm">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-base">⚡</span>
+                                    <span className="text-[10px] text-green-600 dark:text-green-400 font-semibold">Quãng đường</span>
                                   </div>
-                                  <p className="text-lg font-bold text-green-700 dark:text-green-300">{productDetails.range} km</p>
+                                  <p className="text-base font-bold text-green-700 dark:text-green-300">{productDetails.range} km</p>
                                 </div>
                               )}
                               {productDetails.hp && productDetails.hp > 0 && (
-                                <div className="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-950 p-3.5 rounded-xl border border-red-200 dark:border-red-800 shadow-sm">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xl">💪</span>
-                                    <span className="text-xs text-red-600 dark:text-red-400 font-semibold">Công suất</span>
+                                <div className="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-950 p-2.5 rounded-lg border border-red-200 dark:border-red-800 shadow-sm">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-base">💪</span>
+                                    <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold">Công suất</span>
                                   </div>
-                                  <p className="text-lg font-bold text-red-700 dark:text-red-300">{productDetails.hp} HP</p>
+                                  <p className="text-base font-bold text-red-700 dark:text-red-300">{productDetails.hp} HP</p>
                                 </div>
                               )}
                               {productDetails.torque && productDetails.torque > 0 && (
-                                <div className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950 dark:to-violet-950 p-3.5 rounded-xl border border-purple-200 dark:border-purple-800 shadow-sm">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xl">⚙️</span>
-                                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">Mô-men xoắn</span>
+                                <div className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950 dark:to-violet-950 p-2.5 rounded-lg border border-purple-200 dark:border-purple-800 shadow-sm">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-base">⚙️</span>
+                                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">Mô-men xoắn</span>
                                   </div>
-                                  <p className="text-lg font-bold text-purple-700 dark:text-purple-300">{productDetails.torque} Nm</p>
+                                  <p className="text-base font-bold text-purple-700 dark:text-purple-300">{productDetails.torque} Nm</p>
                                 </div>
                               )}
                             </div>
 
                             {/* Giá bán và nút đổi xe */}
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t-2 border-dashed border-blue-200 dark:border-blue-800">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-dashed border-blue-200 dark:border-blue-800">
                               <div className="flex-1">
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1 flex items-center gap-1">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1 flex items-center gap-1">
                                   <span>💰</span>
                                   <span>Giá bán</span>
                                 </p>
-                                <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                                   {formatPrice(productDetails.price)}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -464,7 +464,6 @@ export default function OrderPage() {
                               <Button
                                 type="button"
                                 variant="outline"
-                                size="lg"
                                 className="w-full sm:w-auto hover:bg-blue-50 dark:hover:bg-blue-900 border-2 border-blue-300 dark:border-blue-700 font-semibold shadow-sm hover:shadow-md transition-all"
                                 onClick={() => router.push('/dashboard/customer/catalog')}
                               >

@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Car, ShoppingCart, MapPin, Battery, Zap, AlertCircle } from 'lucide-react';
+import { Car, ShoppingCart, MapPin, Battery, Zap, AlertCircle, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CatalogPage() {
@@ -398,9 +398,13 @@ export default function CatalogPage() {
                   {product.manufacture_date && (
                     <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Năm sản xuất:</span>
+                        <span className="text-xs text-muted-foreground">Ngày sản xuất:</span>
                         <span className="text-sm font-semibold">
-                          {new Date(product.manufacture_date).getFullYear()}
+                          {new Date(product.manufacture_date).toLocaleDateString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })}
                         </span>
                       </div>
                     </div>

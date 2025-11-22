@@ -108,16 +108,6 @@ public class Distribution {
     @Column(name = "IsSupplementary")
     private Boolean isSupplementary;       // True nếu đây là đơn bổ sung số lượng thiếu
 
-    // Payment Information
-    @Column(name = "PaidAmount")
-    private Double paidAmount;             // Số tiền đã thanh toán
-
-    @Column(name = "TransactionNo", columnDefinition = "VARCHAR(100)")
-    private String transactionNo;          // Mã giao dịch VNPay
-
-    @Column(name = "PaidAt", columnDefinition = "DATETIME2")
-    private LocalDateTime paidAt;          // Thời gian thanh toán thành công
-
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -313,29 +303,5 @@ public class Distribution {
 
     public void setIsSupplementary(Boolean isSupplementary) {
         this.isSupplementary = isSupplementary;
-    }
-
-    public Double getPaidAmount() {
-        return paidAmount;
-    }
-
-    public void setPaidAmount(Double paidAmount) {
-        this.paidAmount = paidAmount;
-    }
-
-    public String getTransactionNo() {
-        return transactionNo;
-    }
-
-    public void setTransactionNo(String transactionNo) {
-        this.transactionNo = transactionNo;
-    }
-
-    public LocalDateTime getPaidAt() {
-        return paidAt;
-    }
-
-    public void setPaidAt(LocalDateTime paidAt) {
-        this.paidAt = paidAt;
     }
 }

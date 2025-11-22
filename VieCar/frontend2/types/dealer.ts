@@ -15,7 +15,7 @@ export interface DealerReq {
   userId?: number; // ID của user có role dealer manager
   latitude?: number; // Geographic latitude
   longitude?: number; // Geographic longitude
-  // status field is not in backend DealerReq
+  status?: DealerStatus; // For updating dealer status
 }
 
 export interface DealerRes {

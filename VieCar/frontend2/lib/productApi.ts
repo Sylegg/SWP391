@@ -91,6 +91,30 @@ export const getProductsByDealerCategory = async (dealerCategoryId: number): Pro
   return response.data;
 };
 
+/**
+ * Get available test drive products (not currently assigned to active test drives)
+ */
+export const getAvailableTestDriveProducts = async (): Promise<ProductRes[]> => {
+  const response = await api.get<ProductRes[]>(`${PRODUCT_BASE}/available-testdrive`);
+  return response.data;
+};
+
+/**
+ * Get available test drive products by category (not currently assigned)
+ */
+export const getAvailableTestDriveProductsByCategory = async (categoryId: number): Promise<ProductRes[]> => {
+  const response = await api.get<ProductRes[]>(`${PRODUCT_BASE}/available-testdrive/category/${categoryId}`);
+  return response.data;
+};
+
+/**
+ * Get available test drive products by dealer category (not currently assigned)
+ */
+export const getAvailableTestDriveProductsByDealerCategory = async (dealerCategoryId: number): Promise<ProductRes[]> => {
+  const response = await api.get<ProductRes[]>(`${PRODUCT_BASE}/available-testdrive/dealerCategory/${dealerCategoryId}`);
+  return response.data;
+};
+
 // ============ Helper Functions ============
 
 /**

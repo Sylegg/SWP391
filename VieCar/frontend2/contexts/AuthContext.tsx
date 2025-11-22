@@ -12,6 +12,7 @@ interface AuthContextType {
   register: (userData: RegisterRequest) => Promise<void>;
   logout: () => void;
   updatePreferredDealer: (dealerId: number | null) => Promise<void>;
+  loadUserFromToken: () => Promise<void>;
   hasRole: (role: RoleName) => boolean;
   hasPermission: (permission: string) => boolean;
   isAuthenticated: boolean;
@@ -115,38 +116,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setToken(data.token);
       
-      // ⭐ QUAN TRỌNG: Set userId TRƯỚC KHI gọi API
+      // ⭐ Set userId từ response (backend login đã trả đủ thông tin)
       if ((data as any).userId) {
         userData.id = (data as any).userId.toString();
-        console.log('✅ User ID set:', userData.id);
-        
-        try {
-          const userProfile = await getUserProfile((data as any).userId);
-          // ⭐ Cập nhật dealerId từ backend
-          if (userProfile.dealerId) {
-            userData.dealerId = userProfile.dealerId;
-            userData.dealerName = userProfile.dealerName;
-            userData.dealerAddress = userProfile.dealerAddress;
-            console.log('✅ Login: Found dealerId:', userProfile.dealerId);
-          } else {
-            console.log('ℹ️ Login: No dealerId');
-          }
-        } catch (profileError) {
-          console.warn('Could not load user profile:', profileError);
+        console.log('✅ User logged in:', userData.id, 'Role:', data.role);
+        if (userData.dealerId) {
+          console.log('✅ DealerId:', userData.dealerId);
         }
       }
       
-      // ⭐ Set user state và save to localStorage (với dealerId đã được set)
+      // ⭐ Set user state và save to localStorage
       setUser(userData);
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('loginMethod', 'normal'); // Đánh dấu đăng nhập thường
     } catch (error) {
       console.error('Login error:', error);
       
-      // Xử lý error message từ backend
-      const errorMessage = (error as any)?.response?.data?.message;
+      // Xử lý response data từ backend
+      const responseData = (error as any)?.response?.data;
+      const errorMessage = responseData?.message;
+      
+      // Kiểm tra nếu là lỗi email chưa xác thực
+      if (responseData?.requireOtp && responseData?.email) {
+        // Throw error với thông tin đặc biệt để page xử lý
+        const otpError = new Error(errorMessage || 'Email chưa được xác thực');
+        (otpError as any).requireOtp = true;
+        (otpError as any).email = responseData.email;
+        throw otpError;
+      }
       
       if (errorMessage) {
         // Backend đã trả về message rõ ràng (tiếng Việt)
@@ -194,6 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('loginMethod'); // Xóa login method
     
     // Set back to Guest after logout
     const guestUser: User = {
@@ -209,6 +210,97 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
     setUser(guestUser);
+  };
+
+  /**
+   * LOAD USER FROM TOKEN
+   * 
+   * Method này load user info từ JWT token có sẵn trong localStorage.
+   * Dùng cho Google OAuth callback vì Google user không có password.
+   * 
+   * Flow:
+   * 1. Đọc token từ localStorage (được lưu từ Google OAuth callback)
+   * 2. Decode JWT payload để lấy username (không cần verify signature vì chỉ đọc info)
+   * 3. Tạo User object với thông tin cơ bản từ token
+   * 4. Gọi getUserProfile() để lấy full user info từ backend (email, phone, dealerId, etc.)
+   * 5. Update AuthContext state và lưu vào localStorage
+   * 
+   * Lý do không gọi login API:
+   * - Google user được tạo với password empty
+   * - Gọi POST /api/auth/login với empty credentials sẽ bị 401 Unauthorized
+   * - Token đã có sẵn từ backend, chỉ cần load user info
+   * 
+   * Note: Method này chỉ dùng cho Google OAuth callback.
+   * Normal login vẫn dùng login() method với username/password.
+   */
+  const loadUserFromToken = async () => {
+    // Đọc token, role và userId từ localStorage
+    const storedToken = localStorage.getItem('token');
+    const storedRole = localStorage.getItem('role');
+    const storedUserId = localStorage.getItem('userId');
+    
+    // Nếu không có token thì return (không thể load user)
+    if (!storedToken) {
+      console.error('No token found in localStorage');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Decode JWT để lấy username từ payload
+      // JWT format: header.payload.signature
+      // Payload là base64 encoded JSON object chứa claims (sub, exp, iat, etc.)
+      const payload = JSON.parse(atob(storedToken.split('.')[1])); // atob() decode base64
+      const username = payload.sub;  // 'sub' (subject) là username trong JWT
+      
+      // Tạo User object với thông tin cơ bản từ token và localStorage
+      const userData: User = {
+        username: username,
+        role: {
+          name: (storedRole || 'Customer') as RoleName, // Fallback to Customer nếu không có role
+        },
+      };
+
+      // Set token vào state
+      setToken(storedToken);
+
+      // Gọi getUserProfile() để lấy full user info từ backend nếu có userId
+      // API này trả về: id, email, phone, address, dealerId, dealerName, etc.
+      if (storedUserId) {
+        try {
+          const profile = await getUserProfile(parseInt(storedUserId));
+          
+          // Update userData với thông tin đầy đủ từ backend
+          userData.id = profile.id?.toString();
+          userData.username = profile.name; // Backend trả về 'name' field
+          userData.email = profile.email;
+          userData.phone = profile.phone;
+          userData.address = profile.address;
+          userData.dealerId = profile.dealerId;
+          userData.dealerName = profile.dealerName;
+          userData.dealerAddress = profile.dealerAddress;
+          
+          console.log('✅ User loaded from token:', userData.id, 'Role:', storedRole);
+          if (userData.dealerId) {
+            console.log('✅ DealerId:', userData.dealerId);
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not fetch user profile, using basic info from token');
+        }
+      }
+
+      // Update AuthContext state
+      setUser(userData);
+
+      // Lưu user info vào localStorage để persist
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('loginMethod', 'google'); // Đánh dấu đăng nhập Google
+    } catch (error) {
+      console.error('Error loading user from token:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ⭐ Function để update dealer cho customer
@@ -277,6 +369,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     updatePreferredDealer,
+    loadUserFromToken,
     hasRole,
     hasPermission,
     isAuthenticated,
