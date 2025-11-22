@@ -71,17 +71,7 @@ const navigationItems: NavigationItem[] = [
     icon: Users,
     section: "staff"
   },
-  {
-    title: "📊 BÁO CÁO & THỐNG KÊ",
-    isHeader: true,
-    section: "reports"
-  },
-  {
-    title: "Dashboard báo cáo",
-    href: "/dashboard/dealer-manager/reports",
-    icon: BarChart3,
-    section: "reports"
-  }
+
 ];
 
 export default function DealerManagerLayout({ children }: DealerManagerLayoutProps) {
@@ -92,8 +82,10 @@ export default function DealerManagerLayout({ children }: DealerManagerLayoutPro
   const hasDealer = user?.dealerId || localStorage.getItem('dealerId');
 
   const handleLogout = () => {
+    const loginMethod = localStorage.getItem('loginMethod');
     logout();
-    router.push('/');
+    // Google login về homepage, login thường về login page
+    router.push(loginMethod === 'google' ? '/' : '/login');
   };
 
   return (

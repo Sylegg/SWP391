@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 
 // Role types
-type RoleName = 'ADMIN' | 'DEALER_MANAGER' | 'DEALER_STAFF' | 'EVM_STAFF' | 'CUSTOMER';
+type RoleName = 'ADMIN' | 'DEALER_MANAGER' | 'DEALER_STAFF' | 'EVM_STAFF' | 'CUSTOMER' | 'Dealer Manager' | 'Dealer Staff' | 'Admin' | 'EVM Staff' | 'Customer';
 
 interface CreateUserReq {
   username: string;
@@ -68,6 +68,7 @@ interface UpdateUserReq {
   phone?: string;
   roleName?: RoleName;
   status?: 'ACTIVE' | 'INACTIVE';
+  emailVerified?: boolean;
   address?: string;
   dealerId?: number;
 }
@@ -306,6 +307,7 @@ export default function AdminUsersPage() {
         phone: createFormData.phone || '',
         address: createFormData.address || '',
         roleName: createFormData.roleName,
+        emailVerified: true, // Admin tạo user thì tự động verify email
       });
       
       toast({
@@ -334,6 +336,14 @@ export default function AdminUsersPage() {
   const openEditDialog = (user: UserRes) => {
     setSelectedUser(user);
     const userRole = typeof user.role === 'string' ? user.role : user.role?.name || user.roleName || 'CUSTOMER';
+    
+    console.log('🔍 Opening edit dialog for user:', {
+      username: user.username,
+      role: userRole,
+      dealerId: user.dealerId,
+      dealerName: user.dealerName
+    });
+    
     setEditFormData({
       username: user.username,
       email: user.email || '',
@@ -341,7 +351,8 @@ export default function AdminUsersPage() {
       roleName: userRole as RoleName,
       status: user.status as 'ACTIVE' | 'INACTIVE',
       address: user.address || '',
-      dealerId: user.dealerId,
+      dealerId: user.dealerId || undefined, // Ensure undefined instead of null
+      emailVerified: user.emailVerified || false,
     });
     setIsEditOpen(true);
   };
@@ -382,7 +393,22 @@ export default function AdminUsersPage() {
       return;
     }
 
+    // Validate dealerId for DEALER_STAFF role (required)
+    // DEALER_MANAGER can optionally have no dealer
+    if (editFormData.roleName === 'DEALER_STAFF' || editFormData.roleName === 'Dealer Staff') {
+      if (!editFormData.dealerId) {
+        toast({
+          title: '⚠️ Thiếu thông tin',
+          description: 'Nhân viên đại lý phải thuộc về một đại lý cụ thể',
+          variant: 'destructive',
+          duration: 3000,
+        });
+        return;
+      }
+    }
+
     try {
+      console.log('📤 Updating user with data:', editFormData);
       await updateUser(selectedUser.id, editFormData);
       toast({
         title: '✅ Cập nhật thành công',
@@ -493,11 +519,11 @@ export default function AdminUsersPage() {
                   ))
                 ) : (
                   <>
-                    <SelectItem value="DEALER_MANAGER">Quản lý đại lý</SelectItem>
-                    <SelectItem value="EVM_STAFF">Nhân viên hãng</SelectItem>
-                    <SelectItem value="DEALER_STAFF">Nhân viên đại lý</SelectItem>
-                    <SelectItem value="CUSTOMER">Khách hàng</SelectItem>
-                    <SelectItem value="ADMIN">Quản trị viên</SelectItem>
+                    <SelectItem key="DEALER_MANAGER" value="DEALER_MANAGER">Quản lý đại lý</SelectItem>
+                    <SelectItem key="EVM_STAFF" value="EVM_STAFF">Nhân viên hãng</SelectItem>
+                    <SelectItem key="DEALER_STAFF" value="DEALER_STAFF">Nhân viên đại lý</SelectItem>
+                    <SelectItem key="CUSTOMER" value="CUSTOMER">Khách hàng</SelectItem>
+                    <SelectItem key="ADMIN" value="ADMIN">Quản trị viên</SelectItem>
                   </>
                 )}
               </SelectContent>
@@ -522,20 +548,21 @@ export default function AdminUsersPage() {
                   <TableHead>Số điện thoại</TableHead>
                   <TableHead>Vai trò</TableHead>
                   <TableHead>Trạng thái</TableHead>
+                  <TableHead>Email Verified</TableHead>
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
                       <p className="mt-2 text-muted-foreground">Đang tải...</p>
                     </TableCell>
                   </TableRow>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Không tìm thấy người dùng
                     </TableCell>
                   </TableRow>
@@ -586,6 +613,11 @@ export default function AdminUsersPage() {
                           )}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <Badge className={user.emailVerified ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}>
+                          {user.emailVerified ? '✓ Đã xác thực' : '✗ Chưa xác thực'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -603,14 +635,6 @@ export default function AdminUsersPage() {
                             className="hover:bg-amber-500/10 hover:text-amber-600"
                           >
                             <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDeleteDialog(user)}
-                            className="hover:bg-red-500/10 hover:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -705,11 +729,11 @@ export default function AdminUsersPage() {
                         ))
                       ) : (
                         <>
-                          <SelectItem value="ADMIN">ADMIN</SelectItem>
-                          <SelectItem value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
-                          <SelectItem value="EVM_STAFF">EVM_STAFF</SelectItem>
-                          <SelectItem value="DEALER_STAFF">DEALER_STAFF</SelectItem>
-                          <SelectItem value="CUSTOMER">CUSTOMER</SelectItem>
+                          <SelectItem key="ADMIN" value="ADMIN">ADMIN</SelectItem>
+                          <SelectItem key="DEALER_MANAGER" value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
+                          <SelectItem key="EVM_STAFF" value="EVM_STAFF">EVM_STAFF</SelectItem>
+                          <SelectItem key="DEALER_STAFF" value="DEALER_STAFF">DEALER_STAFF</SelectItem>
+                          <SelectItem key="CUSTOMER" value="CUSTOMER">CUSTOMER</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -806,7 +830,16 @@ export default function AdminUsersPage() {
                     <Label htmlFor="edit-role">Vai trò *</Label>
                     <Select 
                       value={editFormData.roleName} 
-                      onValueChange={(value) => setEditFormData({ ...editFormData, roleName: value as RoleName })}
+                      onValueChange={(value) => {
+                        const newRole = value as RoleName;
+                        // Reset dealerId if not dealer-related role
+                        if (newRole !== 'DEALER_MANAGER' && newRole !== 'DEALER_STAFF' && 
+                            newRole !== 'Dealer Manager' && newRole !== 'Dealer Staff') {
+                          setEditFormData({ ...editFormData, roleName: newRole, dealerId: undefined });
+                        } else {
+                          setEditFormData({ ...editFormData, roleName: newRole });
+                        }
+                      }}
                       disabled={loadingRoles}
                     >
                       <SelectTrigger>
@@ -821,11 +854,11 @@ export default function AdminUsersPage() {
                           ))
                         ) : (
                           <>
-                            <SelectItem value="ADMIN">ADMIN</SelectItem>
-                            <SelectItem value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
-                            <SelectItem value="EVM_STAFF">EVM_STAFF</SelectItem>
-                            <SelectItem value="DEALER_STAFF">DEALER_STAFF</SelectItem>
-                            <SelectItem value="CUSTOMER">CUSTOMER</SelectItem>
+                            <SelectItem key="ADMIN" value="ADMIN">ADMIN</SelectItem>
+                            <SelectItem key="DEALER_MANAGER" value="DEALER_MANAGER">DEALER_MANAGER</SelectItem>
+                            <SelectItem key="EVM_STAFF" value="EVM_STAFF">EVM_STAFF</SelectItem>
+                            <SelectItem key="DEALER_STAFF" value="DEALER_STAFF">DEALER_STAFF</SelectItem>
+                            <SelectItem key="CUSTOMER" value="CUSTOMER">CUSTOMER</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -846,22 +879,40 @@ export default function AdminUsersPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email-verified">Xác thực email</Label>
+                    <Select 
+                      value={String(editFormData.emailVerified ?? false)}
+                      onValueChange={(value) => setEditFormData({ ...editFormData, emailVerified: value === 'true' })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem key="verified-true" value="true">✓ Đã xác thực</SelectItem>
+                        <SelectItem key="verified-false" value="false">✗ Chưa xác thực</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {/* Dealer selection - only show for DEALER_MANAGER and DEALER_STAFF */}
                 {(editFormData.roleName === 'DEALER_MANAGER' || 
-                  editFormData.roleName === 'DEALER_STAFF') && (
+                  editFormData.roleName === 'DEALER_STAFF' ||
+                  editFormData.roleName === 'Dealer Manager' ||
+                  editFormData.roleName === 'Dealer Staff') && (
                   <div className="space-y-2">
                     <Label htmlFor="edit-dealer">Đại lý *</Label>
                     <Select 
-                      value={editFormData.dealerId?.toString() || ''} 
-                      onValueChange={(value) => setEditFormData({ ...editFormData, dealerId: value ? parseInt(value) : undefined })}
+                      value={editFormData.dealerId?.toString() || 'none'} 
+                      onValueChange={(value) => setEditFormData({ ...editFormData, dealerId: value === 'none' ? undefined : parseInt(value) })}
                       disabled={loadingDealers}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={loadingDealers ? "Đang tải..." : "Chọn đại lý"} />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">-- Chọn đại lý --</SelectItem>
                         {dealers.length > 0 ? (
                           dealers.map((dealer) => (
                             <SelectItem key={dealer.id} value={dealer.id.toString()}>
@@ -869,7 +920,7 @@ export default function AdminUsersPage() {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="" disabled>
+                          <SelectItem value="empty" disabled>
                             Không có đại lý nào
                           </SelectItem>
                         )}
@@ -955,6 +1006,11 @@ export default function AdminUsersPage() {
                       Email
                     </Label>
                     <p className="font-medium">{selectedUser.email}</p>
+                    <div className="mt-2">
+                      <Badge className={selectedUser.emailVerified ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}>
+                        {selectedUser.emailVerified ? '✓ Email đã xác thực' : '✗ Email chưa xác thực'}
+                      </Badge>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

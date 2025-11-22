@@ -61,39 +61,6 @@ export const vnpayApi = {
   },
 
   /**
-   * Tạo URL thanh toán VNPay cho phân phối
-   * @param distributionId - ID của phân phối
-   * @param totalAmount - Tổng tiền cần thanh toán (VNĐ)
-   * @param bankCode - Mã ngân hàng (optional)
-   * @returns Promise<VnpayResponse>
-   */
-  createDistributionPayment: async (
-    distributionId: number, 
-    totalAmount: number, 
-    bankCode?: string
-  ): Promise<VnpayResponse> => {
-    try {
-      const params: any = { 
-        distributionId,
-        totalAmount 
-      };
-      if (bankCode) {
-        params.bankCode = bankCode;
-      }
-
-      const response = await api.post<VnpayResponse>(
-        `${VNPAY_BASE_URL}/create-distribution-payment`,
-        null,
-        { params }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error creating VNPay distribution payment:', error);
-      throw error;
-    }
-  },
-
-  /**
    * Xác thực kết quả thanh toán từ VNPay (khi có Frontend)
    * @param params - Query parameters từ VNPay
    * @returns Promise<VnpayPaymentResult>

@@ -34,33 +34,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Dịch vụ */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Dịch vụ</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <a href="#" className="hover:text-primary">
-                  Bảo dưỡng
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary">
-                  Sửa chữa
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary">
-                  Bảo hiểm
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary">
-                  Hỗ trợ tài chính
-                </a>
-              </li>
-            </ul>
-          </div>
-
           {/* Liên hệ */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Liên hệ</h3>

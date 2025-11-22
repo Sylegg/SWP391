@@ -65,7 +65,7 @@ export default function EvmStaffCategoriesPage() {
   // Form state with all required fields
   const [formData, setFormData] = useState<CategoryReq>({
     name: "",
-    brand: "",
+    brand: "VinFast", // ✅ Default to VinFast
     basePrice: 0,
     warranty: 0,
     isSpecial: false,
@@ -197,7 +197,7 @@ export default function EvmStaffCategoriesPage() {
   const resetForm = () => {
     setFormData({
       name: "",
-      brand: "",
+      brand: "VinFast", // ✅ Reset to default VinFast
       basePrice: 0,
       warranty: 0,
       isSpecial: false,

@@ -12,6 +12,7 @@ import Image from "next/image"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 import {
   Select,
   SelectContent,
@@ -19,6 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import OtpVerification from "@/components/otp-verification"
+import ForgotPassword from "@/components/forgot-password"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -26,6 +38,10 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [view, setView] = useState<"login" | "otp" | "forgot-password">("login")
+  const [pendingEmail, setPendingEmail] = useState("")
+  const [showOtpDialog, setShowOtpDialog] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState("Đang xử lý...")
 
   const [loginData, setLoginData] = useState({
     identifier: "",
@@ -44,6 +60,7 @@ export default function LoginPage() {
 
   const { login, register, user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
     if (user && user.role?.name !== 'Guest') {
@@ -55,22 +72,59 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     setError("")
+    setLoadingMessage("Đang xác thực...")
     
     try {
       await login(loginData)
+      
+      // Lấy username từ localStorage sau khi login
+      const userString = localStorage.getItem('user')
+      let displayName = loginData.identifier
+      if (userString) {
+        try {
+          const userData = JSON.parse(userString)
+          displayName = userData.username || loginData.identifier
+        } catch (e) {
+          console.error('Error parsing user data:', e)
+        }
+      }
+      
+      // Hiển thị toast thông báo đăng nhập thành công
+      toast({
+        title: "✅ Đăng nhập thành công!",
+        description: `Chào mừng bạn trở lại, ${displayName}`,
+        duration: 3000,
+      })
+      
       setSuccess("Đăng nhập thành công!")
-      router.push('/')
+      
+      // Chờ một chút để user thấy toast trước khi redirect
+      setTimeout(() => {
+        router.push('/')
+      }, 500)
     } catch (error: any) {
-      setError(error?.message || "Đăng nhập thất bại. Vui lòng kiểm tra thông tin.")
+      // Kiểm tra nếu là lỗi email chưa xác thực
+      if (error?.requireOtp && error?.email) {
+        setPendingEmail(error.email)
+        setShowOtpDialog(true)
+      } else {
+        setError(error?.message || "Đăng nhập thất bại. Vui lòng kiểm tra thông tin.")
+      }
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleOtpDialogConfirm = () => {
+    setShowOtpDialog(false)
+    setView("otp")
   }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
+    setLoadingMessage("Đang tạo tài khoản...")
 
     const phonePattern = /^(?:(?:03|05|07|08|09)\d{8}|01(?:2|6|8|9)\d{8})$/
     if (!phonePattern.test(registerData.phone)) {
@@ -105,18 +159,79 @@ export default function LoginPage() {
     console.log('  - Role:', registerPayload.roleName)
 
     try {
-      const response = await register(registerPayload)
-      console.log('✅ Backend response:', response)
-      setSuccess("Đăng ký thành công!")
-      router.push('/')
+      setLoadingMessage("Đang gửi OTP đến email...")
+      const response = await fetch('http://localhost:6969/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerPayload),
+      })
+
+      const data = await response.text()
+      
+      if (!response.ok) {
+        throw new Error(data || 'Đăng ký thất bại')
+      }
+
+      console.log('✅ Backend response:', data)
+      setSuccess("OTP đã được gửi đến email của bạn!")
+      setPendingEmail(registerPayload.email)
+      
+      // Chuyển sang view xác thực OTP sau 1.5 giây
+      setTimeout(() => {
+        setView("otp")
+      }, 1500)
     } catch (error: any) {
       console.error('❌ Lỗi từ backend:', error)
-      console.error('❌ Error message:', error?.message)
-      console.error('❌ Error response:', error?.response?.data)
       setError(error?.message || "Đăng ký thất bại. Vui lòng thử lại.")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleOtpVerified = () => {
+    setSuccess("Xác thực thành công! Đang chuyển đến trang đăng nhập...")
+    setTimeout(() => {
+      setView("login")
+      setSuccess("Tài khoản đã được kích hoạt. Vui lòng đăng nhập.")
+    }, 1500)
+  }
+
+  const handleForgotPasswordSuccess = () => {
+    setView("login")
+    setSuccess("Mật khẩu đã được đặt lại. Vui lòng đăng nhập với mật khẩu mới.")
+  }
+
+  // Nếu đang ở view OTP hoặc forgot password, hiển thị component tương ứng
+  if (view === "otp") {
+    return (
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-950 dark:to-cyan-950" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-blue-400/30 to-cyan-500/30 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-br from-teal-400/30 to-emerald-500/30 rounded-full blur-3xl animate-float-delayed" />
+        <OtpVerification
+          email={pendingEmail}
+          type="register"
+          onVerified={handleOtpVerified}
+          onBack={() => setView("login")}
+        />
+      </div>
+    )
+  }
+
+  if (view === "forgot-password") {
+    return (
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-950 dark:to-cyan-950" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-orange-400/30 to-red-500/30 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-br from-red-400/30 to-pink-500/30 rounded-full blur-3xl animate-float-delayed" />
+        <ForgotPassword
+          onBack={() => setView("login")}
+          onSuccess={handleForgotPasswordSuccess}
+        />
+      </div>
+    )
   }
 
   return (
@@ -243,9 +358,13 @@ export default function LoginPage() {
                           Ghi nhớ đăng nhập
                         </Label>
                       </div>
-                      <Link href="#" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                      <button
+                        type="button"
+                        onClick={() => setView("forgot-password")}
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                      >
                         Quên mật khẩu?
-                      </Link>
+                      </button>
                     </div>
                     
                     <Button 
@@ -256,7 +375,7 @@ export default function LoginPage() {
                       {isLoading ? (
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Đang đăng nhập...
+                          {loadingMessage}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
@@ -264,6 +383,38 @@ export default function LoginPage() {
                           Đăng nhập
                         </div>
                       )}
+                    </Button>
+
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-gray-200 dark:border-gray-700" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white dark:bg-gray-900 px-2 text-gray-500">
+                          Hoặc đăng nhập với
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-12 border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-xl transition-all duration-300 hover:scale-[1.02]"
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          window.location.href = 'http://localhost:6969/oauth2/authorization/google'
+                        }
+                      }}
+                    >
+                      <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                      </svg>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">
+                        Đăng nhập với Google
+                      </span>
                     </Button>
                   </form>
                 </TabsContent>
@@ -391,22 +542,10 @@ export default function LoginPage() {
                               <span>Admin</span>
                             </div>
                           </SelectItem>
-                          <SelectItem value="EVM Staff" className="rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <UserCircle className="h-4 w-4 text-cyan-600" />
-                              <span>EVM Staff</span>
-                            </div>
-                          </SelectItem>
                           <SelectItem value="Dealer Manager" className="rounded-lg">
                             <div className="flex items-center gap-2">
                               <Building className="h-4 w-4 text-amber-600" />
                               <span>Dealer Manager</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="Dealer Staff" className="rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-green-600" />
-                              <span>Dealer Staff</span>
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -475,7 +614,7 @@ export default function LoginPage() {
                       {isLoading ? (
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Đang đăng ký...
+                          {loadingMessage}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
@@ -501,6 +640,39 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
+
+      {/* Dialog xác nhận OTP */}
+      <AlertDialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-xl">
+              <Mail className="w-6 h-6 text-blue-600" />
+              Xác thực tài khoản
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base space-y-3 pt-2">
+              <p className="font-medium text-gray-700 dark:text-gray-300">
+                Tài khoản chưa được xác thực. Vui lòng nhập mã OTP đã được gửi đến email của bạn.
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <span className="font-semibold">Email:</span> {pendingEmail}
+                </p>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Mã OTP có hiệu lực trong 10 phút. Vui lòng kiểm tra hộp thư đến hoặc thư rác.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={handleOtpDialogConfirm}
+              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-2.5"
+            >
+              Xác nhận - Đi đến nhập OTP
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

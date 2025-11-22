@@ -14,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import vnpayApi from '@/lib/vnpayApi';
 import {
   Package,
   CheckCircle2,
@@ -33,7 +32,6 @@ import {
   TrendingUp,
   CheckCircle,
   CreditCard,
-  DollarSign,
 } from 'lucide-react';
 import {
   getDistributionsByDealer,
@@ -72,7 +70,6 @@ export default function DealerDistributionsPage() {
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
-  const [isPaymentConfirmDialogOpen, setIsPaymentConfirmDialogOpen] = useState(false);
   const [isNewRequestDialogOpen, setIsNewRequestDialogOpen] = useState(false);
   
   // Form states
@@ -486,12 +483,12 @@ export default function DealerDistributionsPage() {
     // Lấy số lượng thực tế giao tới (received) - đây là số xe hãng đã giao
     const totalReceived = receivedItems.length > 0
       ? receivedItems.reduce((s, it) => s + (Number(it.received) || 0), 0)
-      : selectedDistribution.requestedQuantity || 0;
+      : selectedDistribution.approvedQuantity || selectedDistribution.requestedQuantity || 0;
     
-    // Số lượng đã đặt để so sánh
+    // Số lượng EVM đã duyệt (đây là số tối đa có thể nhận)
     const totalOrdered = receivedItems.length > 0
       ? receivedItems.reduce((s, it) => s + (Number(it.ordered) || 0), 0)
-      : selectedDistribution.requestedQuantity || 0;
+      : selectedDistribution.approvedQuantity || selectedDistribution.requestedQuantity || 0;
     
     if (!totalReceived || totalReceived <= 0) {
       toast({ 
@@ -503,11 +500,24 @@ export default function DealerDistributionsPage() {
       return;
     }
     
+    // VALIDATION: Số lượng nhận không được vượt quá số đã duyệt
+    if (totalReceived > totalOrdered) {
+      toast({ 
+        title: '⚠️ Số lượng không hợp lệ', 
+        description: `Số lượng nhận (${totalReceived}) không thể lớn hơn số lượng EVM đã duyệt (${totalOrdered})`, 
+        variant: 'destructive',
+        duration: 4000,
+      });
+      return;
+    }
+    
     // Kiểm tra chênh lệch
     const difference = totalReceived - totalOrdered;
     let confirmMessage = `Xác nhận nhận ${totalReceived} xe từ hãng`;
-    if (difference !== 0) {
-      confirmMessage += `\n(${difference > 0 ? 'Thừa' : 'Thiếu'} ${Math.abs(difference)} xe so với đơn đặt)`;
+    if (difference < 0) {
+      confirmMessage += `\n(Thiếu ${Math.abs(difference)} xe so với số đã duyệt)`;
+    } else if (difference === 0) {
+      confirmMessage += `\n(Khớp đúng số lượng đã duyệt)`;
     }
     
     try {
@@ -665,32 +675,68 @@ export default function DealerDistributionsPage() {
     console.log('🔍 Opening complete dialog. Distribution:', distribution);
     console.log('📦 Items:', distribution.items);
     console.log('📊 requestedQuantity (dealer đặt ban đầu):', distribution.requestedQuantity);
+    console.log('📊 approvedQuantity (EVM đã duyệt - tổng):', distribution.approvedQuantity);
     
     // Build per-item list if available; default received = ordered
     if (distribution.items && distribution.items.length > 0) {
+      // Check if backend provides per-item approvedQuantity
+      const hasItemApprovedQty = distribution.items.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null);
+      
+      // Calculate total requested quantity
+      const totalRequested = distribution.items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+      
+      // Calculate approval ratio if we have total approved but not per-item
+      const approvalRatio = distribution.approvedQuantity && totalRequested > 0
+        ? distribution.approvedQuantity / totalRequested
+        : 1;
+      
+      console.log('🔢 Has item-level approvedQuantity:', hasItemApprovedQty);
+      console.log('🔢 Total requested:', totalRequested);
+      console.log('🔢 Total approved:', distribution.approvedQuantity);
+      console.log('🔢 Approval ratio:', approvalRatio);
+      
       const list = distribution.items.map((it) => {
-        console.log(`   Item ${it.id}: quantity=${it.quantity}, dealerPrice=${it.dealerPrice}, product=${it.product?.name}, color=${it.color}`);
+        console.log(`   Item ${it.id}: quantity=${it.quantity}, approvedQuantity=${it.approvedQuantity}, dealerPrice=${it.dealerPrice}, product=${it.product?.name}, color=${it.color}`);
+        
         // Get product or category name and remove numbering like (1), (2), etc.
         const rawName = it.product?.name || it.category?.name;
         const cleanName = rawName ? rawName.replace(/\s*\(\d+\)\s*$/, '') : undefined;
+        
+        // Determine approved quantity for this item
+        let approvedQty: number;
+        if (it.approvedQuantity !== undefined && it.approvedQuantity !== null) {
+          // Backend provides per-item approved quantity - use it directly
+          approvedQty = it.approvedQuantity;
+          console.log(`   ✅ Using item.approvedQuantity: ${approvedQty}`);
+        } else if (distribution.approvedQuantity !== undefined && distribution.approvedQuantity !== null) {
+          // Backend only provides total approved - calculate proportionally
+          approvedQty = Math.round((it.quantity || 0) * approvalRatio);
+          console.log(`   ⚙️ Calculated from ratio: ${it.quantity} × ${approvalRatio.toFixed(2)} = ${approvedQty}`);
+        } else {
+          // No approval data - fallback to requested quantity
+          approvedQty = it.quantity || 0;
+          console.log(`   ⚠️ Fallback to quantity: ${approvedQty}`);
+        }
         
         return {
           id: it.id,
           name: cleanName,
           color: it.color,
-          ordered: it.quantity || 0, // Số lượng EVM đã duyệt (đã được cập nhật trong approveOrder)
-          received: it.quantity || 0, // Mặc định = số đã duyệt
-          price: it.dealerPrice || 0, // Giá hãng bán cho dealer
+          ordered: approvedQty, // Số lượng EVM đã duyệt (calculated or from API)
+          received: approvedQty, // Mặc định = số đã duyệt
+          price: it.dealerPrice || 0, // Giá hãng bán cho dealer (cố định tại thời điểm tạo đơn)
         };
       });
+      
       console.log('📋 Received items list:', list);
-      console.log('⚠️ Nếu ordered khác với số EVM duyệt → Backend chưa cập nhật quantity!');
+      console.log('✅ Total ordered:', list.reduce((s, it) => s + it.ordered, 0));
+      
       setReceivedItems(list);
       const total = list.reduce((s, it) => s + (it.received || 0), 0);
       setCompleteForm({ receivedQuantity: total });
     } else {
       setReceivedItems([]);
-      setCompleteForm({ receivedQuantity: (distribution.products?.length || 0) });
+      setCompleteForm({ receivedQuantity: distribution.approvedQuantity || distribution.requestedQuantity || (distribution.products?.length || 0) });
     }
     // Đặt mặc định ngày nhập kho là hôm nay
     const today = new Date();
@@ -738,56 +784,31 @@ export default function DealerDistributionsPage() {
       return;
     }
     
-    // Chấp nhận giá - hiển thị dialog xác nhận thanh toán
+    // Chấp nhận giá - tự động xác nhận thanh toán luôn
     setIsPriceDialogOpen(false);
-    setIsPaymentConfirmDialogOpen(true);
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!selectedDistribution) return;
     
     try {
-      // Bước 1: Chấp nhận giá để chuyển trạng thái sang PRICE_ACCEPTED
-      // Backend sẽ chuyển PRICE_ACCEPTED -> CONFIRMED sau khi thanh toán VNPay thành công
-      const notes = 'Đồng ý với giá hãng và số lượng đã duyệt';
+      // Chấp nhận giá và chuyển trạng thái sang CONFIRMED (Xác nhận)
+      const notes = 'Đồng ý với giá hãng và xác nhận';
       await respondToManufacturerPrice(selectedDistribution.id, true, notes);
-      
-      // Tính tổng tiền cần thanh toán
-      const totalAmount = selectedDistribution.items?.reduce((sum, item) => {
-        const itemTotal = (item.quantity || 0) * (item.dealerPrice || 0);
-        return sum + itemTotal;
-      }, 0) || 0;
 
       toast({
-        title: '🔄 Đang xử lý',
-        description: 'Đang chuyển đến thanh toán VNPay...',
-        duration: 2000,
+        title: '✅ Xác nhận thành công',
+        description: 'Đã xác nhận và chuyển trạng thái thành "Xác nhận"',
+        duration: 3000,
       });
-
-      setIsPaymentConfirmDialogOpen(false);
-
-      // Bước 2: Chuyển đến VNPay để thanh toán
-      // Sau khi thanh toán thành công, backend sẽ tự động chuyển PRICE_ACCEPTED -> CONFIRMED
-      const vnpayResponse = await vnpayApi.createDistributionPayment(
-        selectedDistribution.id,
-        totalAmount
-      );
-
-      // Chuyển hướng đến trang thanh toán VNPay
-      if (vnpayResponse.url) {
-        window.location.href = vnpayResponse.url;
-      } else {
-        throw new Error('Không nhận được URL thanh toán từ VNPay');
-      }
+      
+      // Reload data để cập nhật trạng thái mới
+      await loadData();
+      
     } catch (error: any) {
-      console.error('Payment error:', error);
+      console.error('Payment confirmation error:', error);
       toast({
-        title: '⚠️ Lỗi thanh toán',
-        description: error.message || 'Không thể tạo link thanh toán VNPay. Vui lòng thử lại.',
+        title: '⚠️ Lỗi xác nhận',
+        description: error.message || 'Không thể xác nhận thanh toán. Vui lòng thử lại.',
         variant: 'destructive',
         duration: 5000,
       });
-      loadData();
     }
   };
 
@@ -872,7 +893,7 @@ export default function DealerDistributionsPage() {
                 <div>
                   <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">Tổng sản phẩm</p>
                   <p className="text-3xl font-bold mt-2 text-purple-600">{stats.totalProducts}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Đã nhận tất cả</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tất cả xe</p>
                 </div>
                 <Package className="h-10 w-10 text-purple-500 opacity-70" />
               </div>
@@ -1107,20 +1128,43 @@ export default function DealerDistributionsPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Dialog: Submit Order (multi-item) */}
+          {/* Dialog: Submit Order (multi-item) - Enhanced Design */}
           <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-green-50/95 to-emerald-50/95 dark:from-green-950/95 dark:to-emerald-950/95 border-2 border-green-200/50 dark:border-green-800/50 shadow-2xl">
               <DialogHeader>
-                <DialogTitle>🛒 Tạo đơn nhập hàng chi tiết</DialogTitle>
-                <DialogDescription>
-                  Mã phân phối: {selectedDistribution?.code || `#${selectedDistribution?.id}`}
-                </DialogDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="text-3xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent font-bold">
+                      🛒 Tạo đơn nhập hàng chi tiết
+                    </DialogTitle>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Mã phân phối: <span className="font-mono font-semibold text-green-600">{selectedDistribution?.code || `#${selectedDistribution?.id}`}</span>
+                    </p>
+                  </div>
+                  <Badge className="bg-green-600 text-white px-4 py-2 text-base">
+                    <ShoppingCart className="h-4 w-4 mr-1 inline" />
+                    {orderItems.filter(it => it.categoryId).length} loại xe
+                  </Badge>
+                </div>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                {/* Items list */}
-                <div className="space-y-2">
-                  <Label>Chi tiết đơn hàng</Label>
-                  <div className="space-y-3">
+              <div className="space-y-6 py-4">
+                {/* Items list - Enhanced Design */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-green-50/80 to-emerald-50/80 dark:from-green-950/80 dark:to-emerald-950/80 p-4 rounded-xl border-2 border-green-200/50 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-green-600" />
+                      <Label className="text-base font-bold text-green-800 dark:text-green-200">
+                        📋 Chi tiết đơn hàng
+                      </Label>
+                    </div>
+                    <Badge variant="outline" className="text-green-700 border-green-400 text-sm px-2.5 py-0.5">
+                      Tổng: {totalOrderQty} xe
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 ml-7">
+                    Chọn danh mục, màu sắc và số lượng cho từng dòng sản phẩm
+                  </p>
+                  <div className="space-y-2">
                     {orderItems.map((item, idx) => {
                       // Get colors already selected for this category
                       const selectedColorsForCategory = orderItems
@@ -1128,9 +1172,17 @@ export default function DealerDistributionsPage() {
                         .map(it => it.color);
                       
                       return (
-                      <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border rounded-md p-3">
-                        <div className="md:col-span-6">
-                          <Label className="text-sm">Danh mục</Label>
+                      <div key={idx} className="backdrop-blur-sm bg-white/70 dark:bg-gray-800/70 p-3 rounded-lg border border-green-200/40 hover:border-green-400/60 hover:shadow-md transition-all duration-300">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
+                        {/* Row Number */}
+                        <div className="md:col-span-1 flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                            {idx + 1}
+                          </div>
+                        </div>
+                        
+                        <div className="md:col-span-4">
+                          <Label className="text-xs font-medium text-green-700 dark:text-green-300 mb-1 block">🚗 Danh mục</Label>
                           <Select
                             value={item.categoryId ? item.categoryId.toString() : undefined}
                             onValueChange={(value) => {
@@ -1141,25 +1193,35 @@ export default function DealerDistributionsPage() {
                               setOrderItems(next);
                             }}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Danh mục" />
+                            <SelectTrigger className="h-9 w-full bg-white/80 dark:bg-gray-900/80 border-green-200 focus:border-green-400 text-sm">
+                              <SelectValue placeholder="Chọn danh mục...">
+                                {item.categoryId && (() => {
+                                  const selectedCat = categories.find(c => c.id === item.categoryId);
+                                  return selectedCat ? (
+                                    <span>
+                                      <span className="font-semibold">{selectedCat.name}</span>
+                                      <span className="text-gray-500 ml-1">({selectedCat.brand})</span>
+                                    </span>
+                                  ) : 'Chọn danh mục...';
+                                })()}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {categories.length === 0 ? (
-                                <div className="px-2 py-1 text-sm text-muted-foreground">Chưa có danh mục</div>
+                                <div className="px-2 py-1 text-xs text-muted-foreground">Chưa có danh mục</div>
                               ) : (
                                 categories.map((cat) => (
-                                  <SelectItem key={cat.id} value={cat.id.toString()}>
-                                    {cat.name}
+                                  <SelectItem key={cat.id} value={cat.id.toString()} className="text-sm">
+                                    <span className="font-semibold">{cat.name}</span> <span className="text-gray-500">({cat.brand})</span>
                                   </SelectItem>
                                 ))
                               )}
                             </SelectContent>
                           </Select>
                         </div>
-                        {/* Đã loại bỏ phần chọn Sản phẩm */}
+                        
                         <div className="md:col-span-3">
-                          <Label className="text-sm">Màu</Label>
+                          <Label className="text-xs font-medium text-green-700 dark:text-green-300 mb-1 block">🎨 Màu sắc</Label>
                           <Select
                             value={item.color}
                             onValueChange={(value) => {
@@ -1169,8 +1231,8 @@ export default function DealerDistributionsPage() {
                             }}
                             disabled={!item.categoryId}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder={item.categoryId ? "Màu" : "Chọn danh mục trước"} />
+                            <SelectTrigger className="h-9 w-full bg-white/80 dark:bg-gray-900/80 border-green-200 focus:border-green-400 text-sm">
+                              <SelectValue placeholder={item.categoryId ? "Chọn màu..." : "Chọn danh mục trước"} />
                             </SelectTrigger>
                             <SelectContent>
                               {COLOR_OPTIONS.map((c) => {
@@ -1180,20 +1242,23 @@ export default function DealerDistributionsPage() {
                                     key={c} 
                                     value={c}
                                     disabled={isAlreadySelected}
-                                    className={isAlreadySelected ? "opacity-50 cursor-not-allowed" : ""}
+                                    className={isAlreadySelected ? "opacity-50 cursor-not-allowed text-sm" : "text-sm"}
                                   >
-                                    {c} {isAlreadySelected ? "(Đã chọn)" : ""}
+                                    {c} {isAlreadySelected ? "✓" : ""}
                                   </SelectItem>
                                 );
                               })}
                             </SelectContent>
                           </Select>
                         </div>
+                        
                         <div className="md:col-span-3">
-                          <Label className="text-sm">Số lượng</Label>
+                          <Label className="text-xs font-medium text-green-700 dark:text-green-300 mb-1 block">📦 Số lượng</Label>
                           <Input
                             type="number"
                             min={1}
+                            placeholder="Nhập số lượng..."
+                            className="h-9 w-full bg-white/80 dark:bg-gray-900/80 border-green-200 focus:border-green-400 font-semibold text-center text-sm"
                             value={item.quantity}
                             onChange={(e) => {
                               const next = [...orderItems];
@@ -1202,62 +1267,110 @@ export default function DealerDistributionsPage() {
                             }}
                           />
                         </div>
-                        <div className="md:col-span-2 flex md:justify-end">
+                        
+                        <div className="md:col-span-1 flex items-end pb-1">
                           <Button
                             type="button"
                             variant="ghost"
-                            className="text-red-600"
+                            size="icon"
                             onClick={() => setOrderItems((prev) => prev.filter((_, i) => i !== idx))}
                             disabled={orderItems.length === 1}
+                            className="h-8 w-8 hover:bg-red-100 dark:hover:bg-red-950/30 hover:scale-110 transition-all duration-300"
+                            title={orderItems.length === 1 ? "Cần ít nhất 1 dòng" : "Xóa dòng này"}
                           >
-                            Xóa
+                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
                           </Button>
+                        </div>
                         </div>
                       </div>
                     )})}
-                    <div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setOrderItems((prev) => [...prev, { categoryId: undefined, color: undefined, quantity: 1 }])}
-                      >
-                        + Thêm dòng
-                      </Button>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOrderItems((prev) => [...prev, { categoryId: undefined, color: undefined, quantity: 1 }])}
+                      className="bg-white/60 hover:bg-white/80 border-green-300 hover:border-green-500 hover:scale-105 transition-all duration-300 shadow-sm text-sm h-9"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      Thêm dòng sản phẩm
+                    </Button>
+                    
+                    <div className="backdrop-blur-sm bg-gradient-to-r from-blue-500/90 to-cyan-500/90 px-3 py-2 rounded-lg border border-white/30 shadow-lg">
+                      <p className="text-white font-bold flex items-center gap-1.5 text-xs">
+                        <Car className="h-3.5 w-3.5" />
+                        Tổng số lượng: <span className="text-base ml-1">{totalOrderQty}</span> 
+                        <span className="text-xs font-normal opacity-90">xe</span>
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="requestedDate">Ngày mong muốn nhận hàng <span className="text-red-500">*</span></Label>
+                {/* Requested Delivery Date */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-blue-50/80 to-cyan-50/80 dark:from-blue-950/80 dark:to-cyan-950/80 p-5 rounded-xl border-2 border-blue-200/50 shadow-lg">
+                  <Label htmlFor="requestedDate" className="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center gap-2 mb-3">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                    📅 Ngày giao hàng mong muốn <span className="text-red-500 ml-1">*</span>
+                  </Label>
                   <Input
                     id="requestedDate"
                     type="date"
                     value={orderRequestedDeliveryDate}
                     onChange={(e) => setOrderRequestedDeliveryDate(e.target.value)}
+                    className="bg-white/80 dark:bg-gray-800/80 border-blue-200 focus:border-blue-400 text-base h-11"
                     min={new Date().toISOString().split('T')[0]}
                     max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                     required
                   />
-                  <p className="text-xs text-muted-foreground">* Bắt buộc chọn ngày trong vòng 30 ngày kể từ hôm nay</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Bắt buộc chọn ngày trong vòng 30 ngày kể từ hôm nay
+                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="orderNotes">Ghi chú</Label>
+                {/* Notes */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-yellow-50/80 dark:from-amber-950/80 dark:to-yellow-950/80 p-5 rounded-xl border-2 border-amber-200/50 shadow-lg">
+                  <Label htmlFor="orderNotes" className="text-lg font-bold text-amber-800 dark:text-amber-200 flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-5 w-5 text-amber-600" />
+                    💬 Ghi chú (không bắt buộc)
+                  </Label>
                   <Textarea
                     id="orderNotes"
-                    placeholder="VD: Cần giao hàng vào buổi sáng, liên hệ trước 1 ngày"
+                    placeholder="VD: Cần giao hàng vào buổi sáng, liên hệ trước 1 ngày..."
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
                     rows={3}
+                    className="bg-white/80 dark:bg-gray-800/80 border-amber-200 focus:border-amber-400 resize-none"
                   />
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
-                  Hủy
+              <DialogFooter className="gap-3 pt-4 border-t border-green-200/30">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsOrderDialogOpen(false)}
+                  className="bg-white/60 hover:bg-white/80 border-green-200 hover:border-green-400 hover:scale-105 transition-all duration-300 px-6"
+                >
+                  ❌ Hủy
                 </Button>
-                <Button type="button" onClick={handleSubmitOrder} disabled={isSubmittingOrder}>
-                  Gửi đơn nhập hàng
+                <Button 
+                  type="button" 
+                  onClick={handleSubmitOrder} 
+                  disabled={isSubmittingOrder || !orderRequestedDeliveryDate || orderItems.filter(it => it.categoryId).length === 0}
+                  className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 px-8 text-base font-bold"
+                >
+                  {isSubmittingOrder ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Đang gửi đơn...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      ✅ Gửi đơn nhập hàng
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1265,40 +1378,40 @@ export default function DealerDistributionsPage() {
 
           {/* Dialog: Confirm Received */}
           <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-            <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            <DialogContent className="max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
+              <DialogHeader className="flex-shrink-0 pb-3">
+                <DialogTitle className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                   ✅ Xác nhận đã nhận hàng
                 </DialogTitle>
-                <DialogDescription className="text-base">
+                <DialogDescription className="text-sm">
                   Mã phân phối: <span className="font-mono font-semibold text-blue-600">{selectedDistribution?.code || `#${selectedDistribution?.id}`}</span>
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-5 py-4 overflow-y-auto flex-1">
+              <div className="space-y-3 py-2 overflow-y-auto flex-1 pr-2">
                 {/* Thông tin tổng quan */}
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-blue-500 rounded-lg">
-                      <Package className="h-5 w-5 text-white" />
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="p-1.5 bg-blue-500 rounded-lg flex-shrink-0">
+                      <Package className="h-4 w-4 text-white" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-blue-900 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-blue-900 mb-2">
                         📦 Thông tin đơn hàng
                       </p>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-blue-600">Yêu cầu:</span>
-                          <span className="ml-2 font-bold text-blue-900">{selectedDistribution?.requestedQuantity || 0} xe</span>
+                      <div className="grid grid-cols-3 gap-3 text-xs">
+                        <div className="min-w-0">
+                          <span className="text-blue-600 block mb-0.5">Yêu cầu:</span>
+                          <span className="font-bold text-blue-900 block truncate">{selectedDistribution?.requestedQuantity || 0} xe</span>
                         </div>
-                        <div>
-                          <span className="text-green-600">EVM duyệt:</span>
-                          <span className="ml-2 font-bold text-green-900">
+                        <div className="min-w-0">
+                          <span className="text-green-600 block mb-0.5">EVM duyệt:</span>
+                          <span className="font-bold text-green-900 block truncate">
                             {selectedDistribution?.approvedQuantity || receivedItems.reduce((sum, item) => sum + item.ordered, 0) || selectedDistribution?.requestedQuantity || 0} xe
                           </span>
                         </div>
-                        <div>
-                          <span className="text-purple-600">Giao tới:</span>
-                          <span className="ml-2 font-bold text-purple-900">
+                        <div className="min-w-0">
+                          <span className="text-purple-600 block mb-0.5">Giao tới:</span>
+                          <span className="font-bold text-purple-900 block truncate">
                             {receivedItems.reduce((sum, item) => sum + item.received, 0) || selectedDistribution?.requestedQuantity || 0} xe
                           </span>
                         </div>
@@ -1310,59 +1423,59 @@ export default function DealerDistributionsPage() {
                 {/* Chi tiết từng dòng xe */}
                 {receivedItems.length > 0 ? (
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <Label className="text-lg font-semibold text-gray-700">Chi tiết xe đã nhận</Label>
-                      <span className="text-sm text-gray-500">{receivedItems.length} dòng xe</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-semibold text-gray-700">Chi tiết xe đã nhận</Label>
+                      <span className="text-xs text-gray-500">{receivedItems.length} dòng xe</span>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {receivedItems.map((row, idx) => {
                         const isMatch = row.ordered === row.received;
                         const totalPrice = (row.price || 0) * row.received;
                         return (
-                          <div key={row.id ?? idx} className={`p-4 border-2 rounded-xl transition-all ${
+                          <div key={row.id ?? idx} className={`p-3 border rounded-lg transition-all ${
                             isMatch 
                               ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
                               : 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300'
                           }`}>
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3">
-                                  <Car className="h-5 w-5 text-gray-600" />
-                                  <div>
-                                    <div className="font-bold text-lg text-gray-900">{row.name || 'Sản phẩm'}</div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <Car className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-bold text-sm text-gray-900 truncate">{row.name || 'Sản phẩm'}</div>
                                     {row.color && (
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <div className="w-4 h-4 rounded-full border-2 border-gray-300" style={{ backgroundColor: row.color.toLowerCase() }}></div>
-                                        <span className="text-sm text-gray-600">Màu: <strong>{row.color}</strong></span>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <div className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" style={{ backgroundColor: row.color.toLowerCase() }}></div>
+                                        <span className="text-xs text-gray-600 truncate">Màu: <strong>{row.color}</strong></span>
                                       </div>
                                     )}
                                   </div>
                                 </div>
                               </div>
                               {(row.price ?? 0) > 0 && (
-                                <div className="text-right">
-                                  <div className="text-xs text-gray-500">Giá hãng / xe</div>
-                                  <div className="text-lg font-bold text-blue-600">
+                                <div className="text-right flex-shrink-0">
+                                  <div className="text-xs text-gray-500">Giá hãng/xe</div>
+                                  <div className="text-sm font-bold text-blue-600">
                                     {(row.price ?? 0).toLocaleString()} đ
                                   </div>
                                 </div>
                               )}
                             </div>
 
-                            <div className="mt-4 grid grid-cols-3 gap-4">
-                              <div className="bg-white/60 p-3 rounded-lg">
-                                <div className="text-xs text-blue-600 font-medium mb-1">EVM duyệt</div>
-                                <div className="text-2xl font-bold text-blue-700">{row.ordered}</div>
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                              <div className="bg-white/60 p-2 rounded">
+                                <div className="text-xs text-blue-600 font-medium mb-0.5">EVM duyệt</div>
+                                <div className="text-lg font-bold text-blue-700">{row.ordered}</div>
                                 <div className="text-xs text-gray-500">xe</div>
                               </div>
-                              <div className="bg-white/60 p-3 rounded-lg">
-                                <div className="text-xs text-green-600 font-medium mb-1">Giao tới</div>
-                                <div className="text-2xl font-bold text-green-700">{row.received}</div>
+                              <div className="bg-white/60 p-2 rounded">
+                                <div className="text-xs text-green-600 font-medium mb-0.5">Giao tới</div>
+                                <div className="text-lg font-bold text-green-700">{row.received}</div>
                                 <div className="text-xs text-gray-500">xe</div>
                               </div>
-                              <div className="bg-white/60 p-3 rounded-lg">
-                                <div className="text-xs text-purple-600 font-medium mb-1">Dealer phải trả</div>
-                                <div className="text-xl font-bold text-purple-700">
+                              <div className="bg-white/60 p-2 rounded">
+                                <div className="text-xs text-purple-600 font-medium mb-0.5 truncate">Dealer phải trả</div>
+                                <div className="text-sm font-bold text-purple-700 truncate">
                                   {totalPrice.toLocaleString()}
                                 </div>
                                 <div className="text-xs text-gray-500">đồng</div>
@@ -1370,16 +1483,16 @@ export default function DealerDistributionsPage() {
                             </div>
 
                             {!isMatch ? (
-                              <div className="mt-3 p-2.5 bg-yellow-100 border border-yellow-300 rounded-lg flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 text-yellow-700" />
-                                <span className="text-sm font-medium text-yellow-800">
+                              <div className="mt-2 p-1.5 bg-yellow-100 border border-yellow-300 rounded flex items-center gap-1.5">
+                                <AlertCircle className="h-3 w-3 text-yellow-700 flex-shrink-0" />
+                                <span className="text-xs font-medium text-yellow-800">
                                   Chênh lệch: {row.received - row.ordered > 0 ? '+' : ''}{row.received - row.ordered} xe
                                 </span>
                               </div>
                             ) : (
-                              <div className="mt-3 p-2.5 bg-green-100 border border-green-300 rounded-lg flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-green-700" />
-                                <span className="text-sm font-medium text-green-800">Khớp đúng số lượng đã đặt</span>
+                              <div className="mt-2 p-1.5 bg-green-100 border border-green-300 rounded flex items-center gap-1.5">
+                                <CheckCircle className="h-3 w-3 text-green-700 flex-shrink-0" />
+                                <span className="text-xs font-medium text-green-800">Khớp đúng số lượng đã đặt</span>
                               </div>
                             )}
                           </div>
@@ -1388,45 +1501,45 @@ export default function DealerDistributionsPage() {
                     </div>
 
                     {/* Tổng kết */}
-                    <div className="mt-4 p-5 bg-gradient-to-br from-blue-100 via-green-100 to-purple-100 border-2 border-blue-300 rounded-xl shadow-lg">
-                      <div className="flex items-center gap-2 mb-4">
-                        <TrendingUp className="h-5 w-5 text-blue-600" />
-                        <Label className="text-base font-bold text-gray-800">Tổng kết đơn hàng</Label>
+                    <div className="mt-2 p-3 bg-gradient-to-br from-blue-100 via-green-100 to-purple-100 border border-blue-300 rounded-lg">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <TrendingUp className="h-4 w-4 text-blue-600" />
+                        <Label className="text-sm font-bold text-gray-800">Tổng kết đơn hàng</Label>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-white/70 p-4 rounded-lg text-center border border-blue-200">
-                          <div className="text-xs text-blue-600 font-medium mb-1">Tổng EVM duyệt</div>
-                          <div className="text-3xl font-bold text-blue-700">
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-white/70 p-2 rounded text-center border border-blue-200">
+                          <div className="text-xs text-blue-600 font-medium mb-0.5">Tổng EVM duyệt</div>
+                          <div className="text-xl font-bold text-blue-700">
                             {receivedItems.reduce((sum, item) => sum + item.ordered, 0)}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">xe</div>
+                          <div className="text-xs text-gray-500">xe</div>
                         </div>
-                        <div className="bg-white/70 p-4 rounded-lg text-center border border-green-200">
-                          <div className="text-xs text-green-600 font-medium mb-1">Tổng giao tới</div>
-                          <div className="text-3xl font-bold text-green-700">
+                        <div className="bg-white/70 p-2 rounded text-center border border-green-200">
+                          <div className="text-xs text-green-600 font-medium mb-0.5">Tổng giao tới</div>
+                          <div className="text-xl font-bold text-green-700">
                             {receivedItems.reduce((sum, item) => sum + item.received, 0)}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">xe</div>
+                          <div className="text-xs text-gray-500">xe</div>
                         </div>
-                        <div className="bg-white/70 p-4 rounded-lg text-center border border-purple-200">
-                          <div className="text-xs text-purple-600 font-medium mb-1">Đã thanh toán</div>
-                          <div className="text-2xl font-bold text-purple-700">
+                        <div className="bg-white/70 p-2 rounded text-center border border-purple-200">
+                          <div className="text-xs text-purple-600 font-medium mb-0.5">Xác nhận</div>
+                          <div className="text-base font-bold text-purple-700 truncate">
                             {receivedItems.reduce((sum, item) => sum + ((item.price || 0) * item.received), 0).toLocaleString()}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">VNĐ</div>
+                          <div className="text-xs text-gray-500">VNĐ</div>
                         </div>
                       </div>
                       {receivedItems.reduce((sum, item) => sum + item.ordered, 0) === receivedItems.reduce((sum, item) => sum + item.received, 0) ? (
-                        <div className="mt-4 p-3 bg-green-500 rounded-lg text-center">
-                          <div className="flex items-center justify-center gap-2 text-white font-bold">
-                            <CheckCircle className="h-5 w-5" />
+                        <div className="mt-2 p-2 bg-green-500 rounded text-center">
+                          <div className="flex items-center justify-center gap-1.5 text-white font-bold text-xs">
+                            <CheckCircle className="h-4 w-4 flex-shrink-0" />
                             <span>Số lượng khớp chính xác - Sẵn sàng xác nhận</span>
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-4 p-3 bg-yellow-500 rounded-lg text-center">
-                          <div className="flex items-center justify-center gap-2 text-white font-bold">
-                            <AlertCircle className="h-5 w-5" />
+                        <div className="mt-2 p-2 bg-yellow-500 rounded text-center">
+                          <div className="flex items-center justify-center gap-1.5 text-white font-bold text-xs">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
                             <span>
                               Chênh lệch: {receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0) > 0 ? '+' : ''}
                               {receivedItems.reduce((sum, item) => sum + item.received, 0) - receivedItems.reduce((sum, item) => sum + item.ordered, 0)} xe
@@ -1461,23 +1574,25 @@ export default function DealerDistributionsPage() {
                 )}
               </div>
               {/* Receipt date selector - Fixed at bottom */}
-              <div className="space-y-2 border-t pt-4">
-                <Label htmlFor="receiptDate">Ngày nhập kho của đại lý</Label>
+              <div className="space-y-1.5 border-t pt-3 flex-shrink-0">
+                <Label htmlFor="receiptDate" className="text-xs">Ngày nhập kho của đại lý</Label>
                 <Input
                   id="receiptDate"
                   type="date"
                   value={receiptDate}
                   onChange={(e) => setReceiptDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="text-sm"
                 />
                 <p className="text-xs text-muted-foreground">Dùng để ghi nhận ngày nhập kho. Mặc định là hôm nay.</p>
               </div>
-              <DialogFooter className="border-t pt-4">
-                <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
+              <DialogFooter className="border-t pt-3 flex-shrink-0 gap-2">
+                <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)} className="text-sm">
                   Hủy
                 </Button>
                 <Button 
                   onClick={handleConfirmReceived}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold"
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold text-sm"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Xác nhận nhận hàng
@@ -1487,7 +1602,7 @@ export default function DealerDistributionsPage() {
           </Dialog>
 
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-cyan-50/95 to-blue-50/95 dark:from-cyan-950/95 dark:to-blue-950/95 border-2 border-cyan-200/50 dark:border-cyan-800/50 shadow-2xl max-w-7xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -1529,17 +1644,35 @@ export default function DealerDistributionsPage() {
                     <div className="backdrop-blur-md bg-gradient-to-br from-green-400/10 to-emerald-400/10 p-4 rounded-xl border border-green-200/30">
                       <div className="flex items-center gap-2 mb-2">
                         <Package className="h-5 w-5 text-green-600" />
-                        <Label className="text-xs text-green-700 dark:text-green-300 font-semibold uppercase">Tổng số lượng</Label>
+                        <Label className="text-xs text-green-700 dark:text-green-300 font-semibold uppercase">Số lượng</Label>
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-bold text-green-600">
-                          {selectedDistribution.requestedQuantity || selectedDistribution.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0}
-                        </p>
-                        <span className="text-sm text-gray-600">xe</span>
+                      <div className="space-y-1">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xs text-blue-600">Yêu cầu:</span>
+                          <p className="text-xl font-bold text-blue-600">
+                            {selectedDistribution.requestedQuantity || selectedDistribution.items?.reduce((s, it) => s + (it.quantity || 0), 0) || 0}
+                          </p>
+                          <span className="text-xs text-gray-600">xe</span>
+                        </div>
+                        {selectedDistribution.approvedQuantity !== undefined && selectedDistribution.approvedQuantity !== null && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs text-green-600">EVM duyệt:</span>
+                            <p className="text-xl font-bold text-green-600">
+                              {selectedDistribution.approvedQuantity}
+                            </p>
+                            <span className="text-xs text-gray-600">xe</span>
+                          </div>
+                        )}
+                        {selectedDistribution.receivedQuantity && (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs text-purple-600">Đã nhận:</span>
+                            <p className="text-xl font-bold text-purple-600">
+                              {selectedDistribution.receivedQuantity}
+                            </p>
+                            <span className="text-xs text-gray-600">xe</span>
+                          </div>
+                        )}
                       </div>
-                      {selectedDistribution.receivedQuantity && (
-                        <p className="text-xs text-green-600 mt-1">Đã nhận: {selectedDistribution.receivedQuantity} xe</p>
-                      )}
                     </div>
                   </div>
                   
@@ -1600,79 +1733,68 @@ export default function DealerDistributionsPage() {
                           {selectedDistribution.items.length} loại xe
                         </Badge>
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
+                      <div>
+                        <table className="w-full table-auto">
                           <thead>
                             <tr className="border-b-2 border-green-300/50">
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">#</th>
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Sản phẩm</th>
-                              <th className="text-left py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Màu sắc</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-10">#</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Sản phẩm</th>
+                              <th className="text-left py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Màu sắc</th>
                               {selectedDistribution.items?.some(it => it.dealerPrice) && (
-                                <th className="text-right py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Giá hãng</th>
+                                <th className="text-right py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 whitespace-nowrap">Giá hãng</th>
                               )}
-                              <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Yêu cầu</th>
-                              {selectedDistribution.items.some(it => it.approvedQuantity) && (
-                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã duyệt</th>
+                              <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">YC</th>
+                              {selectedDistribution.items.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null) && (
+                                <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">Duyệt</th>
                               )}
-                              {selectedDistribution.items.some(it => it.receivedQuantity) && (
-                                <th className="text-center py-2 px-3 text-xs font-semibold text-green-800 dark:text-green-200">Đã nhận</th>
+                              {selectedDistribution.items.some(it => it.receivedQuantity !== undefined && it.receivedQuantity !== null) && (
+                                <th className="text-center py-2 px-2 text-xs font-semibold text-green-800 dark:text-green-200 w-16">Nhận</th>
                               )}
                             </tr>
                           </thead>
                           <tbody>
                             {selectedDistribution.items.map((it, idx) => (
                               <tr key={idx} className="border-b border-green-200/30 hover:bg-green-100/30 dark:hover:bg-green-900/20 transition-colors">
-                                <td className="py-3 px-3 text-sm text-gray-600 dark:text-gray-400">{idx + 1}</td>
-                                <td className="py-3 px-3">
-                                  <div className="font-semibold text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
-                                  {it.product?.vinNum && <div className="text-xs text-gray-500 mt-0.5">{it.product.vinNum}</div>}
+                                <td className="py-2 px-2 text-xs text-gray-600 dark:text-gray-400">{idx + 1}</td>
+                                <td className="py-2 px-2">
+                                  <div className="font-semibold text-xs text-gray-900 dark:text-white">{it.product?.name || it.category?.name || 'Sản phẩm'}</div>
                                 </td>
-                                <td className="py-3 px-3">
-                                  {it.color && (
-                                    <Badge variant="outline" className="text-xs">
-                                      🎨 {it.color}
-                                    </Badge>
+                                <td className="py-2 px-2">
+                                  {it.color ? (
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">
+                                      {it.color}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">-</span>
                                   )}
                                 </td>
                                 {selectedDistribution.items?.some(item => item.dealerPrice) && (
-                                  <td className="py-3 px-3 text-right">
+                                  <td className="py-2 px-2 text-right">
                                     {it.dealerPrice ? (
-                                      <div className="font-semibold text-amber-700 dark:text-amber-400">
-                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} ₫
+                                      <div className="font-semibold text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                                        {Number(it.dealerPrice).toLocaleString('vi-VN')} VND
                                       </div>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
                                   </td>
                                 )}
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-blue-600">{it.quantity || 0}</span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-sm text-blue-600">{it.quantity || 0}</span>
                                 </td>
-                                {selectedDistribution.items?.some(item => item.approvedQuantity) && (
-                                  <td className="py-3 px-3 text-center">
-                                    {it.approvedQuantity ? (
-                                      <>
-                                        <span className="font-bold text-green-600">{it.approvedQuantity}</span>
-                                        <span className="text-xs text-gray-500 ml-1">xe</span>
-                                        {it.quantity && it.approvedQuantity < it.quantity && (
-                                          <div className="text-xs text-orange-600 mt-0.5">
-                                            Thiếu: {it.quantity - it.approvedQuantity}
-                                          </div>
-                                        )}
-                                      </>
+                                {selectedDistribution.items?.some(item => item.approvedQuantity !== undefined && item.approvedQuantity !== null) && (
+                                  <td className="py-2 px-2 text-center">
+                                    {it.approvedQuantity !== undefined && it.approvedQuantity !== null ? (
+                                      <span className="font-bold text-sm text-green-600">{it.approvedQuantity}</span>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
                                   </td>
                                 )}
-                                {selectedDistribution.items?.some(item => item.receivedQuantity) && (
-                                  <td className="py-3 px-3 text-center">
-                                    {it.receivedQuantity ? (
-                                      <>
-                                        <span className="font-bold text-purple-600">{it.receivedQuantity}</span>
-                                        <span className="text-xs text-gray-500 ml-1">xe</span>
-                                      </>
+                                {selectedDistribution.items?.some(item => item.receivedQuantity !== undefined && item.receivedQuantity !== null) && (
+                                  <td className="py-2 px-2 text-center">
+                                    {it.receivedQuantity !== undefined && it.receivedQuantity !== null ? (
+                                      <span className="font-bold text-sm text-purple-600">{it.receivedQuantity}</span>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
@@ -1683,71 +1805,31 @@ export default function DealerDistributionsPage() {
                           </tbody>
                           <tfoot>
                             <tr className="border-t-2 border-green-300/50 bg-green-100/50 dark:bg-green-900/30">
-                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-3 px-3 text-sm font-bold text-green-800 dark:text-green-200">
-                                Tổng cộng
+                              <td colSpan={selectedDistribution.items?.some(it => it.dealerPrice) ? 4 : 3} className="py-2 px-2 text-xs font-bold text-green-800 dark:text-green-200">
+                                Tổng
                               </td>
-                              <td className="py-3 px-3 text-center">
-                                <span className="font-bold text-blue-600 text-base">
+                              <td className="py-2 px-2 text-center">
+                                <span className="font-bold text-blue-600 text-sm">
                                   {selectedDistribution.items.reduce((s, it) => s + (it.quantity || 0), 0)}
                                 </span>
-                                <span className="text-xs text-gray-500 ml-1">xe</span>
                               </td>
-                              {selectedDistribution.items.some(it => it.approvedQuantity) && (
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-green-600 text-base">
+                              {selectedDistribution.items.some(it => it.approvedQuantity !== undefined && it.approvedQuantity !== null) && (
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-green-600 text-sm">
                                     {selectedDistribution.items.reduce((s, it) => s + (it.approvedQuantity || 0), 0)}
                                   </span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
                                 </td>
                               )}
-                              {selectedDistribution.items.some(it => it.receivedQuantity) && (
-                                <td className="py-3 px-3 text-center">
-                                  <span className="font-bold text-purple-600 text-base">
+                              {selectedDistribution.items.some(it => it.receivedQuantity !== undefined && it.receivedQuantity !== null) && (
+                                <td className="py-2 px-2 text-center">
+                                  <span className="font-bold text-purple-600 text-sm">
                                     {selectedDistribution.items.reduce((s, it) => s + (it.receivedQuantity || 0), 0)}
                                   </span>
-                                  <span className="text-xs text-gray-500 ml-1">xe</span>
                                 </td>
                               )}
                             </tr>
                           </tfoot>
                         </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Payment Information */}
-                  {selectedDistribution.paidAmount && selectedDistribution.paidAmount > 0 && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-emerald-50/80 to-teal-50/80 dark:from-emerald-950/80 dark:to-teal-950/80 p-5 rounded-xl border-2 border-emerald-300/50">
-                      <div className="flex items-center gap-2 mb-4">
-                        <CheckCircle className="h-5 w-5 text-emerald-600" />
-                        <Label className="text-base font-bold text-emerald-800 dark:text-emerald-200">Thông tin thanh toán</Label>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
-                          <p className="text-xs text-gray-500 mb-1">💰 Số tiền đã chuyển</p>
-                          <p className="text-lg font-bold text-emerald-600">
-                            {selectedDistribution.paidAmount.toLocaleString('vi-VN')} VND
-                          </p>
-                        </div>
-                        {selectedDistribution.transactionNo && (
-                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
-                            <p className="text-xs text-gray-500 mb-1">🔖 Mã giao dịch</p>
-                            <p className="text-sm font-mono font-semibold text-gray-800 dark:text-gray-200">
-                              {selectedDistribution.transactionNo}
-                            </p>
-                          </div>
-                        )}
-                        {selectedDistribution.paidAt && (
-                          <div className="bg-white/60 dark:bg-gray-800/60 p-4 rounded-lg">
-                            <p className="text-xs text-gray-500 mb-1">⏰ Thời gian thanh toán</p>
-                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                              {new Date(selectedDistribution.paidAt).toLocaleDateString('vi-VN')}
-                            </p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {new Date(selectedDistribution.paidAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
@@ -1782,103 +1864,6 @@ export default function DealerDistributionsPage() {
                     </div>
                   )}
                   
-                  {/* Shortage Summary Section - Table Style */}
-                  {selectedDistribution.items && selectedDistribution.items.some(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity) && (
-                    <div className="backdrop-blur-md bg-gradient-to-br from-green-50/90 to-emerald-50/90 dark:from-green-950/90 dark:to-emerald-950/90 p-5 rounded-xl border-2 border-green-300/50 shadow-lg">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-5 w-5 text-green-600" />
-                          <Label className="text-lg font-bold text-green-800 dark:text-green-200">
-                            📋 Danh sách sản phẩm
-                          </Label>
-                        </div>
-                        <Badge className="bg-green-600 text-white px-3 py-1">
-                          {selectedDistribution.items.filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity).length} loại xe
-                        </Badge>
-                      </div>
-                      
-                      <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl border border-green-200/50 overflow-hidden">
-                        <table className="w-full">
-                          <thead className="bg-green-100/80 dark:bg-green-900/40">
-                            <tr className="border-b-2 border-green-300/50">
-                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">#</th>
-                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Sản phẩm</th>
-                              <th className="text-left py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Màu sắc</th>
-                              <th className="text-center py-3 px-4 text-sm font-bold text-green-900 dark:text-green-100">Yêu cầu</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedDistribution.items
-                              .filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
-                              .map((it, idx) => {
-                                const shortage = (it.quantity || 0) - (it.approvedQuantity || 0);
-                                return (
-                                  <tr 
-                                    key={idx} 
-                                    className="border-b border-green-200/30 hover:bg-green-50/50 dark:hover:bg-green-900/20 transition-colors"
-                                  >
-                                    <td className="py-4 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-                                      {idx + 1}
-                                    </td>
-                                    <td className="py-4 px-4">
-                                      <div className="font-semibold text-base text-gray-900 dark:text-white">
-                                        {it.product?.name || it.category?.name || 'Sản phẩm'}
-                                      </div>
-                                    </td>
-                                    <td className="py-4 px-4">
-                                      {it.color && (
-                                        <div className="flex items-center gap-2">
-                                          <div 
-                                            className="w-4 h-4 rounded-full border-2 border-gray-300"
-                                            style={{ 
-                                              backgroundColor: it.color === 'Đỏ' ? '#ef4444' : 
-                                                             it.color === 'Xanh dương' || it.color === 'Xanh duong' ? '#3b82f6' :
-                                                             it.color === 'Đen' ? '#000000' :
-                                                             it.color === 'Trắng' ? '#ffffff' :
-                                                             it.color === 'Xám' ? '#6b7280' : '#9ca3af'
-                                            }}
-                                          ></div>
-                                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            {it.color}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="py-4 px-4 text-center">
-                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-full">
-                                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                          {shortage}
-                                        </span>
-                                        <span className="text-xs text-blue-600 dark:text-blue-400">xe</span>
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                          </tbody>
-                          <tfoot className="bg-green-100/80 dark:bg-green-900/40">
-                            <tr className="border-t-2 border-green-300/50">
-                              <td colSpan={3} className="py-3 px-4 text-base font-bold text-green-900 dark:text-green-100">
-                                Tổng cộng
-                              </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="inline-flex items-center gap-1 px-4 py-1.5 bg-green-600 text-white rounded-full">
-                                  <span className="text-xl font-bold">
-                                    {selectedDistribution.items
-                                      .filter(it => it.approvedQuantity && it.quantity && it.approvedQuantity < it.quantity)
-                                      .reduce((sum, it) => sum + ((it.quantity || 0) - (it.approvedQuantity || 0)), 0)
-                                    }
-                                  </span>
-                                  <span className="text-sm">xe</span>
-                                </span>
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                  
                   {/* Products List - Enhanced */}
                   {selectedDistribution.products && selectedDistribution.products.length > 0 && (
                     <div className="backdrop-blur-md bg-gradient-to-br from-pink-50/80 to-rose-50/80 dark:from-pink-950/80 dark:to-rose-950/80 p-5 rounded-xl border border-pink-200/30">
@@ -1899,6 +1884,34 @@ export default function DealerDistributionsPage() {
                               <Badge className="bg-pink-500 text-white text-xs">{idx + 1}</Badge>
                             </div>
                             <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              {product.color && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-pink-600">Màu:</span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style={{
+                                    backgroundColor: product.color.toLowerCase().includes('trắng') || product.color.toLowerCase().includes('white') ? '#f5f5f5' :
+                                                   product.color.toLowerCase().includes('đen') || product.color.toLowerCase().includes('black') ? '#1a1a1a' :
+                                                   product.color.toLowerCase().includes('đỏ') || product.color.toLowerCase().includes('red') ? '#ef4444' :
+                                                   product.color.toLowerCase().includes('xanh dương') || product.color.toLowerCase().includes('blue') ? '#3b82f6' :
+                                                   product.color.toLowerCase().includes('xanh lá') || product.color.toLowerCase().includes('green') ? '#22c55e' :
+                                                   product.color.toLowerCase().includes('vàng') || product.color.toLowerCase().includes('yellow') ? '#eab308' :
+                                                   product.color.toLowerCase().includes('bạc') || product.color.toLowerCase().includes('silver') ? '#d1d5db' :
+                                                   product.color.toLowerCase().includes('xám') || product.color.toLowerCase().includes('gray') || product.color.toLowerCase().includes('grey') ? '#6b7280' :
+                                                   product.color.toLowerCase().includes('cam') || product.color.toLowerCase().includes('orange') ? '#f97316' :
+                                                   product.color.toLowerCase().includes('nâu') || product.color.toLowerCase().includes('brown') ? '#92400e' :
+                                                   product.color.toLowerCase().includes('tím') || product.color.toLowerCase().includes('purple') ? '#a855f7' :
+                                                   product.color.toLowerCase().includes('hồng') || product.color.toLowerCase().includes('pink') ? '#ec4899' : '#94a3b8',
+                                    color: product.color.toLowerCase().includes('đen') || product.color.toLowerCase().includes('black') || 
+                                           product.color.toLowerCase().includes('đỏ') || product.color.toLowerCase().includes('red') ||
+                                           product.color.toLowerCase().includes('xanh dương') || product.color.toLowerCase().includes('blue') ||
+                                           product.color.toLowerCase().includes('xanh lá') || product.color.toLowerCase().includes('green') ||
+                                           product.color.toLowerCase().includes('nâu') || product.color.toLowerCase().includes('brown') ||
+                                           product.color.toLowerCase().includes('tím') || product.color.toLowerCase().includes('purple') ? '#ffffff' : '#000000',
+                                    border: '1px solid rgba(0,0,0,0.1)'
+                                  }}>
+                                    {product.color}
+                                  </span>
+                                </div>
+                              )}
                               {product.vinNum && (
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-semibold text-pink-600">VIN:</span>
@@ -1911,10 +1924,10 @@ export default function DealerDistributionsPage() {
                                   <span className="font-mono text-xs">{product.engineNum}</span>
                                 </div>
                               )}
-                              {product.price && (
+                              {product.manufacturerPrice && (
                                 <div className="flex items-center gap-2 pt-1 border-t border-pink-100">
                                   <span className="text-xs font-semibold text-pink-600">Giá:</span>
-                                  <span className="font-bold text-pink-600">{product.price.toLocaleString('vi-VN')} VND</span>
+                                  <span className="font-bold text-pink-600">{product.manufacturerPrice.toLocaleString('vi-VN')} VND</span>
                                 </div>
                               )}
                               {product.stockInDate && (
@@ -2078,11 +2091,12 @@ export default function DealerDistributionsPage() {
                         <Label className="text-sm font-medium mb-2 block">Chi tiết xe hãng nhập:</Label>
                         <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
                           {selectedDistribution.items.map((item) => {
-                            // Backend đã update item.quantity = approved quantity cho đơn đã duyệt
-                            // Nhưng với đơn bổ sung, item.quantity chính là số lượng yêu cầu bổ sung
-                            const approvedQty = item.approvedQuantity || item.quantity || 0;
+                            // Số lượng đã duyệt của EVM (đã được lưu trong approvedQuantity)
+                            const approvedQty = item.approvedQuantity !== undefined && item.approvedQuantity !== null 
+                              ? item.approvedQuantity 
+                              : 0;
                             
-                            // Lấy requested quantity: ưu tiên từ evmNotes, sau đó từ item.quantity
+                            // Số lượng yêu cầu ban đầu của dealer (lưu trong quantity)
                             const itemKey = `${item.product?.name || item.category?.name || 'Unknown'}${item.color ? ' ('+item.color+')' : ''}`;
                             const requestedQty = itemRequestedMap.get(itemKey) || item.quantity || 0;
                             const isMissing = approvedQty < requestedQty;
@@ -2171,128 +2185,36 @@ export default function DealerDistributionsPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Payment Confirmation Dialog */}
-          <Dialog open={isPaymentConfirmDialogOpen} onOpenChange={setIsPaymentConfirmDialogOpen}>
-            <DialogContent className="max-w-2xl backdrop-blur-xl bg-gradient-to-br from-emerald-50/95 to-teal-50/95 dark:from-emerald-950/95 dark:to-teal-950/95 border-2 border-emerald-300/50 shadow-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-bold">
-                  💳 Xác nhận thanh toán
-                </DialogTitle>
-                <DialogDescription>
-                  Vui lòng kiểm tra thông tin trước khi thanh toán
-                </DialogDescription>
-              </DialogHeader>
-              {selectedDistribution && (
-                <div className="space-y-4 py-4">
-                  <div className="bg-white/60 dark:bg-gray-800/60 p-5 rounded-xl border-2 border-emerald-300/50">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Package className="h-5 w-5 text-emerald-600" />
-                      <Label className="text-base font-bold text-emerald-800">Thông tin đơn hàng</Label>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Mã phân phối:</span>
-                        <span className="font-semibold">{selectedDistribution.code || `#${selectedDistribution.id}`}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Số lượng xe:</span>
-                        <span className="font-semibold">{selectedDistribution.items?.reduce((sum, it) => sum + (it.quantity || 0), 0) || 0} xe</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 p-5 rounded-xl border-2 border-emerald-400/50">
-                    <div className="flex items-center gap-2 mb-3">
-                      <DollarSign className="h-6 w-6 text-emerald-700" />
-                      <Label className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Chi tiết thanh toán</Label>
-                    </div>
-                    <div className="space-y-3">
-                      {selectedDistribution.items?.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2 border-b border-emerald-300/30 last:border-0">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900 dark:text-white">
-                              {item.product?.name || item.category?.name}
-                              {item.color && <span className="text-gray-600 ml-1">({item.color})</span>}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {item.quantity} xe × {(item.dealerPrice || 0).toLocaleString('vi-VN')} VND
-                            </p>
-                          </div>
-                          <p className="font-bold text-emerald-700">
-                            {((item.quantity || 0) * (item.dealerPrice || 0)).toLocaleString('vi-VN')} VND
-                          </p>
-                        </div>
-                      ))}
-                      <div className="flex justify-between items-center pt-3 border-t-2 border-emerald-400">
-                        <span className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Tổng cộng:</span>
-                        <span className="text-2xl font-bold text-emerald-700">
-                          {(selectedDistribution.items?.reduce((sum, item) => {
-                            return sum + ((item.quantity || 0) * (item.dealerPrice || 0));
-                          }, 0) || 0).toLocaleString('vi-VN')} VND
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-50/50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200/50">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div className="text-sm text-blue-800 dark:text-blue-200">
-                        <p className="font-semibold mb-1">Lưu ý:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                          <li>Bạn sẽ được chuyển đến trang thanh toán VNPay</li>
-                          <li>Vui lòng hoàn tất thanh toán trong 15 phút</li>
-                          <li>Sau khi thanh toán thành công, đơn hàng sẽ được xác nhận</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <DialogFooter className="gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsPaymentConfirmDialogOpen(false)}
-                >
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleConfirmPayment}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Thanh toán VNPay
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           {/* NEW REQUEST DIALOG - Dealer-initiated request with Glass Effect */}
           <Dialog open={isNewRequestDialogOpen} onOpenChange={setIsNewRequestDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-white/30">
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-purple-50/95 to-pink-50/95 dark:from-purple-950/95 dark:to-pink-950/95 border-2 border-purple-200/50 dark:border-purple-800/50 shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent flex items-center gap-2">
-                  🚀 Tạo yêu cầu phân phối mới
-                </DialogTitle>
-                <DialogDescription className="text-base">
-                  Tạo yêu cầu nhập hàng trực tiếp từ hãng (không cần chờ lời mời)
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="text-3xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-bold">
+                      🚀 Tạo yêu cầu phân phối mới
+                    </DialogTitle>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Yêu cầu nhập hàng trực tiếp từ hãng (không cần chờ lời mời)
+                    </p>
+                  </div>
                   {categories.length > 0 && (
-                    <span className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
-                      <CheckCircle2 className="h-3 w-3" />
-                      {categories.length} danh mục có sẵn
-                    </span>
+                    <Badge className="bg-green-600 text-white px-4 py-2 text-base">
+                      <CheckCircle2 className="h-4 w-4 mr-1 inline" />
+                      {categories.length} danh mục
+                    </Badge>
                   )}
-                </DialogDescription>
+                </div>
               </DialogHeader>
               
-              <div className="space-y-6">
+              <div className="space-y-6 py-4">
                 {/* Categories loading check */}
                 {categories.length === 0 && (
-                  <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-950/80 dark:to-orange-950/80 p-4 rounded-xl border border-amber-300/50">
+                  <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-950/80 dark:to-orange-950/80 p-5 rounded-xl border-2 border-amber-300/50 shadow-lg">
                     <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <AlertCircle className="h-6 w-6 text-amber-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm text-amber-800 dark:text-amber-200 font-semibold mb-2">
+                        <p className="text-base text-amber-800 dark:text-amber-200 font-bold mb-2">
                           ⚠️ Chưa tải được danh mục xe
                         </p>
                         <Button 
@@ -2300,7 +2222,7 @@ export default function DealerDistributionsPage() {
                           size="sm"
                           onClick={loadData}
                           disabled={loading}
-                          className="bg-white/50 hover:bg-white/70"
+                          className="bg-white/60 hover:bg-white/80 border-amber-300 hover:scale-105 transition-all duration-300"
                         >
                           {loading ? 'Đang tải...' : '🔄 Tải lại'}
                         </Button>
@@ -2309,17 +2231,24 @@ export default function DealerDistributionsPage() {
                   </div>
                 )}
                 
-                {/* Items */}
-                <div className="backdrop-blur-md bg-gradient-to-br from-purple-50/60 to-pink-50/60 dark:from-purple-950/60 dark:to-pink-950/60 p-6 rounded-2xl border border-white/30">
-                  <Label className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-1">
-                    <Package className="h-5 w-5 text-purple-600" />
-                    📋 Danh sách sản phẩm yêu cầu
-                  </Label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                {/* Items - Enhanced Design */}
+                <div className="backdrop-blur-md bg-gradient-to-br from-green-50/80 to-emerald-50/80 dark:from-green-950/80 dark:to-emerald-950/80 p-4 rounded-xl border-2 border-green-200/50 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-green-600" />
+                      <Label className="text-base font-bold text-green-800 dark:text-green-200">
+                        📋 Danh sách sản phẩm yêu cầu
+                      </Label>
+                    </div>
+                    <Badge variant="outline" className="text-green-700 border-green-400 text-sm px-2.5 py-0.5">
+                      {newRequestItems.filter(it => it.categoryId).length} loại xe
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 ml-7">
                     Chọn danh mục, màu sắc và số lượng cho từng dòng
                   </p>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                   {newRequestItems.map((item, idx) => {
                     // Get colors already selected for this category
                     const selectedColorsForCategory = newRequestItems
@@ -2327,11 +2256,18 @@ export default function DealerDistributionsPage() {
                       .map(it => it.color);
                     
                     return (
-                    <div key={idx} className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 p-4 rounded-xl border border-white/30 hover:shadow-md transition-all duration-300">
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                    <div key={idx} className="backdrop-blur-sm bg-white/70 dark:bg-gray-800/70 p-3 rounded-lg border border-green-200/40 hover:border-green-400/60 hover:shadow-md transition-all duration-300">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
+                        {/* Row Number */}
+                        <div className="md:col-span-1 flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                            {idx + 1}
+                          </div>
+                        </div>
+                        
                         {/* Category Select - takes more space */}
-                        <div className="md:col-span-5">
-                          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">Danh mục</Label>
+                        <div className="md:col-span-4">
+                          <Label className="text-xs font-medium text-green-700 dark:text-green-300 mb-1 block">🚗 Danh mục</Label>
                           <Select
                             value={item.categoryId?.toString() || ''}
                             onValueChange={(val) => {
@@ -2342,18 +2278,28 @@ export default function DealerDistributionsPage() {
                               setNewRequestItems(updated);
                             }}
                           >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Chọn danh mục..." />
+                            <SelectTrigger className="h-9 w-full bg-white/80 dark:bg-gray-900/80 border-green-200 focus:border-green-400 text-sm">
+                              <SelectValue placeholder="Chọn danh mục...">
+                                {item.categoryId && (() => {
+                                  const selectedCat = categories.find(c => c.id === item.categoryId);
+                                  return selectedCat ? (
+                                    <span>
+                                      <span className="font-semibold">{selectedCat.name}</span>
+                                      <span className="text-gray-500 ml-1">({selectedCat.brand})</span>
+                                    </span>
+                                  ) : 'Chọn danh mục...';
+                                })()}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {categories.length === 0 ? (
-                                <div className="p-2 text-sm text-muted-foreground text-center">
+                                <div className="p-2 text-xs text-muted-foreground text-center">
                                   Không có danh mục nào
                                 </div>
                               ) : (
                                 categories.map((cat) => (
-                                  <SelectItem key={cat.id} value={cat.id.toString()}>
-                                    {cat.name} ({cat.brand})
+                                  <SelectItem key={cat.id} value={cat.id.toString()} className="text-sm">
+                                    <span className="font-semibold">{cat.name}</span> <span className="text-gray-500">({cat.brand})</span>
                                   </SelectItem>
                                 ))
                               )}
@@ -2363,7 +2309,7 @@ export default function DealerDistributionsPage() {
                         
                         {/* Color Select */}
                         <div className="md:col-span-3">
-                          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">Màu sắc</Label>
+                          <Label className="text-xs font-medium text-green-700 dark:text-green-300 mb-1 block">🎨 Màu sắc</Label>
                           <Select
                             value={item.color || ''}
                             onValueChange={(val) => {
@@ -2373,8 +2319,8 @@ export default function DealerDistributionsPage() {
                             }}
                             disabled={!item.categoryId}
                           >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder={item.categoryId ? "Màu..." : "Chọn danh mục trước"} />
+                            <SelectTrigger className="h-9 w-full bg-white/80 dark:bg-gray-900/80 border-green-200 focus:border-green-400 text-sm">
+                              <SelectValue placeholder={item.categoryId ? "Chọn màu..." : "Chọn danh mục trước"} />
                             </SelectTrigger>
                             <SelectContent>
                               {COLOR_OPTIONS.map((color) => {
@@ -2384,9 +2330,9 @@ export default function DealerDistributionsPage() {
                                     key={color} 
                                     value={color}
                                     disabled={isAlreadySelected}
-                                    className={isAlreadySelected ? "opacity-50 cursor-not-allowed" : ""}
+                                    className={isAlreadySelected ? "opacity-50 cursor-not-allowed text-sm" : "text-sm"}
                                   >
-                                    {color} {isAlreadySelected ? "(Đã chọn)" : ""}
+                                    {color} {isAlreadySelected ? "✓" : ""}
                                   </SelectItem>
                                 );
                               })}
@@ -2396,11 +2342,11 @@ export default function DealerDistributionsPage() {
                         
                         {/* Quantity Input */}
                         <div className="md:col-span-3">
-                          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">Số lượng</Label>
+                          <Label className="text-xs font-medium text-green-700 dark:text-green-300 mb-1 block">📦 Số lượng</Label>
                           <Input
                             type="number"
-                            placeholder="SL"
-                            className="w-full"
+                            placeholder="Nhập số lượng..."
+                            className="h-9 w-full bg-white/80 dark:bg-gray-900/80 border-green-200 focus:border-green-400 font-semibold text-center text-sm"
                             min={1}
                             value={item.quantity || ''}
                             onChange={(e) => {
@@ -2412,7 +2358,7 @@ export default function DealerDistributionsPage() {
                         </div>
                         
                         {/* Delete Button */}
-                        <div className="md:col-span-1 flex items-end pb-2">
+                        <div className="md:col-span-1 flex items-end pb-1">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -2422,106 +2368,121 @@ export default function DealerDistributionsPage() {
                               }
                             }}
                             disabled={newRequestItems.length === 1}
-                            className="h-10 w-10 hover:bg-red-50 dark:hover:bg-red-950/20"
+                            className="h-8 w-8 hover:bg-red-100 dark:hover:bg-red-950/30 hover:scale-110 transition-all duration-300"
+                            title={newRequestItems.length === 1 ? "Cần ít nhất 1 dòng" : "Xóa dòng này"}
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
                           </Button>
                         </div>
                       </div>
                     </div>
                   )})}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setNewRequestItems([...newRequestItems, { categoryId: undefined, color: undefined, quantity: 1 }]);
-                    }}
-                    className="mt-3 bg-white/50 hover:bg-white/70 border-purple-200 hover:border-purple-400 hover:scale-105 transition-all duration-300"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Thêm dòng
-                  </Button>
-                  
-                  <div className="mt-4 p-3 backdrop-blur-sm bg-blue-50/70 dark:bg-blue-950/70 rounded-lg border border-blue-200/50">
-                    <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold">
-                      🚗 Tổng số lượng: <span className="text-lg">{newRequestItems.reduce((s, it) => s + (Number(it.quantity) || 0), 0)}</span> xe
-                    </p>
                   </div>
+                  
+                  <div className="flex justify-between items-center mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setNewRequestItems([...newRequestItems, { categoryId: undefined, color: undefined, quantity: 1 }]);
+                      }}
+                      className="bg-white/60 hover:bg-white/80 border-green-300 hover:border-green-500 hover:scale-105 transition-all duration-300 shadow-sm text-sm h-9"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      Thêm dòng sản phẩm
+                    </Button>
+                    
+                    <div className="backdrop-blur-sm bg-gradient-to-r from-blue-500/90 to-cyan-500/90 px-3 py-2 rounded-lg border border-white/30 shadow-lg">
+                      <p className="text-white font-bold flex items-center gap-1.5 text-xs">
+                        <Car className="h-3.5 w-3.5" />
+                        Tổng số lượng: <span className="text-base ml-1">{newRequestItems.reduce((s, it) => s + (Number(it.quantity) || 0), 0)}</span> 
+                        <span className="text-xs font-normal opacity-90">xe</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Requested Delivery Date */}
-                <div className="backdrop-blur-md bg-gradient-to-br from-cyan-50/60 to-blue-50/60 dark:from-cyan-950/60 dark:to-blue-950/60 p-5 rounded-2xl border border-white/30">
-                  <Label htmlFor="newRequestDeliveryDate" className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
-                    <Calendar className="h-5 w-5 text-cyan-600" />
-                    📅 Ngày giao hàng mong muốn <span className="text-red-500">*</span>
+                <div className="backdrop-blur-md bg-gradient-to-br from-blue-50/80 to-cyan-50/80 dark:from-blue-950/80 dark:to-cyan-950/80 p-5 rounded-xl border-2 border-blue-200/50 shadow-lg">
+                  <Label htmlFor="newRequestDeliveryDate" className="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center gap-2 mb-3">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                    📅 Ngày giao hàng mong muốn <span className="text-red-500 ml-1">*</span>
                   </Label>
                   <Input
                     id="newRequestDeliveryDate"
                     type="date"
                     value={newRequestDeliveryDate}
                     onChange={(e) => setNewRequestDeliveryDate(e.target.value)}
-                    className="bg-white/70 dark:bg-gray-800/70 border-white/40 focus:border-cyan-400"
+                    className="bg-white/80 dark:bg-gray-800/80 border-blue-200 focus:border-blue-400 text-base h-11"
                     min={new Date().toISOString().split('T')[0]}
                     max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                     required
                   />
-                  <p className="text-xs text-muted-foreground mt-2">* Bắt buộc chọn ngày trong vòng 30 ngày kể từ hôm nay</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Bắt buộc chọn ngày trong vòng 30 ngày kể từ hôm nay
+                  </p>
                 </div>
 
                 {/* Notes */}
-                <div className="backdrop-blur-md bg-gradient-to-br from-green-50/60 to-emerald-50/60 dark:from-green-950/60 dark:to-emerald-950/60 p-5 rounded-2xl border border-white/30">
-                  <Label htmlFor="newRequestNotes" className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
-                    <MessageSquare className="h-5 w-5 text-green-600" />
-                    💬 Ghi chú
+                <div className="backdrop-blur-md bg-gradient-to-br from-amber-50/80 to-yellow-50/80 dark:from-amber-950/80 dark:to-yellow-950/80 p-5 rounded-xl border-2 border-amber-200/50 shadow-lg">
+                  <Label htmlFor="newRequestNotes" className="text-lg font-bold text-amber-800 dark:text-amber-200 flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-5 w-5 text-amber-600" />
+                    💬 Ghi chú (không bắt buộc)
                   </Label>
                   <Textarea
                     id="newRequestNotes"
-                    placeholder="Thêm ghi chú về yêu cầu này..."
+                    placeholder="VD: Cần xe gấp để phục vụ khách hàng đặt trước..."
                     value={newRequestNotes}
                     onChange={(e) => setNewRequestNotes(e.target.value)}
                     rows={3}
-                    className="bg-white/70 dark:bg-gray-800/70 border-white/40 focus:border-green-400"
+                    className="bg-white/80 dark:bg-gray-800/80 border-amber-200 focus:border-amber-400 resize-none"
                   />
                 </div>
 
-                <div className="backdrop-blur-md bg-gradient-to-br from-blue-50/70 to-cyan-50/70 dark:from-blue-950/70 dark:to-cyan-950/70 p-4 rounded-xl border border-blue-300/50">
+                <div className="backdrop-blur-md bg-gradient-to-br from-indigo-50/70 to-purple-50/70 dark:from-indigo-950/70 dark:to-purple-950/70 p-4 rounded-xl border-2 border-indigo-300/50">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      <strong>ℹ️ Lưu ý:</strong> Yêu cầu sẽ được gửi trực tiếp đến EVM để duyệt. 
-                      Sau khi EVM duyệt và báo giá, bạn sẽ cần xác nhận giá trước khi tiếp tục quy trình giao hàng.
-                    </p>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                      <AlertCircle className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-base text-indigo-800 dark:text-indigo-200 font-bold mb-1">
+                        ℹ️ Quy trình xử lý yêu cầu
+                      </p>
+                      <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                        Yêu cầu sẽ được gửi trực tiếp đến <strong>EVM Staff</strong> để duyệt. 
+                        Sau khi EVM duyệt và báo giá, bạn sẽ cần <strong>xác nhận giá</strong> trước khi tiếp tục quy trình giao hàng.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <DialogFooter className="gap-2">
+              <DialogFooter className="gap-3 pt-4 border-t border-purple-200/30">
                 <Button 
                   variant="outline" 
                   onClick={() => {
                     setIsNewRequestDialogOpen(false);
                     resetNewRequestForm();
                   }}
-                  className="bg-white/50 hover:bg-white/70 border-white/40"
+                  className="bg-white/60 hover:bg-white/80 border-purple-200 hover:border-purple-400 hover:scale-105 transition-all duration-300 px-6"
                 >
-                  Hủy
+                  ❌ Hủy
                 </Button>
                 <Button
                   onClick={handleCreateNewRequest}
-                  disabled={isSubmittingOrder || newRequestItems.filter(it => (it.categoryId || 0) > 0).length === 0}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  disabled={isSubmittingOrder || newRequestItems.filter(it => (it.categoryId || 0) > 0).length === 0 || !newRequestDeliveryDate}
+                  className="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 hover:from-purple-600 hover:via-pink-600 hover:to-rose-600 text-white shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 px-8 text-base font-bold"
                 >
                   {isSubmittingOrder ? (
                     <>
-                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Đang gửi...
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Đang gửi yêu cầu...
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      ✅ Gửi yêu cầu
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      🚀 Gửi yêu cầu đến EVM
                     </>
                   )}
                 </Button>

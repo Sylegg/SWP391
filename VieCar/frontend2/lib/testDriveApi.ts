@@ -20,6 +20,7 @@ export interface TestDriveRes {
   productModelName?: string;  // NEW: Tên model customer nhập
   categoryId?: number;         // NEW: Category ID
   categoryName?: string;       // NEW: Category name
+  productId?: number;          // NEW: Product ID - xe đã được phân công
   user: {
     userId: number;
     name: string;
@@ -39,6 +40,7 @@ export interface TestDriveRes {
     email: string;
     phone: string;
   };
+  attemptNumber?: number;      // NEW: Số lần đăng ký lái thử category này (1, 2, 3...)
 }
 
 export interface TestDriveReq {
@@ -212,7 +214,50 @@ export async function getAvailableSlots(
 
 // ============ Dealer Staff APIs ============
 
-// Assign vehicle and escort staff (PENDING -> APPROVED)
+// Confirm test drive request (PENDING -> ASSIGNING)
+export async function confirmTestDrive(id: number): Promise<TestDriveRes> {
+  const token = localStorage.getItem('token');
+  
+  console.log('🔔 API Call - Confirm Test Drive:', {
+    url: `${API_BASE_URL}/api/testdrives/${id}/confirm`,
+    method: 'PUT',
+    hasToken: !!token
+  });
+  
+  const response = await fetch(`${API_BASE_URL}/api/testdrives/${id}/confirm`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ API Error Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorText
+    });
+    
+    // Try to parse error message from backend
+    let errorMessage = 'Failed to confirm test drive';
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    
+    throw new Error(errorMessage);
+  }
+  
+  const result = await response.json();
+  console.log('✅ API Success Response:', result);
+  return result;
+}
+
+// Assign vehicle and escort staff (ASSIGNING -> APPROVED)
 export async function assignVehicleAndStaff(id: number, data: AssignVehicleReq): Promise<TestDriveRes> {
   const token = localStorage.getItem('token');
   

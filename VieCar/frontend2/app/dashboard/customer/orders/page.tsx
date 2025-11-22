@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, Truck, Package, CheckCircle, CreditCard, Loader2, AlertCircle, MapPin, Calendar, Car, Battery, Zap, FileText, Clock, Wallet, Store } from "lucide-react";
+import { Eye, Truck, Package, CheckCircle, CreditCard, Loader2, AlertCircle, MapPin, Calendar, Car, Battery, Zap, FileText, Clock, Wallet, Store, Check } from "lucide-react";
 import { getOrdersByUserId, getOrderById, OrderRes } from "@/lib/orderApi";
 import { vnpayApi } from "@/lib/vnpayApi";
 import { useToast } from "@/hooks/use-toast";
@@ -32,9 +32,51 @@ export default function CustomerOrdersPage() {
 
   // Fetch orders on mount and when refresh param changes
   useEffect(() => {
+    let isMounted = true;
+    
+    const loadOrders = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setIsLoading(true);
+        const [fetchedOrders, fetchedDealers] = await Promise.all([
+          getOrdersByUserId(parseInt(user.id)),
+          getAllDealers()
+        ]);
+        
+        // Chỉ update state nếu component vẫn còn mounted
+        if (isMounted) {
+          console.log('📦 Fetched orders:', fetchedOrders);
+          console.log('📅 Sample order date:', fetchedOrders[0]?.orderDate);
+          setOrders(fetchedOrders);
+          setDealers(fetchedDealers);
+        }
+      } catch (error) {
+        // Chỉ hiển thị toast nếu component vẫn còn mounted
+        if (isMounted) {
+          console.error('Error fetching orders:', error);
+          toast({
+            title: "Lỗi",
+            description: "Không thể tải danh sách đơn hàng",
+            variant: "destructive",
+            duration: 3000,
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
     if (user?.id) {
-      fetchOrders();
+      loadOrders();
     }
+    
+    // Cleanup function để đánh dấu component đã unmount
+    return () => {
+      isMounted = false;
+    };
   }, [user, searchParams]);
 
   // Kiểm tra xem order có thể thanh toán không
@@ -519,42 +561,44 @@ export default function CustomerOrdersPage() {
               <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-xl">
-                <div className="rounded-full bg-orange-100 dark:bg-orange-900 p-2">
-                  <CreditCard className="h-5 w-5 text-orange-600" />
-                </div>
+              <DialogTitle className="flex items-center gap-2 text-orange-600">
+                <Check className="h-5 w-5" />
                 Xác nhận đặt cọc 30%
               </DialogTitle>
-              <DialogDescription className="text-base">
-                Chọn phương thức thanh toán để đặt cọc cho đơn hàng của bạn
+              <DialogDescription asChild>
+                <div className="space-y-4">
+                  <p className="text-base">
+                    Chọn phương thức thanh toán để đặt cọc <strong>30%</strong> cho đơn hàng của bạn
+                  </p>
+                </div>
               </DialogDescription>
             </DialogHeader>
             
             {selectedOrder && (
               <div className="space-y-5">
                 {/* Order Summary */}
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-xl p-5 space-y-3 border border-gray-200 dark:border-gray-700">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Mã đơn hàng:</span>
-                    <span className="font-semibold text-base">#{selectedOrder.orderId}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Sản phẩm:</span>
-                    <span className="font-medium">{selectedOrder.productName}</span>
-                  </div>
-                  <div className="border-t border-gray-300 dark:border-gray-600 pt-3 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Giá xe:</span>
-                      <span className="font-medium">
+                <div className="bg-orange-50 dark:bg-orange-950 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-orange-900 dark:text-orange-100">Mã đơn hàng:</span>
+                      <span className="font-semibold text-orange-900 dark:text-orange-100">#{selectedOrder.orderId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-orange-900 dark:text-orange-100">Sản phẩm:</span>
+                      <span className="font-semibold text-orange-900 dark:text-orange-100">{selectedOrder.productName}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-orange-300 dark:border-orange-700 pt-2">
+                      <span className="text-orange-900 dark:text-orange-100">Tổng giá trị:</span>
+                      <span className="font-bold text-orange-900 dark:text-orange-100">
                         {new Intl.NumberFormat('vi-VN', {
                           style: 'currency',
                           currency: 'VND'
                         }).format(selectedOrder.totalPrice)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center bg-orange-50 dark:bg-orange-950 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
-                      <span className="text-sm font-semibold text-orange-700 dark:text-orange-300">Số tiền cọc (30%):</span>
-                      <span className="font-bold text-xl text-orange-600 dark:text-orange-400">
+                    <div className="flex justify-between text-green-600 dark:text-green-400">
+                      <span className="font-semibold">Số tiền đặt cọc (30%):</span>
+                      <span className="font-bold text-lg">
                         {new Intl.NumberFormat('vi-VN', {
                           style: 'currency',
                           currency: 'VND'
@@ -566,173 +610,74 @@ export default function CustomerOrdersPage() {
 
                 {/* Payment Method Selection */}
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <Wallet className="h-4 w-4" />
-                    Chọn phương thức thanh toán
-                  </h3>
+                  <label className="text-sm font-semibold text-foreground">Phương thức thanh toán:</label>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Cash Payment Option */}
                     <button
                       onClick={() => setPaymentMethod('cash')}
-                      className={`relative overflow-hidden rounded-xl p-5 border-2 transition-all duration-300 text-left group hover:shadow-lg ${
+                      className={`p-4 rounded-lg border-2 transition-all ${
                         paymentMethod === 'cash'
-                          ? 'border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 shadow-lg scale-105'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 bg-white dark:bg-gray-900'
+                          ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                          paymentMethod === 'cash'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-green-100 group-hover:text-green-600'
-                        }`}>
-                          <Store className="h-6 w-6" />
+                      <div className="flex flex-col items-center gap-2">
+                        <div className={`p-2 rounded-full ${paymentMethod === 'cash' ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                          <Store className={`h-5 w-5 ${paymentMethod === 'cash' ? 'text-green-600' : 'text-gray-500'}`} />
                         </div>
-                        <div className="flex-1">
-                          <h4 className={`font-bold mb-1 transition-colors ${
-                            paymentMethod === 'cash' ? 'text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-white'
-                          }`}>
-                            Tiền mặt tại cửa hàng
-                          </h4>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            Đến đại lý để đặt cọc trực tiếp
-                          </p>
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-green-600 dark:text-green-400">✓</span>
-                              <span className="text-gray-600 dark:text-gray-400">Thanh toán trực tiếp tại cửa hàng</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-green-600 dark:text-green-400">✓</span>
-                              <span className="text-gray-600 dark:text-gray-400">Xem xe và tư vấn chi tiết</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-green-600 dark:text-green-400">✓</span>
-                              <span className="text-gray-600 dark:text-gray-400">Nhận hóa đơn ngay lập tức</span>
-                            </div>
-                          </div>
-                        </div>
-                        {paymentMethod === 'cash' && (
-                          <div className="absolute top-3 right-3">
-                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                              <CheckCircle className="h-4 w-4 text-white" />
-                            </div>
-                          </div>
-                        )}
+                        <span className={`font-semibold text-sm ${paymentMethod === 'cash' ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                          Tiền mặt tại cửa hàng
+                        </span>
                       </div>
                     </button>
 
                     {/* VNPay Payment Option */}
                     <button
                       onClick={() => setPaymentMethod('vnpay')}
-                      className={`relative overflow-hidden rounded-xl p-5 border-2 transition-all duration-300 text-left group hover:shadow-lg ${
+                      className={`p-4 rounded-lg border-2 transition-all ${
                         paymentMethod === 'vnpay'
-                          ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 shadow-lg scale-105'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 bg-white dark:bg-gray-900'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                          paymentMethod === 'vnpay'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600'
-                        }`}>
-                          <CreditCard className="h-6 w-6" />
+                      <div className="flex flex-col items-center gap-2">
+                        <div className={`p-2 rounded-full ${paymentMethod === 'vnpay' ? 'bg-blue-100 dark:bg-blue-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                          <CreditCard className={`h-5 w-5 ${paymentMethod === 'vnpay' ? 'text-blue-600' : 'text-gray-500'}`} />
                         </div>
-                        <div className="flex-1">
-                          <h4 className={`font-bold mb-1 transition-colors ${
-                            paymentMethod === 'vnpay' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-white'
-                          }`}>
-                            Thanh toán VNPay
-                          </h4>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            Thanh toán online an toàn & nhanh chóng
-                          </p>
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-blue-600 dark:text-blue-400">✓</span>
-                              <span className="text-gray-600 dark:text-gray-400">Thanh toán qua ATM/Visa/Master</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-blue-600 dark:text-blue-400">✓</span>
-                              <span className="text-gray-600 dark:text-gray-400">Bảo mật 3D Secure</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-blue-600 dark:text-blue-400">✓</span>
-                              <span className="text-gray-600 dark:text-gray-400">Xác nhận tức thì, không cần đến cửa hàng</span>
-                            </div>
-                          </div>
-                        </div>
-                        {paymentMethod === 'vnpay' && (
-                          <div className="absolute top-3 right-3">
-                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                              <CheckCircle className="h-4 w-4 text-white" />
-                            </div>
-                          </div>
-                        )}
+                        <span className={`font-semibold text-sm ${paymentMethod === 'vnpay' ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                          VNPay (Online)
+                        </span>
                       </div>
                     </button>
                   </div>
                 </div>
 
-                {/* Payment Instructions */}
-                {paymentMethod === 'cash' && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 rounded-xl p-4 border border-green-200 dark:border-green-800">
-                    <p className="text-sm text-green-900 dark:text-green-100 font-semibold mb-2 flex items-center gap-2">
-                      <Store className="h-4 w-4" />
-                      Hướng dẫn thanh toán tiền mặt
-                    </p>
-                    <ul className="text-sm text-green-800 dark:text-green-200 space-y-2">
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-600 dark:text-green-400 flex-shrink-0">1.</span>
-                        <span>Đến đại lý <strong>{getDealerName(selectedOrder.dealerId)}</strong> trong vòng 24 giờ</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-600 dark:text-green-400 flex-shrink-0">2.</span>
-                        <span>Xuất trình mã đơn hàng <strong>#{selectedOrder.orderId}</strong></span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-600 dark:text-green-400 flex-shrink-0">3.</span>
-                        <span>Thanh toán <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedOrder.totalPrice * 0.3)}</strong> và nhận biên lai</span>
-                      </li>
-                    </ul>
+                {/* Information Box */}
+                <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                  <div className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
+                    📋 Sau khi xác nhận:
                   </div>
-                )}
-
-                {paymentMethod === 'vnpay' && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-900 dark:text-blue-100 font-semibold mb-2 flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      Thông tin thanh toán VNPay
-                    </p>
-                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 dark:text-blue-400">✓</span>
-                        <span>Thanh toán an toàn qua cổng VNPay</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 dark:text-blue-400">✓</span>
-                        <span>Đặt cọc 30%, thanh toán phần còn lại khi nhận xe</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 dark:text-blue-400">✓</span>
-                        <span>Số tiền còn lại: <strong>{new Intl.NumberFormat('vi-VN', {
-                            style: 'currency',
-                            currency: 'VND'
-                          }).format(selectedOrder.totalPrice * 0.7)}</strong></span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-blue-600 dark:text-blue-400">✓</span>
-                        <span>Hỗ trợ thanh toán qua thẻ ATM/Visa/Master</span>
-                      </li>
-                    </ul>
-                  </div>
-                )}
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-4">
+                    {paymentMethod === 'cash' ? (
+                      <>
+                        <li>✓ Đến cửa hàng để thanh toán tiền mặt</li>
+                        <li>✓ Nhân viên sẽ xác nhận và gửi yêu cầu đến đại lý</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>✓ Bạn sẽ được chuyển đến trang VNPay để thanh toán</li>
+                        <li>✓ Sau khi thanh toán thành công, đơn hàng tự động chuyển trạng thái</li>
+                      </>
+                    )}
+                    <li>✓ Đại lý sẽ chuẩn bị xe cho bạn</li>
+                    <li>✓ Bạn sẽ thanh toán 70% còn lại khi nhận xe</li>
+                  </ul>
+                </div>
               </div>
             )}
-
-            <DialogFooter className="flex-col sm:flex-row gap-2">
+            
+            <DialogFooter>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -740,53 +685,37 @@ export default function CustomerOrdersPage() {
                   setPaymentMethod(null);
                 }}
                 disabled={isProcessingPayment}
-                className="w-full sm:w-auto"
               >
                 Hủy
               </Button>
               <Button
                 onClick={paymentMethod === 'cash' ? confirmCashPayment : confirmPayment}
-                disabled={isProcessingPayment || !paymentMethod}
-                className={`w-full sm:w-auto ${
-                  paymentMethod === 'cash' 
-                    ? 'bg-green-600 hover:bg-green-700' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                disabled={!paymentMethod || isProcessingPayment}
+                className={paymentMethod === 'cash' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}
               >
                 {isProcessingPayment ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
                     Đang xử lý...
                   </>
                 ) : (
                   <>
-                    {paymentMethod === 'cash' ? (
-                      <>
-                        <Store className="mr-2 h-4 w-4" />
-                        Xác nhận đặt cọc tại cửa hàng
-                      </>
-                    ) : paymentMethod === 'vnpay' ? (
-                      <>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Thanh toán VNPay
-                      </>
-                    ) : (
-                      'Chọn phương thức thanh toán'
-                    )}
+                    <Check className="h-4 w-4 mr-2" />
+                    {paymentMethod === 'cash' ? 'Xác nhận thanh toán tại cửa hàng' : 'Chuyển đến VNPay'}
                   </>
                 )}
               </Button>
             </DialogFooter>
-              </DialogContent>
-            </Dialog>
+          </DialogContent>
+        </Dialog>
 
             {/* Order Detail Dialog */}
             <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-3 text-2xl">
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-xl">
-                      <FileText className="h-6 w-6 text-blue-600" />
+                  <DialogTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                      <FileText className="h-5 w-5 text-blue-600" />
                     </div>
                     Chi tiết đơn hàng #{orderDetail?.orderId}
                   </DialogTitle>
@@ -796,71 +725,179 @@ export default function CustomerOrdersPage() {
                 </DialogHeader>
 
                 {orderDetail && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {/* Order Status */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-xl p-6 border-2 border-blue-200 dark:border-blue-800">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-muted-foreground mb-1">Trạng thái đơn hàng</p>
+                          <p className="text-xs text-muted-foreground mb-1">Trạng thái đơn hàng</p>
                           <div className="flex items-center gap-2">
                             {getStatusIcon(orderDetail.status)}
                             {getStatusBadge(orderDetail.status)}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground mb-1">Mã đơn hàng</p>
-                          <p className="text-xl font-bold text-blue-600">#{orderDetail.orderId}</p>
+                          <p className="text-[10px] text-muted-foreground mb-1">Mã đơn hàng</p>
+                          <p className="text-base font-bold text-blue-600">#{orderDetail.orderId}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Customer & Dealer Info */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-muted-foreground">Thông tin khách hàng</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="font-semibold text-lg">{orderDetail.customerName}</p>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-muted-foreground">Đại lý</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-5 w-5 text-blue-600" />
-                            <p className="font-semibold text-lg">{getDealerName(orderDetail.dealerId)}</p>
+                    {/* Customer Info */}
+                    <Card className="border border-blue-200">
+                      <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 py-3">
+                        <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300 text-base">
+                          <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                            <Eye className="h-4 w-4 text-blue-600" />
                           </div>
-                        </CardContent>
-                      </Card>
-                    </div>
+                          Thông tin khách hàng
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Họ và tên</p>
+                              <p className="font-semibold text-sm">{orderDetail.customerName}</p>
+                            </div>
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Email</p>
+                              <p className="font-semibold text-sm text-blue-600 dark:text-blue-400">{orderDetail.customerEmail || 'Chưa cập nhật'}</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Số điện thoại</p>
+                              <p className="font-semibold text-sm">{orderDetail.customerPhone || 'Chưa cập nhật'}</p>
+                            </div>
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                Đại lý
+                              </p>
+                              <p className="font-semibold text-sm">{getDealerName(orderDetail.dealerId)}</p>
+                            </div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                            <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              Địa chỉ
+                            </p>
+                            <p className="font-semibold text-sm">{orderDetail.customerAddress || 'Chưa cập nhật'}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
 
                     {/* Product Info */}
-                    <Card className="border-2">
-                      <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-                        <CardTitle className="flex items-center gap-2">
-                          <Car className="h-5 w-5 text-blue-600" />
+                    <Card className="border border-green-200">
+                      <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 py-3">
+                        <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300 text-base">
+                          <div className="p-1.5 bg-green-100 dark:bg-green-900 rounded-lg">
+                            <Car className="h-4 w-4 text-green-600" />
+                          </div>
                           Thông tin sản phẩm
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-6">
-                        <div className="space-y-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground mb-1">Tên xe</p>
-                            <p className="text-xl font-bold text-blue-600">{orderDetail.productName}</p>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          {/* Hình ảnh và Tên xe */}
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                            {/* Hình ảnh xe */}
+                            {orderDetail.productImage ? (
+                              <div className="lg:col-span-1">
+                                <div className="relative w-full h-32 rounded-lg overflow-hidden border-2 border-blue-200 dark:border-blue-800 shadow-md">
+                                  <img 
+                                    src={orderDetail.productImage} 
+                                    alt={orderDetail.productName}
+                                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="lg:col-span-1">
+                                <div className="w-full h-32 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 border-2 border-blue-200 dark:border-blue-800">
+                                  <Car className="h-12 w-12 text-blue-400 dark:text-blue-300" />
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Tên xe */}
+                            <div className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800 flex flex-col justify-center">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <Car className="h-3 w-3" />
+                                Tên sản phẩm
+                              </p>
+                              <p className="text-base font-bold text-blue-600 dark:text-blue-400">{orderDetail.productName}</p>
+                            </div>
+                          </div>
+
+                          {/* Số VIN và Số máy */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-2.5 rounded-lg border border-purple-200 dark:border-purple-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                Số VIN
+                              </p>
+                              <p className="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">{orderDetail.productVin || 'Chưa có'}</p>
+                            </div>
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-2.5 rounded-lg border border-purple-200 dark:border-purple-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                Số máy
+                              </p>
+                              <p className="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">{orderDetail.productEngine || 'Chưa có'}</p>
+                            </div>
+                          </div>
+
+                          {/* Thông số kỹ thuật */}
+                          <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <p className="text-[10px] font-semibold text-muted-foreground mb-2">THÔNG SỐ KỸ THUẬT</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
+                                  <Battery className="h-3 w-3" />
+                                  Pin
+                                </p>
+                                <p className="text-xs font-bold text-green-600">{orderDetail.productBattery ? `${orderDetail.productBattery} kWh` : 'N/A'}</p>
+                              </div>
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
+                                  <Zap className="h-3 w-3" />
+                                  Tầm xa
+                                </p>
+                                <p className="text-xs font-bold text-blue-600">{orderDetail.productRange ? `${orderDetail.productRange} km` : 'N/A'}</p>
+                              </div>
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5">Công suất</p>
+                                <p className="text-xs font-bold text-orange-600">{orderDetail.productHP ? `${orderDetail.productHP} HP` : 'N/A'}</p>
+                              </div>
+                              <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-muted-foreground mb-0.5">Mô-men xoắn</p>
+                                <p className="text-xs font-bold text-red-600">{orderDetail.productTorque ? `${orderDetail.productTorque} Nm` : 'N/A'}</p>
+                              </div>
+                            </div>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Số lượng</p>
-                              <p className="text-lg font-semibold">1 xe</p>
+                          {/* Màu sắc và Giá trị */}
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <p className="text-[10px] text-muted-foreground mb-1">Màu sắc</p>
+                              <p className="text-sm font-semibold">{orderDetail.productColor || 'Chưa chọn'}</p>
                             </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Tổng giá trị</p>
-                              <p className="text-lg font-bold text-green-600">
+                            <div className="bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <Package className="h-3 w-3" />
+                                Số lượng
+                              </p>
+                              <p className="text-sm font-semibold">1 xe</p>
+                            </div>
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-2.5 rounded-lg border border-green-200 dark:border-green-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <CreditCard className="h-3 w-3" />
+                                Tổng giá trị
+                              </p>
+                              <p className="text-base font-bold text-green-600 dark:text-green-400">
                                 {new Intl.NumberFormat('vi-VN', {
                                   style: 'currency',
                                   currency: 'VND'
@@ -868,25 +905,36 @@ export default function CustomerOrdersPage() {
                               </p>
                             </div>
                           </div>
+
+                          {/* Ghi chú (nếu có) */}
+                          {orderDetail.notes && (
+                            <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                              <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                Ghi chú
+                              </p>
+                              <p className="text-sm text-yellow-900 dark:text-yellow-100">{orderDetail.notes}</p>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
 
                     {/* Dates */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                        <CardHeader className="py-2">
+                          <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
                             Ngày đặt hàng
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <p className="font-semibold text-base leading-relaxed">
+                        <CardContent className="py-2">
+                          <p className="font-semibold text-sm leading-relaxed">
                             {formatDate(orderDetail.orderDate, true)}
                           </p>
                           {orderDetail.orderDate && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] text-muted-foreground mt-1">
                               {new Date(orderDetail.orderDate).toLocaleTimeString('vi-VN', {
                                 hour: '2-digit',
                                 minute: '2-digit',
@@ -898,18 +946,18 @@ export default function CustomerOrdersPage() {
                       </Card>
 
                       <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                        <CardHeader className="py-2">
+                          <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
                             <Truck className="h-4 w-4" />
                             Ngày giao dự kiến
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <p className="font-semibold text-base leading-relaxed">
+                        <CardContent className="py-2">
+                          <p className="font-semibold text-sm leading-relaxed">
                             {orderDetail.deliveryDate ? formatDate(orderDetail.deliveryDate, false) : 'Chưa xác định'}
                           </p>
                           {orderDetail.deliveryDate && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] text-muted-foreground mt-1">
                               Dự kiến giao trong giờ hành chính
                             </p>
                           )}

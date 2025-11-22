@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   getTestDrivesByDealerId, 
   updateTestDrive, 
+  confirmTestDrive,
   assignVehicleAndStaff,
   TestDriveRes,
   TestDriveStatus
@@ -48,6 +49,7 @@ export default function TestDrivesPage() {
   const [testDrives, setTestDrives] = useState<TestDriveRes[]>([]);
   const [products, setProducts] = useState<ProductRes[]>([]);
   const [categories, setCategories] = useState<any[]>([]); // Store categories for name mapping
+  const [productsInUse, setProductsInUse] = useState<number[]>([]); // IDs of products currently assigned
   const [loading, setLoading] = useState(true);
   const [selectedTestDrive, setSelectedTestDrive] = useState<TestDriveRes | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -184,6 +186,15 @@ export default function TestDrivesPage() {
       });
       setFeedbackMap(newFeedbackMap);
       console.log('💬 [loadTestDrives] Feedbacks loaded:', Object.keys(newFeedbackMap).length);
+      
+      // Calculate products in use (APPROVED or IN_PROGRESS status)
+      const inUseProductIds = sorted
+        .filter(td => (td.status === 'APPROVED' || td.status === 'IN_PROGRESS') && td.productId)
+        .map(td => td.productId!)
+        .filter((id, index, self) => self.indexOf(id) === index); // unique
+      
+      setProductsInUse(inUseProductIds);
+      console.log('🔒 [loadTestDrives] Products currently in use:', inUseProductIds);
     } catch (error) {
       console.error('❌ [loadTestDrives] Error loading test drives:', error);
       console.error('❌ [loadTestDrives] Error details:', error);
@@ -204,7 +215,7 @@ export default function TestDrivesPage() {
     }
 
     try {
-      console.log('🔄 Loading products for dealer:', user.dealerId);
+      console.log('🔄 Loading AVAILABLE products for dealer:', user.dealerId);
       
       // First, get all categories for this dealer
       const { getCategoriesByDealerId } = await import('@/lib/categoryApi');
@@ -220,7 +231,7 @@ export default function TestDrivesPage() {
         return;
       }
       
-      // Then load products from all dealer's categories
+      // Load all products and mark which ones are in use
       const { getProductsByCategory } = await import('@/lib/productApi');
       let allProducts: ProductRes[] = [];
       
@@ -289,8 +300,50 @@ export default function TestDrivesPage() {
     }
   };
 
-  // Handler for opening assignment dialog
+  // Handler for confirming test drive (PENDING -> ASSIGNING)
+  const handleConfirmTestDrive = async (testDrive: TestDriveRes) => {
+    try {
+      setUpdating(true);
+      const result = await confirmTestDrive(testDrive.id);
+      
+      toast({
+        title: '✅ Đã xác nhận đơn lái thử',
+        description: (
+          <div className="mt-2 space-y-1">
+            <p className="font-semibold">Khách hàng: {testDrive.user.name}</p>
+            <p>Mẫu xe: {testDrive.categoryName}</p>
+            <p>Thời gian: {new Date(testDrive.scheduleDate).toLocaleString('vi-VN')}</p>
+            <p className="text-blue-600 font-semibold mt-2">⏳ Vui lòng phân công xe tiếp theo</p>
+          </div>
+        ),
+        duration: 6000,
+      });
+      
+      loadTestDrives();
+    } catch (error) {
+      console.error('❌ Failed to confirm:', error);
+      toast({
+        title: '❌ Không thể xác nhận đơn',
+        description: 'Vui lòng thử lại sau',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Handler for opening assignment dialog (only for ASSIGNING status)
   const handleOpenAssignDialog = (testDrive: TestDriveRes) => {
+    // Kiểm tra trạng thái trước khi mở dialog
+    if (testDrive.status !== TestDriveStatus.ASSIGNING) {
+      toast({
+        title: 'Chú ý',
+        description: 'Vui lòng xác nhận đơn trước khi phân công xe.',
+        variant: 'default',
+      });
+      return;
+    }
+    
     console.log('🚗 Opening assign dialog for:', testDrive);
     console.log('📋 Category ID:', testDrive.categoryId);
     console.log('📋 Category Name:', testDrive.categoryName);
@@ -458,20 +511,20 @@ export default function TestDrivesPage() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      PENDING: { label: 'Chờ xác nhận', variant: 'default' as const, icon: AlertCircle, color: 'text-yellow-600' },
-      ASSIGNING: { label: 'Đang chờ phân công', variant: 'default' as const, icon: AlertCircle, color: 'text-orange-600' },
-      APPROVED: { label: 'Đã phân công', variant: 'default' as const, icon: CheckCircle, color: 'text-green-600' },
-      IN_PROGRESS: { label: 'Đang lái thử', variant: 'default' as const, icon: Car, color: 'text-blue-600' },
-      DONE: { label: 'Hoàn thành', variant: 'default' as const, icon: CheckCircle, color: 'text-gray-600' },
-      REJECTED: { label: 'Đã từ chối', variant: 'destructive' as const, icon: XCircle, color: 'text-red-600' },
-      CANCELLED: { label: 'Đã hủy', variant: 'destructive' as const, icon: XCircle, color: 'text-red-600' },
+      PENDING: { label: 'Chờ xác nhận', variant: 'secondary' as const, icon: AlertCircle, color: 'text-yellow-600', bgColor: 'bg-yellow-100 dark:bg-yellow-900' },
+      ASSIGNING: { label: 'Chờ phân công', variant: 'secondary' as const, icon: AlertCircle, color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900' },
+      APPROVED: { label: 'Đã xác nhận', variant: 'default' as const, icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-500' },
+      IN_PROGRESS: { label: 'Đang lái thử', variant: 'default' as const, icon: Car, color: 'text-blue-600', bgColor: 'bg-blue-500' },
+      DONE: { label: 'Hoàn thành', variant: 'default' as const, icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500' },
+      REJECTED: { label: 'Đã từ chối', variant: 'destructive' as const, icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-500' },
+      CANCELLED: { label: 'Đã hủy', variant: 'outline' as const, icon: XCircle, color: 'text-gray-600', bgColor: 'bg-gray-500' },
     };
     const config = badges[status as keyof typeof badges] || badges.PENDING;
     const Icon = config.icon;
     
     return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className={`h-3 w-3 ${config.color}`} />
+      <Badge variant={config.variant} className={`gap-1 ${config.bgColor}`}>
+        <Icon className={`h-3 w-3`} />
         {config.label}
       </Badge>
     );
@@ -1022,12 +1075,57 @@ export default function TestDrivesPage() {
                     {testDrive.status === TestDriveStatus.PENDING && (
                       <>
                         <Button 
-                          onClick={() => handleOpenAssignDialog(testDrive)}
+                          onClick={() => handleConfirmTestDrive(testDrive)}
                           size="sm"
                           className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
+                          disabled={updating}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Xác nhận đơn
+                        </Button>
+                        <Button 
+                          onClick={async () => {
+                            try {
+                              setUpdating(true);
+                              await updateTestDrive(testDrive.id, {
+                                status: TestDriveStatus.REJECTED,
+                                notes: 'Đại lý từ chối yêu cầu',
+                              });
+                              toast({
+                                title: 'Đã từ chối',
+                                description: 'Đã từ chối yêu cầu lái thử',
+                              });
+                              loadTestDrives();
+                            } catch (error) {
+                              toast({
+                                title: 'Lỗi',
+                                description: 'Không thể từ chối yêu cầu',
+                                variant: 'destructive',
+                              });
+                            } finally {
+                              setUpdating(false);
+                            }
+                          }}
+                          size="sm"
+                          variant="destructive"
+                          disabled={updating}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Từ chối
+                        </Button>
+                      </>
+                    )}
+                    
+                    {testDrive.status === TestDriveStatus.ASSIGNING && (
+                      <>
+                        <Button 
+                          onClick={() => handleOpenAssignDialog(testDrive)}
+                          size="sm"
+                          className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 shadow-md"
+                          disabled={updating}
                         >
                           <Car className="h-4 w-4 mr-2" />
-                          Phân công xe ngay
+                          Phân công xe
                         </Button>
                         <Button 
                           onClick={async () => {
@@ -1059,17 +1157,6 @@ export default function TestDrivesPage() {
                           Hủy yêu cầu
                         </Button>
                       </>
-                    )}
-                    
-                    {testDrive.status === TestDriveStatus.ASSIGNING && (
-                      <Button 
-                        onClick={() => handleOpenAssignDialog(testDrive)}
-                        size="sm"
-                        className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 shadow-md"
-                      >
-                        <AlertCircle className="h-4 w-4 mr-2" />
-                        Phân công xe
-                      </Button>
                     )}
                     
                     {testDrive.status === TestDriveStatus.APPROVED && (
@@ -1394,8 +1481,8 @@ export default function TestDrivesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      // Chỉ hiển thị xe có status = 'TEST_DRIVE' và match category NAME
-                      const availableVehicles = products.filter(p => {
+                      // Hiển thị tất cả xe có status = 'TEST_DRIVE' và match category NAME
+                      const testDriveVehicles = products.filter(p => {
                         // Bắt buộc phải có status TEST_DRIVE
                         if (p.status !== 'TEST_DRIVE') return false;
                         
@@ -1408,9 +1495,10 @@ export default function TestDrivesPage() {
                         return productCategoryName === selectedTestDrive.categoryName;
                       });
                       
-                      console.log('📋 Available TEST_DRIVE vehicles for assignment:', availableVehicles);
+                      console.log('📋 All TEST_DRIVE vehicles for category:', testDriveVehicles);
+                      console.log('🔒 Products in use:', productsInUse);
                       
-                      if (availableVehicles.length === 0) {
+                      if (testDriveVehicles.length === 0) {
                         return (
                           <SelectItem value="0" disabled>
                             Không có xe lái thử nào trong danh mục này
@@ -1418,42 +1506,105 @@ export default function TestDrivesPage() {
                         );
                       }
                       
-                      return availableVehicles.map(product => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.name} - VIN: {product.vinNum} ✅
-                        </SelectItem>
-                      ));
+                      // Separate available and in-use vehicles
+                      const availableVehicles = testDriveVehicles.filter(p => !productsInUse.includes(p.id));
+                      const inUseVehicles = testDriveVehicles.filter(p => productsInUse.includes(p.id));
+                      
+                      return (
+                        <>
+                          {availableVehicles.map(product => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              ✅ {product.name} - VIN: {product.vinNum}
+                            </SelectItem>
+                          ))}
+                          {inUseVehicles.length > 0 && availableVehicles.length > 0 && (
+                            <SelectItem value="separator" disabled className="text-xs text-muted-foreground">
+                              ───── Xe đang được sử dụng ─────
+                            </SelectItem>
+                          )}
+                          {inUseVehicles.map(product => (
+                            <SelectItem 
+                              key={product.id} 
+                              value={product.id.toString()}
+                              className="text-orange-600 dark:text-orange-400"
+                            >
+                              🔒 {product.name} - VIN: {product.vinNum} (Đang phân công)
+                            </SelectItem>
+                          ))}
+                        </>
+                      );
                     })()}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  ✓ Chỉ hiển thị xe có trạng thái "Lái thử" trong danh mục "{selectedTestDrive.categoryName}"
+                  Danh mục "{selectedTestDrive.categoryName}" - Xe có 🔒 đang được phân công cho khách khác
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                  Tìm thấy {products.filter(p => {
-                    if (p.status !== 'TEST_DRIVE') return false;
-                    if (!selectedTestDrive.categoryName) return false;
-                    const category = categories.find(c => c.id === p.categoryId);
-                    const productCategoryName = category?.name || '';
-                    return productCategoryName === selectedTestDrive.categoryName;
-                  }).length} xe sẵn sàng (match by category NAME)
+                <p className="text-xs space-x-3">
+                  <span className="text-green-600 dark:text-green-400 font-semibold">
+                    ✅ {products.filter(p => {
+                      if (p.status !== 'TEST_DRIVE') return false;
+                      if (!selectedTestDrive.categoryName) return false;
+                      const category = categories.find(c => c.id === p.categoryId);
+                      const productCategoryName = category?.name || '';
+                      return productCategoryName === selectedTestDrive.categoryName && !productsInUse.includes(p.id);
+                    }).length} xe sẵn sàng
+                  </span>
+                  <span className="text-orange-600 dark:text-orange-400 font-semibold">
+                    🔒 {products.filter(p => {
+                      if (p.status !== 'TEST_DRIVE') return false;
+                      if (!selectedTestDrive.categoryName) return false;
+                      const category = categories.find(c => c.id === p.categoryId);
+                      const productCategoryName = category?.name || '';
+                      return productCategoryName === selectedTestDrive.categoryName && productsInUse.includes(p.id);
+                    }).length} xe đang phân công
+                  </span>
                 </p>
               </div>
 
               {/* Auto-assigned Staff Info */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Nhân viên hộ tống</label>
-                <div className="text-sm p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                  <div className="flex items-center gap-2 mb-1">
-                    <User className="h-4 w-4 text-green-600" />
-                    <span className="font-medium text-green-800 dark:text-green-200">
-                      {user?.username || 'Nhân viên hiện tại'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-green-700 dark:text-green-300">
-                    ✓ Tự động gán nhân viên đang xử lý đơn làm người hộ tống
-                  </p>
-                </div>
+                {(() => {
+                  // Check if current staff is busy with another IN_PROGRESS test drive
+                  const staffBusyTestDrive = testDrives.find(td => 
+                    td.escortStaff?.id === user?.userId && 
+                    td.status === 'IN_PROGRESS' &&
+                    td.id !== selectedTestDrive?.id
+                  );
+                  
+                  if (staffBusyTestDrive) {
+                    return (
+                      <div className="text-sm p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-md">
+                        <div className="flex items-center gap-2 mb-1">
+                          <AlertCircle className="h-4 w-4 text-orange-600" />
+                          <span className="font-medium text-orange-800 dark:text-orange-200">
+                            {user?.username || 'Bạn'} đang bận
+                          </span>
+                        </div>
+                        <p className="text-xs text-orange-700 dark:text-orange-300 mb-1">
+                          ⚠️ Đang đi cùng {staffBusyTestDrive.user.name} (đơn #{staffBusyTestDrive.id})
+                        </p>
+                        <p className="text-xs text-orange-600 dark:text-orange-400 font-semibold">
+                          Vui lòng hoàn thành đơn hiện tại trước khi phân công đơn mới
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="text-sm p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                      <div className="flex items-center gap-2 mb-1">
+                        <User className="h-4 w-4 text-green-600" />
+                        <span className="font-medium text-green-800 dark:text-green-200">
+                          {user?.username || 'Nhân viên hiện tại'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        ✓ Tự động gán nhân viên đang xử lý đơn làm người hộ tống
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1468,7 +1619,16 @@ export default function TestDrivesPage() {
             </Button>
             <Button 
               onClick={handleAssignVehicle}
-              disabled={updating || !selectedProductId}
+              disabled={
+                updating || 
+                !selectedProductId ||
+                // Disable if staff is busy with another test drive
+                testDrives.some(td => 
+                  td.escortStaff?.id === user?.userId && 
+                  td.status === 'IN_PROGRESS' &&
+                  td.id !== selectedTestDrive?.id
+                )
+              }
             >
               {updating ? 'Đang xử lý...' : 'Tiếp tục'}
             </Button>

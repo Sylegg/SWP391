@@ -5,42 +5,40 @@ const SYSTEM_PROMPT = `Bạn là chuyên viên tư vấn xe điện VinFast củ
 
 THÔNG TIN SẢN PHẨM VINFAST:
 
-**VF 3 (Mini SUV):**
-- Giá: Từ 240 triệu VNĐ
+**VF 3:**
+- Giá: Liên hệ với nhân viên để hỗ trợ giá tiền
 - Pin: 18.64 kWh, quãng đường 210km
-- Phân khúc: Xe điện mini, phù hợp đi phố
 
-**VF 5 (Compact SUV):**
-- Giá: Từ 468 triệu VNĐ
+**VF 5:**
+- Giá: Liên hệ với nhân viên để hỗ trợ giá tiền
 - Pin: 37.23 kWh, quãng đường 326km
-- Phân khúc: SUV cỡ nhỏ, thích hợp gia đình trẻ
 
-**VF 6 (Compact SUV):**
-- Giá: Từ 675 triệu VNĐ
+**VF 6:**
+- Giá: Liên hệ với nhân viên để hỗ trợ giá tiền
 - Pin: 59.6 kWh, quãng đường 410km
 - Tính năng: Camera 360°, hệ thống ADAS
 
-**VF 7 (Mid-size SUV):**
-- Giá: Từ 850 triệu VNĐ
+**VF 7:**
+- Giá: Liên hệ với nhân viên để hỗ trợ giá tiền
 - Pin: 75.3 kWh, quãng đường 450km
 - Tính năng: Hệ thống lái tự động cấp 2
 
-**VF 8 (Mid-size SUV):**
-- Giá: Từ 1.05 tỷ VNĐ
+**VF 8:**
+- Giá: Liên hệ với nhân viên để hỗ trợ giá tiền
 - Pin: 87.7 kWh, quãng đường 471km
 - Tính năng: Sạc nhanh, công suất 402 mã lực
 
-**VF 9 (Full-size SUV):**
-- Giá: Từ 1.5 tỷ VNĐ
+**VF 9:**
+- Giá: Liên hệ với nhân viên để hỗ trợ giá tiền
 - Pin: 123 kWh, quãng đường 680km
 - Tính năng: 7 chỗ, sang trọng, công nghệ cao
 
-**VF e34 (Compact SUV):**
-- Giá: Từ 690 triệu VNĐ
-- Pin: 42 kWh, quãng đường 285km
-- Phân khúc: Phổ thông, tiết kiệm
-
 DỊCH VỤ:
+- Bảo hành: 2 đến 10 năm hoặc 200.000 km
+- Pin: Bảo hành 10 năm
+- Sạc pin: Hệ thống trạm sạc toàn quốc
+- Hỗ trợ: 24/7
+- Lái thử: Miễn phí tại showroom
 - Bảo hành: 10 năm hoặc 200.000 km
 - Pin: Bảo hành 10 năm
 - Sạc pin: Hệ thống trạm sạc toàn quốc
@@ -89,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // Gọi Gemini API
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -164,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       reply: aiResponse,
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.0-flash',
       timestamp: new Date().toISOString()
     })
 
