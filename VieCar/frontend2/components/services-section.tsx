@@ -8,16 +8,6 @@ const services = [
     description: "Bảo hành chính hãng lên đến 5 năm hoặc 100.000km cho tất cả các dòng xe",
   },
   {
-    icon: Wrench,
-    title: "Bảo dưỡng định kỳ",
-    description: "Dịch vụ bảo dưỡng chuyên nghiệp với đội ngũ kỹ thuật viên được đào tạo bài bản",
-  },
-  {
-    icon: CreditCard,
-    title: "Hỗ trợ tài chính",
-    description: "Gói vay ưu đãi với lãi suất thấp, thủ tục nhanh gọn, duyệt trong 24h",
-  },
-  {
     icon: Headphones,
     title: "Hỗ trợ 24/7",
     description: "Đội ngũ tư vấn chuyên nghiệp sẵn sàng hỗ trợ bạn mọi lúc, mọi nơi",

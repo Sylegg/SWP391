@@ -46,8 +46,6 @@ export function Header() {
       { href: "#home", label: "Trang chủ" },
       { href: "#vehicles", label: "Xe điện" },
       { href: "#services", label: "Dịch vụ" },
-      { href: "#about", label: "Giới thiệu" },
-      { href: "#contact", label: "Liên hệ" },
     ],
     []
   )

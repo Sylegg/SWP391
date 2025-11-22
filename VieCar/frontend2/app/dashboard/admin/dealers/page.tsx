@@ -360,7 +360,7 @@ export default function AdminDealersPage() {
         address: selectedDealer.address,
         phone: selectedDealer.phone,
         email: selectedDealer.email,
-        managerId: selectedDealer.managerId,
+        taxcode: selectedDealer.taxcode,
         status: DealerStatus.INACTIVE
       };
 
