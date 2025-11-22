@@ -1894,9 +1894,20 @@ export default function EvmDistributionsPage() {
                                 {selectedDistribution.items?.some(item => item.approvedQuantity !== undefined && item.approvedQuantity !== null) && (
                                   <td className="py-2 px-2 text-center">
                                     {it.approvedQuantity !== undefined && it.approvedQuantity !== null ? (
+<<<<<<< HEAD
                                       <span className={`font-bold text-sm ${it.approvedQuantity > 0 ? 'text-green-600' : 'text-gray-500'}`}>
                                         {it.approvedQuantity}
                                       </span>
+=======
+                                      <>
+                                        <span className={`font-bold text-sm ${it.approvedQuantity > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                          {it.approvedQuantity}
+                                        </span>
+                                        {selectedDistribution.status !== 'PLANNED' && selectedDistribution.status !== 'COMPLETED' && it.quantity && it.approvedQuantity < it.quantity && it.approvedQuantity > 0 && (
+                                          <div className="text-xs text-orange-600">-{it.quantity - it.approvedQuantity}</div>
+                                        )}
+                                      </>
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}

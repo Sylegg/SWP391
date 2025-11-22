@@ -130,8 +130,17 @@ public class TestDriveService {
         
         TestDrive savedTestDrive = testDriveRepository.save(testDrive);
         
+<<<<<<< HEAD
         // Không gửi email ngay - chờ staff xác nhận
         // Email sẽ được gửi khi staff confirm (PENDING → ASSIGNING)
+=======
+        // Send confirmation email
+        try {
+            sendConfirmationEmail(savedTestDrive);
+        } catch (Exception e) {
+            System.err.println("Failed to send confirmation email: " + e.getMessage());
+        }
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
         
         return convertToRes(savedTestDrive);
     }
@@ -146,12 +155,16 @@ public class TestDriveService {
             // Send status update email if status changed
             if (req.getStatus() != null && !req.getStatus().equals(oldStatus)) {
                 try {
+<<<<<<< HEAD
                     // Gửi email xác nhận khi staff confirm đơn (PENDING → ASSIGNING)
                     if ("ASSIGNING".equals(req.getStatus()) && "PENDING".equals(oldStatus)) {
                         sendConfirmationEmail(testDrive1);
                     } else {
                         sendStatusUpdateEmail(testDrive1, oldStatus);
                     }
+=======
+                    sendStatusUpdateEmail(testDrive1, oldStatus);
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
                     
                     // Log notification when staff starts test drive (status → IN_PROGRESS)
                     if ("IN_PROGRESS".equals(req.getStatus())) {
@@ -191,9 +204,14 @@ public class TestDriveService {
         TestDrive testDrive = testDriveRepository.findById(testDriveId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu lái thử với ID: " + testDriveId));
 
+<<<<<<< HEAD
         // Chỉ cho phép assign khi ở trạng thái ASSIGNING (đã được confirm)
         if (!("ASSIGNING".equals(testDrive.getStatus()))) {
             throw new IllegalArgumentException("Chỉ có thể phân công xe cho yêu cầu đang ở trạng thái 'Đang chờ phân công'. Vui lòng xác nhận đơn trước.");
+=======
+        if (!"PENDING".equals(testDrive.getStatus()) && !"ASSIGNING".equals(testDrive.getStatus())) {
+            throw new IllegalArgumentException("Chỉ có thể phân công xe cho yêu cầu đang ở trạng thái 'Chờ xác nhận' hoặc 'Đang chờ phân công'");
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
         }
 
         // Check for conflicting bookings BEFORE assigning product
@@ -284,12 +302,21 @@ public class TestDriveService {
         }
         TestDrive savedTestDrive = testDriveRepository.save(testDrive);
 
+<<<<<<< HEAD
         // Send assignment email to customer
         try {
             sendAssignmentEmail(savedTestDrive);
         } catch (Exception e) {
             System.err.println("Failed to send assignment email: " + e.getMessage());
         }
+=======
+//        // Send confirmation email about the assignment
+//        try {
+//            sendAssignmentEmail(savedTestDrive);
+//        } catch (Exception e) {
+//            System.err.println("Failed to send assignment email: " + e.getMessage());
+//        }
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
 
         return convertToRes(savedTestDrive);
     }
@@ -401,7 +428,11 @@ public class TestDriveService {
             testDrive.setNotes(req.getNotes());
         }
 
+<<<<<<< HEAD
         // Update user - only if provided (skip if 0 or negative)
+=======
+        // Update user - only if provided and not already set
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
         if (req.getUserId() > 0) {
             Optional<User> user = userRepo.findById(req.getUserId());
             if (user.isPresent()) {
@@ -410,9 +441,14 @@ public class TestDriveService {
                 throw new IllegalArgumentException("ID người dùng không hợp lệ");
             }
         }
+<<<<<<< HEAD
         // Don't update if not provided (userId = 0 means skip)
 
         // Update dealer - only if provided (skip if 0 or negative)
+=======
+
+        // Update dealer - only if provided and not already set
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
         if (req.getDealerId() > 0) {
             Optional<Dealer> dealer = dealerRepo.findById(req.getDealerId());
             if (dealer.isPresent()) {
@@ -421,9 +457,14 @@ public class TestDriveService {
                 throw new IllegalArgumentException("ID đại lý không hợp lệ");
             }
         }
+<<<<<<< HEAD
         // Don't update if not provided (dealerId = 0 means skip)
 
         // Update category - only if provided (skip if 0 or negative)
+=======
+
+        // Update category - only if provided
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
         if (req.getCategoryId() > 0) {
             Optional<Category> category = categoryRepository.findById(req.getCategoryId());
             if (category.isPresent()) {
@@ -432,7 +473,10 @@ public class TestDriveService {
                 throw new IllegalArgumentException("Vui lòng chọn mẫu xe muốn lái thử");
             }
         }
+<<<<<<< HEAD
         // Don't update if not provided (categoryId = 0 means skip)
+=======
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
 
         // Update schedule date - only if provided
         if (req.getScheduleDate() != null) {
@@ -530,7 +574,11 @@ public class TestDriveService {
         return null;
     }
 
+<<<<<<< HEAD
     // Helper method to send confirmation email (when staff confirms request)
+=======
+    // Helper method to send confirmation email
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
     private void sendConfirmationEmail(TestDrive testDrive) {
         if (testDrive.getUser() == null || testDrive.getUser().getEmail() == null) {
             return;
@@ -539,9 +587,18 @@ public class TestDriveService {
         String customerEmail = testDrive.getUser().getEmail();
         String customerName = testDrive.getUser().getUsername();
 
+<<<<<<< HEAD
         // Use category name (product is assigned later by staff)
         String vehicleInfo = testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện";
         String dealerName = testDrive.getDealer() != null ? testDrive.getDealer().getName() : "Đại lý";
+=======
+        // Use category name instead of product name (product is assigned later by staff)
+        String vehicleInfo = testDrive.getProduct() != null
+                ? testDrive.getProduct().getName()
+                : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện");
+
+        String dealerName = testDrive.getDealer() != null ? testDrive.getDealer().getName() : "Unknown";
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
 
         java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
         java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
@@ -549,6 +606,7 @@ public class TestDriveService {
         String scheduleDate = testDrive.getScheduleDate().format(dateFormatter);
         String scheduleTime = testDrive.getScheduleDate().format(timeFormatter);
 
+<<<<<<< HEAD
         // Build email content for confirmation (PENDING → ASSIGNING)
         String subject = "✅ Đại lý đã xác nhận yêu cầu lái thử của bạn";
         String body = String.format(
@@ -563,11 +621,21 @@ public class TestDriveService {
                 "Trân trọng,\n" +
                 "Đội ngũ EVDM",
                 customerName, dealerName, vehicleInfo, scheduleDate, scheduleTime, dealerName
+=======
+        emailService.sendTestDriveConfirmation(
+                customerEmail,
+                customerName,
+                vehicleInfo,
+                dealerName,
+                scheduleDate,
+                scheduleTime
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
         );
 
         emailService.sendSimpleEmail(customerEmail, subject, body);
     }
 
+<<<<<<< HEAD
     // Helper method to send assignment email (when staff assigns vehicle)
     private void sendAssignmentEmail(TestDrive testDrive) {
         if (testDrive.getUser() == null || testDrive.getUser().getEmail() == null) {
@@ -606,6 +674,8 @@ public class TestDriveService {
         emailService.sendSimpleEmail(customerEmail, subject, body);
     }
 
+=======
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
     // Helper method to send status update email
     private void sendStatusUpdateEmail(TestDrive testDrive, String oldStatus) {
         if (testDrive.getUser() == null || testDrive.getUser().getEmail() == null) {
@@ -614,6 +684,7 @@ public class TestDriveService {
 
         String customerEmail = testDrive.getUser().getEmail();
         String customerName = testDrive.getUser().getUsername();
+<<<<<<< HEAD
         String vehicleInfo = testDrive.getProduct() != null
                 ? testDrive.getProduct().getName()
                 : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện");
@@ -673,6 +744,78 @@ public class TestDriveService {
         body.append("Đội ngũ EVDM");
 
         return body.toString();
+    }
+
+    // Helper method to validate status transitions
+    private void validateStatusTransition(String oldStatus, String newStatus) {
+        // Status flow: PENDING → ASSIGNING → APPROVED → IN_PROGRESS → DONE
+        // Can also: PENDING → REJECTED, any → CANCELLED
+
+        // Terminal states cannot be changed
+        if ("REJECTED".equals(oldStatus) || "CANCELLED".equals(oldStatus) || "DONE".equals(oldStatus)) {
+            throw new IllegalArgumentException("Không thể thay đổi trạng thái của yêu cầu đã " +
+                    getStatusLabel(oldStatus));
+        }
+
+        // PENDING can transition to: ASSIGNING, REJECTED, CANCELLED
+        if ("PENDING".equals(oldStatus)) {
+            if (!("ASSIGNING".equals(newStatus) || "REJECTED".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Chờ xác nhận' sang 'Đang chờ phân công', 'Đã từ chối' hoặc 'Đã hủy'");
+            }
+        }
+
+        // ASSIGNING can transition to: APPROVED, CANCELLED
+        if ("ASSIGNING".equals(oldStatus)) {
+            if (!("APPROVED".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đang chờ phân công' sang 'Đã phê duyệt' hoặc 'Đã hủy'");
+            }
+        }
+
+        // APPROVED can transition to: IN_PROGRESS, CANCELLED
+        if ("APPROVED".equals(oldStatus)) {
+            if (!("IN_PROGRESS".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đã phê duyệt' sang 'Đang thực hiện' hoặc 'Đã hủy'");
+            }
+        }
+
+        // IN_PROGRESS can transition to: DONE, CANCELLED
+        if ("IN_PROGRESS".equals(oldStatus)) {
+            if (!("DONE".equals(newStatus) || "CANCELLED".equals(newStatus))) {
+                throw new IllegalArgumentException("Chỉ có thể chuyển từ 'Đang thực hiện' sang 'Hoàn thành' hoặc 'Đã hủy'");
+            }
+        }
+    }
+
+    // Helper method to get Vietnamese status label
+    private String getStatusLabel(String status) {
+        return switch (status) {
+            case "PENDING" -> "Chờ xác nhận";
+            case "ASSIGNING" -> "Đang chờ phân công";
+            case "APPROVED" -> "Đã phê duyệt";
+            case "IN_PROGRESS" -> "Đang thực hiện";
+            case "DONE" -> "Hoàn thành";
+            case "REJECTED" -> "Đã từ chối";
+            case "CANCELLED" -> "Đã hủy";
+            default -> status;
+        };
+=======
+
+        // Use category name if product not assigned yet
+        String vehicleInfo = testDrive.getProduct() != null
+                ? testDrive.getProduct().getName()
+                : (testDrive.getCategory() != null ? testDrive.getCategory().getName() : "Xe điện");
+
+        String status = testDrive.getStatus();
+        String notes = testDrive.getNotes();
+
+        emailService.sendTestDriveStatusUpdate(
+                customerEmail,
+                customerName,
+                vehicleInfo,
+                status,
+                notes
+        );
+>>>>>>> edd76a10eae4fbb1e026f1f3ee424b6cb7bbc5ca
     }
 
     // Helper method to validate status transitions
